@@ -33,5 +33,5 @@ issues in local-only development tooling.
 - Secrets come from environment variables; never commit real credentials.
 - Production requires HTTPS `APP_URL`, secure cookies, CSP, and non-placeholder
   secrets.
-- Run `just audit` and keep Renovate updates reviewed.
+- Run `just audit` and review dependency updates.
 - Rotate `ACCESS_KEY`/`SECRET_KEY` and provider credentials after exposure.

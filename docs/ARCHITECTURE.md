@@ -1,80 +1,86 @@
 # Architecture
 
-KinStack is a modular monolith. Each capability is a vertical slice under
-`internal/features`, with shared infrastructure under `internal/platform`.
+KinStack uses a modular monolith with one vertical slice per application
+capability.
 
-```
-HTTP (Fiber)
-  └── global middleware (helmet, recover, request ID, logging, session, audit, CSRF, Inertia)
+```text
+HTTP
+  └── global middleware
         └── bootstrap/web_routes.go
               └── internal/features/<slice>
-                    handler.go        HTTP boundary: parse, validate, map errors
-                    service.go        application logic
-                    repository.go     consumer-owned repository interface
-                    repository_pg.go  PostgreSQL adapter
-                    repository_mem.go in-memory test adapter
-                    dto.go            request/response types
-                    errors.go         expected application errors
+                    handler.go
+                    service.go
+                    repository.go
+                    repository_pg.go
+                    repository_mem.go
+                    dto.go
+                    errors.go
 ```
 
-## Platform boundaries
+## Directories
 
-| Package | Responsibility |
+| Path | Responsibility |
 |---|---|
-| `platform/actor` | session actor and account validation |
-| `platform/authz` | RBAC + ABAC, permission registry, overrides, route guard |
-| `platform/audit` | append-only audit events |
-| `platform/database` | pgx connection, pool settings, prepared statements, Goose |
-| `platform/email` | SMTP delivery and Maizzle template rendering |
-| `platform/i18n` | English response-message catalog |
-| `platform/observability` | GlitchTip, OpenObserve OTLP, telemetry shutdown |
-| `platform/oauth` | OAuth 2.0 / OIDC providers |
-| `platform/saml` | SAML 2.0 service provider |
-| `platform/inertia` | Fibertia adapter and document shell |
-| `platform/pdf` | Gotenberg HTML-to-PDF client |
-| `platform/password` | Argon2id hashing |
-| `platform/session` | Valkey session store and 2FA challenge state |
-| `platform/sessionregistry` | active browser session registry |
-| `platform/totp` | TOTP generation and verification |
-| `platform/twofactor` | 2FA enrollment, confirmation, disable, recovery codes |
+| `cmd/` | application and migration entry points |
+| `config/` | environment loading and startup validation |
+| `internal/bootstrap/` | Fiber, middleware, dependency wiring, route table |
+| `internal/features/` | application capabilities |
+| `internal/platform/` | shared infrastructure |
+| `resources/js/` | Vue pages, layouts, components, i18n, email templates |
+| `resources/views/` | server-rendered document shell |
+| `db/migrations/` | Goose migrations |
+| `deploy/` | Docker Compose services |
 
-## Rules
+## Feature slices
 
-- Application logic belongs in `service.go`; handlers do not make business
-  decisions.
-- Repository interfaces are owned by the consuming feature.
-- DTOs use `snake_case` JSON and never expose database tags.
-- Expected errors are typed and mapped at the HTTP boundary. Unexpected errors
-  are logged with `request_id` and `error`.
-- Permission codes live in `internal/platform/authz/catalog.go`.
-- Every guarded route has an entry in `routePolicy` in
-  `internal/bootstrap/web_routes.go`. Missing entries fail during wiring.
-- `scripts/check-feature-slices.sh` enforces the canonical slice shape.
+Each slice owns its HTTP boundary, application logic, persistence contract, and
+tests.
+
+| File | Responsibility |
+|---|---|
+| `handler.go` | parse input, validate transport data, map errors |
+| `service.go` | application logic |
+| `repository.go` | consumer-owned persistence interface |
+| `repository_pg.go` | PostgreSQL adapter |
+| `repository_mem.go` | in-memory adapter for tests |
+| `dto.go` | request and response types |
+| `errors.go` | expected application errors |
+
+Rules:
+
+- Application logic stays in `service.go`.
+- Handlers do not make application decisions.
+- Repository interfaces belong to the consuming slice.
+- DTOs use `snake_case` JSON without database tags.
+- Expected errors are typed. Unexpected errors are logged with `request_id`
+  and `error`.
+- `scripts/check-feature-slices.sh` enforces the canonical slice layout.
+
+## Authorization
+
+Permission codes are defined in `internal/platform/authz/catalog.go`.
+
+Every guarded route has an entry in `routePolicy` in
+`internal/bootstrap/web_routes.go`. A missing entry fails during startup.
 
 ## UI
 
-- The dashboard shell uses Nuxt UI `dashboard-vue`: sidebar, workspace menu,
-  command palette, notification slide-over, user menu, and light/dark mode.
-- Navigation groups are `Main`, `Administration`, and `System`. Items are
-  filtered by permission; empty groups are hidden.
-- Pages use `UDashboardPanel` and `UDashboardNavbar`.
+- Dashboard pages use the existing dashboard shell.
 - Public pages use `PublicLayout`; authentication pages use `AuthLayout`.
-- Shared local components are imported explicitly; Nuxt UI components are
-  auto-imported.
-- Tables use `AppTableCard`, `AppTableTools`, and `UTable` on desktop. Mobile
-  pages use `AppMobileList`.
-- Form controls use Nuxt UI primitives. `AppInputDate` wraps `UInputDate` with a
-  calendar popover and `YYYY-MM-DD` values.
-- Server flash messages are shown through `AppFlashToaster`. Destructive actions
-  use `AppConfirmDialog`.
-- Locale is English. Dates and numbers use `en-US`; currency remains IDR.
+- Nuxt UI components are auto-imported. Local components are imported
+  explicitly from `resources/js/components`.
+- Reuse the existing components and helpers before creating new ones.
+- Tables use the existing table wrapper and tooling. Narrow viewports use the
+  existing mobile list component.
+- Go responses use the message registry in `internal/platform/i18n`. Shared
+  frontend chrome uses `vue-i18n`. Page copy is English.
 
-## Adding a vertical slice
+## Adding a slice
 
-1. Create `internal/features/<slice>` with the canonical files.
+1. Create `internal/features/<name>` with the canonical files.
 2. Add permission codes in `internal/platform/authz/catalog.go`.
-3. Register routes in `routePolicy` and mount the feature in
-   `internal/bootstrap/app.go` and `web_routes.go`.
-4. Add a Goose migration in `db/migrations`.
-5. Add the Vue page under `resources/js/pages/<slice>/` and a navigation entry.
-6. Run `just verify`.
+3. Register routes in `routePolicy`.
+4. Mount the feature in `internal/bootstrap/app.go` and `web_routes.go`.
+5. Add a Goose migration in `db/migrations`.
+6. Add the Vue page under `resources/js/pages/<name>/`.
+7. Run `just verify`.

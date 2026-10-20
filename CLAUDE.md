@@ -1,5 +1,5 @@
 # Claude Code
 
-Follow [AGENTS.md](./AGENTS.md) for repository instructions.
+Follow [AGENTS.md](./AGENTS.md).
 
 @AGENTS.md

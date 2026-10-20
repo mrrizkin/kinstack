@@ -1,42 +1,36 @@
-# Operations & runbook
-
-This document complements [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
-[`OBSERVABILITY.md`](./OBSERVABILITY.md). It contains the operational baseline
-for a KinStack deployment: backup, alerting, deployment, rollback, and incident
-response.
+# Operations
 
 ## Service targets
 
-| Signal | Initial target |
+| Signal | Target |
 |---|---|
 | HTTP availability | 99.9% per month |
-| Document request p95 latency | < 500 ms |
-| API p95 latency | < 250 ms |
+| Document request p95 | < 500 ms |
+| API p95 | < 250 ms |
 | 5xx error rate | < 0.5% |
-| Readiness | 100% during the service window |
 | PostgreSQL RPO | ≤ 6 hours |
 | PostgreSQL RTO | ≤ 2 hours |
-| Audit retention | ≥ 1 year (adjust to policy) |
+| Audit retention | ≥ 1 year |
 
-These numbers are an internal baseline, not a contractual SLA.
+These are internal targets, not a contractual SLA.
 
 ## Backup and restore
 
 ### PostgreSQL
 
-Take daily backups in custom format and encrypt them at the storage layer:
+Back up daily in custom format and encrypt at the storage layer:
 
 ```bash
 pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL" \
   | age -r "$BACKUP_AGE_RECIPIENT" > "kinstack-$(date -u +%Y%m%dT%H%M%SZ).dump.age"
 ```
 
-Minimum rules:
+Operational rules:
 
-- back up every 6 hours once application data starts arriving;
+- back up every 6 hours when application data changes frequently;
 - keep 7 daily, 4 weekly, and 12 monthly backups;
 - store backups separately from the database;
-- test a restore at least once a month to a temporary database;
+- test a restore monthly;
 - do not rely only on container volume snapshots.
 
 Restore:
@@ -47,105 +41,87 @@ age -d -i "$BACKUP_AGE_IDENTITY" kinstack-....dump.age \
   | pg_restore --no-owner --no-privileges --dbname kinstack_restore
 ```
 
-After restoring, run `just migrate-status` and smoke test login and the
-`/dashboard` page.
+After restoring, run `just migrate-status` and test login and `/dashboard`.
 
-### Object storage (RustFS/S3)
+### Object storage
 
 - Enable versioning and a lifecycle policy on the media bucket.
 - Back up PostgreSQL metadata and object bytes consistently.
-- Test restoring one object and one `media_assets` row before an incident.
+- Test restoring one object and one `media_assets` row.
 
 ### Valkey
 
-Valkey stores sessions, lockouts, and temporary data. Do not make it the only
-source of truth. Losing Valkey forces every user to sign in again; document that
-as accepted behavior.
+Valkey stores sessions, lockouts, and temporary state. Losing it forces users to
+sign in again. This is accepted behavior.
 
-## Minimum alerts
+## Alerts
 
-| Alert | Initial condition | Action |
+| Alert | Condition | Action |
 |---|---|---|
-| HTTP 5xx | > 1% for 5 minutes | Check GlitchTip, `request_id` logs, DB/storage |
-| Latency | p95 > 1s for 10 minutes | Check DB pool, slow queries, Gotenberg/S3 |
-| Readiness | 3 consecutive probe failures | Check PostgreSQL and Valkey |
-| DB pool | active connections = max 10 | Look for slow queries or increase the pool |
-| Login lockout | spike in `locked`/429 | Check for brute force and source IPs |
-| Media storage | `media storage unavailable` error | Check RustFS/S3 and credentials |
-| CSP | new `csp violation report` entries | Check blocked script/style sources |
-| Certificate/TLS | < 14 days | Renew the reverse proxy certificate |
-
-Send alerts to the on-call channel. GlitchTip/OpenObserve are diagnosis tools,
-not a replacement for alerting.
+| HTTP 5xx | > 1% for 5 minutes | Check request logs, database, and storage |
+| Latency | p95 > 1s for 10 minutes | Check database pool, slow queries, documents, and storage |
+| Readiness | 3 consecutive failures | Check PostgreSQL and Valkey |
+| Database pool | active connections = 10 | Look for slow queries or raise the pool |
+| Login lockout | spike in locked accounts or 429 | Check brute-force sources |
+| Media storage | storage unavailable errors | Check object storage and credentials |
+| TLS certificate | < 14 days | Renew at the reverse proxy |
 
 ## Deployment
 
-1. Run `just verify` on the commit being released.
-2. Build the image and run migrations before or alongside the release:
-   ```bash
-   docker compose -f deploy/compose.yml run --rm migrate
-   ```
-3. Deploy one instance, check `/health` and `/ready`.
-4. Continue the rollout gradually.
-5. Monitor 5xx, latency, and media/email errors for at least 15 minutes.
+1. Run `just verify` on the release commit.
+2. Build the image.
+3. Run migrations before or alongside the release.
+4. Deploy one instance and check `/health` and `/ready`.
+5. Continue the rollout.
+6. Monitor errors, latency, and storage for at least 15 minutes.
 
-Migrations must be backward compatible during the rollout. Avoid direct
-`DROP COLUMN`; use the expand → migrate → contract pattern.
+Migrations must be backward compatible during rollout. Use the
+expand → migrate → contract pattern.
 
 ## Rollback
 
 1. Stop the rollout.
 2. Roll the image back to the previous tag.
-3. Do not automatically run `goose down` in production. Only roll a migration
-   back after analysis confirms the data is safe.
-4. If data is corrupted, restore the database from the latest backup and then
-   reconcile data written after that backup.
+3. Do not run `goose down` automatically in production.
+4. Restore from backup only after confirming data corruption.
 
-## Incident runbook
+## Incident response
 
 ### Database unavailable
 
-- Check `/ready`; `database: unavailable` confirms the condition.
-- Check PostgreSQL connectivity, disk, and connection limits.
-- Do not restart the application repeatedly without investigating the cause.
-- After recovery, confirm the migration status and pool are back to normal.
+- `/ready` reports `database: unavailable`.
+- Check connectivity, disk, and connection limits.
+- Do not restart the application repeatedly without a cause.
+- After recovery, confirm migration status and pool health.
 
 ### Valkey unavailable
 
 - Sessions and lockouts cannot be read.
-- Users are asked to sign in again; lockout fails open by design.
+- Users must sign in again.
 - Check memory, eviction, and connectivity.
 
 ### Email delivery failure
 
-- Magic links, password resets, and invitations will fail.
-- Check the SMTP relay, credentials, and Mailpit status (development only).
+- Magic links, password resets, and invitations fail.
+- Check the SMTP relay and credentials.
 - Never print tokens in logs.
 
 ### Media failure
 
-- Check the S3/RustFS endpoint, bucket, credentials, and the 12 MiB body limit.
-- Media uploads are limited to 10 MiB and validated by magic bytes.
-
-### CSP blocks assets
-
-- Temporarily set `CSP_REPORT_ONLY=true` instead of disabling CSP.
-- Read the `csp violation report` entries, then add origins through
-  `CSP_EXTRA_SCRIPT_SRC`/`CSP_EXTRA_CONNECT_SRC`/`CSP_EXTRA_IMG_SRC`.
-- Run `just smoke-csp` before returning to enforcing mode.
+- Check the object storage endpoint, bucket, credentials, and body limit.
+- Media uploads are limited to 10 MiB and validated before storage.
 
 ## Secret rotation
 
-- Break-glass `ACCESS_KEY`/`SECRET_KEY`: rotate periodically and after any
-  suspected leak. Use at least 32 random characters.
+- `ACCESS_KEY`/`SECRET_KEY`: rotate periodically and after any suspected leak.
+  Use at least 32 random characters.
 - `AUTH_STATE_SECRET`: rotate during a maintenance window.
-- SMTP, S3/RustFS, and database credentials: keep them in a secret manager, not
-  in the repository.
-- After rotation, smoke test login, email, and media.
+- SMTP, object storage, and database credentials: keep them in a secret manager.
+- After rotation, test login, email, and media.
 
 ## Capacity
 
-- The PostgreSQL pool is configured for 10 open and 5 idle connections.
+- PostgreSQL pool: 10 open, 5 idle.
 - Email delivery and PDF rendering run synchronously in the request path.
-- Audit records are stored in PostgreSQL with the configured retention policy.
+- Audit records use the configured PostgreSQL retention policy.
 - Media uploads are validated by magic bytes and image dimensions before storage.
