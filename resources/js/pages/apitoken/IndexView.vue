@@ -99,7 +99,7 @@ async function copyToken() {
           <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
         </template>
         <span class="text-muted hidden text-sm lg:block">
-          Bearer tokens for accessing the API without a browser session.
+          Tokens for connecting integrations without a browser session.
         </span>
         <template #right>
           <AppNotificationBell />

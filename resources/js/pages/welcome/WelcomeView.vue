@@ -20,12 +20,12 @@ const features = [
   {
     icon: "i-material-symbols:history-rounded",
     title: "Audit trail",
-    description: "Every important change is recorded with the actor, time, and request context.",
+    description: "Every important change is recorded with who made it, when, and what changed.",
   },
   {
     icon: "i-material-symbols:image-outline-rounded",
     title: "Centralized media",
-    description: "Upload and manage assets through S3-compatible object storage.",
+    description: "Upload and manage files from one central media library.",
   },
   {
     icon: "i-material-symbols:notifications-outline-rounded",
@@ -53,7 +53,7 @@ const securityPoints = [
   {
     icon: "i-material-symbols:visibility-outline-rounded",
     title: "Transparent",
-    description: "Audit and system status can be checked without database access.",
+    description: "Audit history and system status are available from the same panel.",
   },
 ];
 

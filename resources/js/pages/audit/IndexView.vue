@@ -83,6 +83,20 @@ const activeFilters = computed<Record<string, string>>(() => {
 const applying = ref(false);
 const hasFilters = computed(() => Object.keys(activeFilters.value).length > 0);
 
+const MAX_SEARCH = 200;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const filterErrors = reactive({ search: "", from: "", to: "" });
+
+function validateFilters(): boolean {
+  filterErrors.search = form.search.length > MAX_SEARCH ? `Search is limited to ${MAX_SEARCH} characters.` : "";
+  filterErrors.from = form.from && !DATE_PATTERN.test(form.from) ? "Enter a valid start date." : "";
+  filterErrors.to = form.to && !DATE_PATTERN.test(form.to) ? "Enter a valid end date." : "";
+  if (!filterErrors.from && !filterErrors.to && form.from && form.to && form.to < form.from) {
+    filterErrors.to = "End date must be on or after the start date.";
+  }
+  return !filterErrors.search && !filterErrors.from && !filterErrors.to;
+}
+
 const emptyActions = computed(() =>
   hasFilters.value
     ? [{ label: "Reset filters", icon: "i-bi-arrow-counterclockwise", onClick: resetFilters }]
@@ -90,6 +104,7 @@ const emptyActions = computed(() =>
 );
 
 function applyFilters() {
+  if (!validateFilters()) return;
   router.get("/audit", activeFilters.value, {
     preserveState: true,
     preserveScroll: true,
@@ -106,6 +121,9 @@ function resetFilters() {
   form.search = "";
   form.from = "";
   form.to = "";
+  filterErrors.search = "";
+  filterErrors.from = "";
+  filterErrors.to = "";
   router.get(
     "/audit",
     {},
@@ -141,11 +159,11 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
       <div class="space-y-6">
         <UCard>
           <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" @submit.prevent="applyFilters">
-            <UFormField label="Search">
-              <UInput v-model="form.search" class="w-full" placeholder="resource, request id, actor" />
+            <UFormField label="Search" :error="filterErrors.search">
+              <UInput v-model="form.search" class="w-full" placeholder="Search activity or user details" />
             </UFormField>
             <UFormField label="User">
-              <UInput v-model="form.actor_key" class="w-full" placeholder="User ID" />
+              <UInput v-model="form.actor_key" class="w-full" placeholder="Username or user ID" />
             </UFormField>
             <UFormField label="Action">
               <USelect v-model="form.action" :items="actionOptions" class="w-full" />
@@ -153,10 +171,10 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
             <UFormField label="Outcome">
               <USelect v-model="form.outcome" :items="outcomeOptions" class="w-full" />
             </UFormField>
-            <UFormField label="From date">
+            <UFormField label="From date" :error="filterErrors.from">
               <AppInputDate v-model="form.from" placeholder="2026-01-01" class="w-full" />
             </UFormField>
-            <UFormField label="To date">
+            <UFormField label="To date" :error="filterErrors.to">
               <AppInputDate v-model="form.to" placeholder="2026-01-01" class="w-full" />
             </UFormField>
             <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-3">

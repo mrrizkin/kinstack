@@ -290,7 +290,7 @@ const accountLinks = computed(() => {
           variant="subtle"
           icon="i-material-symbols:shield-outline-rounded"
           title="Super admin mode"
-          description="This super admin account has no database profile. Profile settings, passkeys, and API tokens are unavailable; use the Users menu to manage other accounts." />
+          description="This super admin account is not linked to a user profile. Profile settings, passkeys, and API tokens are unavailable; use the Users menu to manage other accounts." />
       </div>
     </template>
   </UDashboardPanel>
