@@ -216,3 +216,41 @@ func TestSQLRecorderContract(t *testing.T) {
 		t.Fatalf("SQL audit request %q not found in %#v", requestID, items)
 	}
 }
+
+func TestMemoryRepositoryDeleteBeforePrunesOldEvents(t *testing.T) {
+	repository := NewMemoryRepository()
+	recorded := New(repository)
+	ctx := context.Background()
+
+	for index, occurredAt := range []time.Time{
+		time.Now().UTC().Add(-48 * time.Hour),
+		time.Now().UTC().Add(-30 * time.Minute),
+	} {
+		if _, err := repository.Insert(ctx, AuditRecord{
+			OccurredAt: occurredAt,
+			RequestID:  fmt.Sprintf("prune-%d", index),
+			Action:     "http.mutate",
+			Outcome:    "success",
+		}); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+	}
+
+	deleted, err := recorded.Prune(ctx, time.Now().UTC().Add(-24*time.Hour))
+	if err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted=%d, want 1", deleted)
+	}
+	remaining, err := recorded.List(ctx, ListQuery{Limit: 10})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(remaining) != 1 {
+		t.Fatalf("remaining=%d, want 1", len(remaining))
+	}
+	if _, err := recorded.Prune(ctx, time.Time{}); !errors.Is(err, ErrInvalidEvent) {
+		t.Fatalf("expected ErrInvalidEvent for a zero cutoff, got %v", err)
+	}
+}

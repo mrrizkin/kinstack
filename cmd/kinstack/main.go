@@ -16,6 +16,21 @@ func main() {
 		case "healthcheck":
 			healthcheck()
 			return
+		case "prune-audit":
+			retention := 8760 * time.Hour
+			if len(os.Args) > 2 {
+				parsed, err := time.ParseDuration(os.Args[2])
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "prune-audit: invalid retention:", err)
+					os.Exit(2)
+				}
+				retention = parsed
+			}
+			if err := bootstrap.PruneAudit(retention); err != nil {
+				fmt.Fprintln(os.Stderr, "prune-audit failed:", err)
+				os.Exit(1)
+			}
+			return
 		case "backfill-2fa":
 			if err := bootstrap.BackfillTwoFactorSecrets(); err != nil {
 				fmt.Fprintln(os.Stderr, "backfill-2fa failed:", err)

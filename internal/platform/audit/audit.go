@@ -49,6 +49,18 @@ func (a *Audit) Record(ctx context.Context, event Event) error {
 	return err
 }
 
+// Prune deletes audit records older than the cutoff. It is meant for a
+// scheduled maintenance job; the request path never calls it.
+func (a *Audit) Prune(ctx context.Context, before time.Time) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if before.IsZero() {
+		return 0, ErrInvalidEvent
+	}
+	return a.repository.DeleteBefore(ctx, before)
+}
+
 // List returns events matching query.
 func (a *Audit) List(ctx context.Context, query ListQuery) ([]Event, error) {
 	if err := ctx.Err(); err != nil {

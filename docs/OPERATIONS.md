@@ -10,7 +10,7 @@
 | 5xx error rate | < 0.5% |
 | PostgreSQL RPO | ≤ 6 hours |
 | PostgreSQL RTO | ≤ 2 hours |
-| Audit retention | ≥ 1 year |
+| Audit retention | ≥ 1 year (enforced by `prune-audit`) |
 
 These are internal targets, not a contractual SLA.
 
@@ -151,5 +151,7 @@ expand → migrate → contract pattern.
   (default 5). Size the sum of all replicas below the server
   `max_connections` budget.
 - Email delivery and PDF rendering run synchronously in the request path.
-- Audit records use the configured PostgreSQL retention policy.
+- Audit records are append-only and kept indefinitely by default. A scheduled
+  run of `kinstack prune-audit 8760h` enforces the one-year target; run it from
+  cron or a Kubernetes CronJob, for example daily at 03:15.
 - Media uploads are validated by magic bytes and image dimensions before storage.

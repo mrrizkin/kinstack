@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 )
 
 // MemoryRepository stores audit records in memory for tests and local runs.
@@ -64,6 +65,26 @@ func (r *MemoryRepository) List(ctx context.Context, query RepositoryQuery) ([]A
 		records = records[:query.Limit]
 	}
 	return records, nil
+}
+
+// DeleteBefore removes in-memory records older than the cutoff.
+func (r *MemoryRepository) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	kept := make([]AuditRecord, 0, len(r.events))
+	var removed int64
+	for _, record := range r.events {
+		if record.OccurredAt.Before(cutoff) {
+			removed++
+			continue
+		}
+		kept = append(kept, record)
+	}
+	r.events = kept
+	return removed, nil
 }
 
 func recordWithClonedMetadata(record AuditRecord) AuditRecord {

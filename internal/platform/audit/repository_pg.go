@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"kinstack/internal/pkg/assert"
 	platformdatabase "kinstack/internal/platform/database"
@@ -19,6 +20,7 @@ type sqlRepository struct {
 	owner *platformdatabase.StatementOwner
 
 	insertStmt            *sqlx.Stmt
+	deleteBeforeStmt      *sqlx.Stmt
 	listStmt              *sqlx.Stmt
 	listByActorStmt       *sqlx.Stmt
 	listByActionStmt      *sqlx.Stmt
@@ -34,6 +36,10 @@ const (
 			status, outcome, metadata
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
 		RETURNING id`
+
+	deleteBeforeQuery = `
+		DELETE FROM audit_events
+		WHERE occurred_at < $1`
 
 	listAuditQuery = `
 		SELECT id, occurred_at, request_id, actor_key, action, resource,
@@ -84,6 +90,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*sqlRepository, error) {
 		query  string
 	}{
 		{&repository.insertStmt, "audit_insert", insertAuditQuery},
+		{&repository.deleteBeforeStmt, "audit_delete_before", deleteBeforeQuery},
 		{&repository.listStmt, "audit_list", listAuditQuery},
 		{&repository.listByActorStmt, "audit_list_by_actor", listAuditByActorQuery},
 		{&repository.listByActionStmt, "audit_list_by_action", listAuditByActionQuery},
@@ -109,6 +116,22 @@ func (r *sqlRepository) Close() error {
 		return nil
 	}
 	return r.owner.Close()
+}
+
+// DeleteBefore removes audit rows older than the cutoff.
+func (r *sqlRepository) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	result, err := r.deleteBeforeStmt.ExecContext(ctx, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("prune audit events: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count pruned audit events: %w", err)
+	}
+	return deleted, nil
 }
 
 // Insert appends a record to audit_events.

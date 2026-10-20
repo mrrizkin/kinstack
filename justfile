@@ -60,6 +60,10 @@ smoke-csp:
 format-check:
     bun x oxfmt --check resources/
 
+# Go formatting gate. verify only checks; use `just format-go` to fix.
+format-go-check:
+    ./scripts/check-gofmt.sh
+
 test: type-check test-go test-frontend
 
 test-go:
@@ -74,7 +78,7 @@ coverage:
     @go tool cover -func=/tmp/kinstack-cover.out | tail -n 1
 
 # Full gate before committing: types, tests, lint, format, feature slices.
-verify: type-check test-go test-frontend lint-go lint-check format-check check-feature-slices
+verify: type-check format-go-check test-go test-frontend lint-go lint-check format-check check-feature-slices
 
 # Structural drift report. Informational only; never fails.
 shape:

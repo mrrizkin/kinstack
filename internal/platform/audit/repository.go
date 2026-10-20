@@ -9,6 +9,9 @@ import (
 type Repository interface {
 	Insert(context.Context, AuditRecord) (AuditRecord, error)
 	List(context.Context, RepositoryQuery) ([]AuditRecord, error)
+	// DeleteBefore permanently removes records older than the cutoff and
+	// reports how many rows were deleted.
+	DeleteBefore(context.Context, time.Time) (int64, error)
 }
 
 // AuditRecord is the repository representation of an audit event.
