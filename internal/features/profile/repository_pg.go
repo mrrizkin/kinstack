@@ -86,12 +86,12 @@ WHERE public_id = $1
 
 // SQLRepository is the PostgreSQL profile repository.
 type SQLRepository struct {
-	owner          *platformdatabase.StatementOwner
-	findProfile    *sqlx.Stmt
-	findPassword   *sqlx.Stmt
-	updateName     *sqlx.Stmt
-	updatePrefs    *sqlx.Stmt
-	markPassword   *sqlx.Stmt
+	owner        *platformdatabase.StatementOwner
+	findProfile  *sqlx.Stmt
+	findPassword *sqlx.Stmt
+	updateName   *sqlx.Stmt
+	updatePrefs  *sqlx.Stmt
+	markPassword *sqlx.Stmt
 }
 
 var _ Repository = (*SQLRepository)(nil)

@@ -44,9 +44,9 @@ type TwoFactorDTO struct {
 
 // ProfilePageProps is the public contract for the profile page.
 type ProfilePageProps struct {
-	Profile     ProfileDTO                `json:"profile"`
-	Preferences PreferencesDTO            `json:"preferences"`
-	Session     SessionDTO                `json:"session"`
+	Profile     ProfileDTO     `json:"profile"`
+	Preferences PreferencesDTO `json:"preferences"`
+	Session     SessionDTO     `json:"session"`
 }
 
 // UpdateProfileRequest is the payload accepted when renaming the profile.
