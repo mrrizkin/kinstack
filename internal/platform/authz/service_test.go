@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"testing"
@@ -344,5 +345,35 @@ func TestUserOverridesManyGroupsByUser(t *testing.T) {
 	}
 	if len(none) != 0 {
 		t.Fatalf("expected an empty result, got %#v", none)
+	}
+}
+
+func TestEffectiveBoundsTheResolutionCache(t *testing.T) {
+	service, _ := newTestService(t)
+	service.ttl = time.Minute
+
+	service.mu.Lock()
+	for index := 0; index < maxCacheEntries; index++ {
+		service.cache[fmt.Sprintf("cached-%d", index)] = resolvedPermissions{
+			role:      adminRole,
+			set:       map[Permission]struct{}{PermissionUsersView: {}},
+			expiresAt: service.now().Add(time.Minute),
+		}
+	}
+	service.mu.Unlock()
+
+	if _, err := service.Permissions(context.Background(), Principal{PublicID: "fresh-1", Role: adminRole}); err != nil {
+		t.Fatalf("resolve permissions: %v", err)
+	}
+
+	service.mu.RLock()
+	size := len(service.cache)
+	_, cached := service.cache["fresh-1"]
+	service.mu.RUnlock()
+	if size >= maxCacheEntries {
+		t.Fatalf("cache must stay bounded, got %d entries", size)
+	}
+	if !cached {
+		t.Fatal("the new resolution must be cached after eviction")
 	}
 }

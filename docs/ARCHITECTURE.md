@@ -66,7 +66,7 @@ Every guarded route has an entry in `routePolicy` in
 ### Delegation rules
 
 Role and permission management is delegated, not all-or-nothing. An actor may
-ever grant more than they hold:
+never grant more than they hold:
 
 - Authority changes require an interactive browser session; API tokens are
   rejected even with `access.manage`.
@@ -83,6 +83,12 @@ ever grant more than they hold:
 
 Handlers attach the acting principal with `authz.WithPrincipal`; services read
 it with `authz.PrincipalFromContext` and fail closed when it is missing.
+
+Resolved permission sets are cached per instance for `authz.DefaultCacheTTL`
+(15 seconds) and the cache is capped at 10k entries. Role and override
+mutations invalidate the affected users immediately on the serving replica;
+other replicas converge within the TTL, which is the accepted revocation
+window.
 
 ## UI
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"strings"
-	"time"
 
 	"kinstack/config"
 	"kinstack/internal/features/apitoken"
@@ -76,7 +75,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 
 	deps.Authorization = authz.New(authz.ServiceDependency{
 		Repository: authzRepository,
-		CacheTTL:   30 * time.Second,
+		CacheTTL:   authz.DefaultCacheTTL,
 	})
 
 	if d.Config.RustFS.Enabled {

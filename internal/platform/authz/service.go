@@ -13,7 +13,13 @@ import (
 )
 
 const (
-	defaultCacheTTL = 30 * time.Second
+	// DefaultCacheTTL bounds how long a resolved permission set may be reused.
+	// The cache is per instance, so revocations propagate to other replicas
+	// within this window rather than instantly.
+	DefaultCacheTTL = 15 * time.Second
+	// maxCacheEntries caps the per-instance resolution cache so a long-lived
+	// process cannot grow it without bound.
+	maxCacheEntries = 10_000
 	maxReasonLength = 200
 )
 
@@ -156,6 +162,29 @@ func (s *Service) InvalidateRole(role string) {
 	s.mu.Unlock()
 }
 
+// evictLocked drops expired entries first and, when the cache is still at its
+// cap, a slice of arbitrary entries. Callers must hold s.mu.
+func (s *Service) evictLocked() {
+	now := s.now()
+	for publicID, entry := range s.cache {
+		if !now.Before(entry.expiresAt) {
+			delete(s.cache, publicID)
+		}
+	}
+	if len(s.cache) < maxCacheEntries {
+		return
+	}
+	// Nothing expired: drop roughly a tenth so the next inserts are cheap.
+	victims := maxCacheEntries / 10
+	for publicID := range s.cache {
+		if victims == 0 {
+			break
+		}
+		delete(s.cache, publicID)
+		victims--
+	}
+}
+
 func (s *Service) effective(
 	ctx context.Context,
 	principal Principal,
@@ -177,6 +206,9 @@ func (s *Service) effective(
 		set = loaded
 		if s.ttl > 0 && principal.PublicID != "" {
 			s.mu.Lock()
+			if len(s.cache) >= maxCacheEntries {
+				s.evictLocked()
+			}
 			s.cache[principal.PublicID] = resolvedPermissions{
 				role:      principal.Role,
 				set:       set,
