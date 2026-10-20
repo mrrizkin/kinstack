@@ -2,17 +2,21 @@
 import { Head, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
 
+import BaseLayout from "@/layouts/BaseLayout.vue";
+
 defineProps<{ status?: number; message?: string }>();
 
+defineOptions({ layout: [BaseLayout] });
+
 const page = usePage();
-const actor = computed(() => (page.props.actor as { username?: string } | null) ?? null);
+const actor = computed(() => page.props.actor as { username?: string } | null);
 const homeHref = computed(() => (actor.value ? "/dashboard" : "/"));
 const homeLabel = computed(() => (actor.value ? "Go to dashboard" : "Go to home"));
 </script>
 
 <template>
   <Head title="404" />
-  <div class="bg-elevated grid min-h-dvh place-items-center px-4">
+  <main id="main-content" tabindex="-1" class="bg-elevated grid min-h-dvh place-items-center px-4">
     <div class="max-w-md text-center">
       <p class="text-primary text-5xl font-bold">404</p>
       <h1 class="text-highlighted mt-4 text-xl font-semibold">Not found</h1>
@@ -25,5 +29,5 @@ const homeLabel = computed(() => (actor.value ? "Go to dashboard" : "Go to home"
         {{ homeLabel }}
       </a>
     </div>
-  </div>
+  </main>
 </template>

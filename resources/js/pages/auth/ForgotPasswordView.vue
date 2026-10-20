@@ -4,10 +4,18 @@ import type { AuthFormField, FormSubmitEvent } from "@nuxt/ui";
 import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
+import BaseLayout from "@/layouts/BaseLayout.vue";
 
 defineProps<{
   notice?: string;
 }>();
+
+defineOptions({
+  layout: [
+    BaseLayout,
+    [AuthLayout, { title: "Forgot password", subtitle: "We will send a reset link to your email." }],
+  ],
+});
 
 const form = useForm({ email: "" });
 
@@ -33,27 +41,25 @@ function submit(payload: FormSubmitEvent<Record<string, unknown>>) {
 
 <template>
   <Head title="Forgot password" />
-  <AuthLayout title="Forgot password" subtitle="We will send a reset link to your email.">
-    <div class="space-y-4">
-      <UAlert
-        v-if="notice"
-        color="success"
-        variant="subtle"
-        icon="i-material-symbols:mark-email-read-outline-rounded"
-        :title="notice" />
+  <div class="space-y-4">
+    <UAlert
+      v-if="notice"
+      color="success"
+      variant="subtle"
+      icon="i-material-symbols:mark-email-read-outline-rounded"
+      :title="notice" />
 
-      <UAuthForm
-        :fields="fields"
-        :submit="{
-          label: form.processing ? 'Sending…' : 'Send reset link',
-          color: 'primary',
-          block: true,
-          size: 'lg',
-          loading: form.processing,
-        }"
-        @submit="submit" />
+    <UAuthForm
+      :fields="fields"
+      :submit="{
+        label: form.processing ? 'Sending…' : 'Send reset link',
+        color: 'primary',
+        block: true,
+        size: 'lg',
+        loading: form.processing,
+      }"
+      @submit="submit" />
 
-      <UButton to="/login" label="Back to sign in" color="neutral" variant="ghost" size="lg" block />
-    </div>
-  </AuthLayout>
+    <UButton to="/login" label="Back to sign in" color="neutral" variant="ghost" size="lg" block />
+  </div>
 </template>

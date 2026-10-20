@@ -9,8 +9,11 @@ import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
+import BaseLayout from "@/layouts/BaseLayout.vue";
 import { formatDateTime } from "@/lib/formatters";
 import { useTableView } from "@/lib/table-view";
+
+defineOptions({ layout: [BaseLayout, AppLayout] });
 
 interface Entry {
   id: number;
@@ -174,94 +177,92 @@ const view = useTableView("audit", columns, { paged: false });
 
 <template>
   <Head title="Audit" />
-  <AppLayout>
-    <UDashboardPanel id="audit">
-      <template #header>
-        <UDashboardNavbar title="Audit">
-          <template #leading>
-            <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
-          </template>
-          <span class="text-muted hidden text-sm lg:block">Activity trail and system changes.</span>
-          <template #right>
-            <AppNotificationBell />
-          </template>
-        </UDashboardNavbar>
-      </template>
+  <UDashboardPanel id="audit">
+    <template #header>
+      <UDashboardNavbar title="Audit">
+        <template #leading>
+          <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
+        </template>
+        <span class="text-muted hidden text-sm lg:block">Activity trail and system changes.</span>
+        <template #right>
+          <AppNotificationBell />
+        </template>
+      </UDashboardNavbar>
+    </template>
 
-      <template #body>
-        <div class="space-y-6">
-          <UCard>
-            <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" @submit.prevent="applyFilters">
-              <UFormField label="Search">
-                <UInput v-model="form.search" class="w-full" placeholder="resource, request id, actor" />
-              </UFormField>
-              <UFormField label="Actor">
-                <UInput v-model="form.actor_key" class="w-full" placeholder="actor public ID" />
-              </UFormField>
-              <UFormField label="Action">
-                <USelect v-model="form.action" :items="actionOptions" class="w-full" />
-              </UFormField>
-              <UFormField label="Outcome">
-                <USelect v-model="form.outcome" :items="outcomeOptions" class="w-full" />
-              </UFormField>
-              <UFormField label="From date">
-                <AppInputDate v-model="form.from" placeholder="2026-01-01" class="w-full" />
-              </UFormField>
-              <UFormField label="To date">
-                <AppInputDate v-model="form.to" placeholder="2026-01-01" class="w-full" />
-              </UFormField>
-              <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-3">
-                <UButton type="button" color="neutral" variant="outline" label="Reset" @click="resetFilters" />
-                <UButton type="submit" color="primary" icon="i-bi-funnel" label="Apply" />
+    <template #body>
+      <div class="space-y-6">
+        <UCard>
+          <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" @submit.prevent="applyFilters">
+            <UFormField label="Search">
+              <UInput v-model="form.search" class="w-full" placeholder="resource, request id, actor" />
+            </UFormField>
+            <UFormField label="Actor">
+              <UInput v-model="form.actor_key" class="w-full" placeholder="actor public ID" />
+            </UFormField>
+            <UFormField label="Action">
+              <USelect v-model="form.action" :items="actionOptions" class="w-full" />
+            </UFormField>
+            <UFormField label="Outcome">
+              <USelect v-model="form.outcome" :items="outcomeOptions" class="w-full" />
+            </UFormField>
+            <UFormField label="From date">
+              <AppInputDate v-model="form.from" placeholder="2026-01-01" class="w-full" />
+            </UFormField>
+            <UFormField label="To date">
+              <AppInputDate v-model="form.to" placeholder="2026-01-01" class="w-full" />
+            </UFormField>
+            <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-3">
+              <UButton type="button" color="neutral" variant="outline" label="Reset" @click="resetFilters" />
+              <UButton type="submit" color="primary" icon="i-bi-funnel" label="Apply" />
+            </div>
+          </form>
+        </UCard>
+
+        <AppTableCard :view="view" class="hidden md:block">
+          <UTable :data="entries" :columns="view.columns" class="w-full">
+            <template #empty>
+              <UEmpty icon="i-bi-journal-text" title="No audit entries yet." variant="naked" class="py-6" />
+            </template>
+          </UTable>
+          <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
+        </AppTableCard>
+
+        <div class="space-y-3 md:hidden">
+          <AppMobileList v-if="entries.length > 0">
+            <article v-for="entry in entries" :key="entry.id" class="space-y-3 p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <time :datetime="entry.occurred_at" class="text-muted text-xs">
+                  {{ formatDateTime(entry.occurred_at) }}
+                </time>
+                <div class="flex flex-wrap items-center gap-1">
+                  <UBadge :color="statusColor(entry.status)" variant="subtle" size="sm">
+                    {{ entry.status || "-" }}
+                  </UBadge>
+                  <UBadge :color="entry.outcome === 'failure' ? 'error' : 'success'" variant="subtle" size="sm">
+                    {{ entry.outcome === "failure" ? "Failure" : "Success" }}
+                  </UBadge>
+                </div>
               </div>
-            </form>
-          </UCard>
 
-          <AppTableCard :view="view" class="hidden md:block">
-            <UTable :data="entries" :columns="view.columns" class="w-full">
-              <template #empty>
-                <UEmpty icon="i-bi-journal-text" title="No audit entries yet." variant="naked" class="py-6" />
-              </template>
-            </UTable>
-            <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
-          </AppTableCard>
-
-          <div class="space-y-3 md:hidden">
-            <AppMobileList v-if="entries.length > 0">
-              <article v-for="entry in entries" :key="entry.id" class="space-y-3 p-4">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <time :datetime="entry.occurred_at" class="text-muted text-xs">
-                    {{ formatDateTime(entry.occurred_at) }}
-                  </time>
-                  <div class="flex flex-wrap items-center gap-1">
-                    <UBadge :color="statusColor(entry.status)" variant="subtle" size="sm">
-                      {{ entry.status || "-" }}
-                    </UBadge>
-                    <UBadge :color="entry.outcome === 'failure' ? 'error' : 'success'" variant="subtle" size="sm">
-                      {{ entry.outcome === "failure" ? "Failure" : "Success" }}
-                    </UBadge>
-                  </div>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <UBadge color="neutral" variant="subtle" size="sm">{{ entry.action }}</UBadge>
+                  <span class="text-highlighted truncate font-mono text-xs">{{ entry.resource || "-" }}</span>
                 </div>
+                <p class="text-muted mt-1 text-xs">{{ entry.method || "-" }}</p>
+              </div>
 
-                <div class="min-w-0">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <UBadge color="neutral" variant="subtle" size="sm">{{ entry.action }}</UBadge>
-                    <span class="text-highlighted truncate font-mono text-xs">{{ entry.resource || "-" }}</span>
-                  </div>
-                  <p class="text-muted mt-1 text-xs">{{ entry.method || "-" }}</p>
-                </div>
-
-                <div class="border-default space-y-1 border-t pt-2">
-                  <p class="text-toned truncate text-xs font-medium">{{ entry.actor_key || "anonymous" }}</p>
-                  <p class="text-muted truncate font-mono text-[11px]">{{ entry.request_id || "-" }}</p>
-                </div>
-              </article>
-            </AppMobileList>
-            <UEmpty v-else icon="i-bi-journal-text" title="No audit entries yet." variant="naked" class="py-10" />
-            <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
-          </div>
+              <div class="border-default space-y-1 border-t pt-2">
+                <p class="text-toned truncate text-xs font-medium">{{ entry.actor_key || "anonymous" }}</p>
+                <p class="text-muted truncate font-mono text-[11px]">{{ entry.request_id || "-" }}</p>
+              </div>
+            </article>
+          </AppMobileList>
+          <UEmpty v-else icon="i-bi-journal-text" title="No audit entries yet." variant="naked" class="py-10" />
+          <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
         </div>
-      </template>
-    </UDashboardPanel>
-  </AppLayout>
+      </div>
+    </template>
+  </UDashboardPanel>
 </template>

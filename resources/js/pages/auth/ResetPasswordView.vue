@@ -4,6 +4,11 @@ import type { AuthFormField, FormSubmitEvent } from "@nuxt/ui";
 import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
+import BaseLayout from "@/layouts/BaseLayout.vue";
+
+defineOptions({
+  layout: [BaseLayout, [AuthLayout, { title: "Reset password", subtitle: "Set a new password for your account." }]],
+});
 
 const props = defineProps<{
   token?: string;
@@ -47,32 +52,30 @@ function submit(payload: FormSubmitEvent<Record<string, unknown>>) {
 
 <template>
   <Head title="Reset password" />
-  <AuthLayout title="Reset password" subtitle="Set a new password for your account.">
-    <div class="space-y-4">
-      <template v-if="props.done">
-        <UAlert
-          color="success"
-          variant="subtle"
-          icon="i-material-symbols:verified-user-outline-rounded"
-          title="Password changed successfully"
-          description="You can now sign in with your new password." />
-        <UButton to="/login" color="primary" size="lg" block label="Sign in" />
-      </template>
+  <div class="space-y-4">
+    <template v-if="props.done">
+      <UAlert
+        color="success"
+        variant="subtle"
+        icon="i-material-symbols:verified-user-outline-rounded"
+        title="Password changed successfully"
+        description="You can now sign in with your new password." />
+      <UButton to="/login" color="primary" size="lg" block label="Sign in" />
+    </template>
 
-      <template v-else>
-        <UAuthForm
-          :fields="fields"
-          :submit="{
-            label: form.processing ? 'Saving…' : 'Save password',
-            color: 'primary',
-            block: true,
-            size: 'lg',
-            loading: form.processing,
-          }"
-          @submit="submit" />
+    <template v-else>
+      <UAuthForm
+        :fields="fields"
+        :submit="{
+          label: form.processing ? 'Saving…' : 'Save password',
+          color: 'primary',
+          block: true,
+          size: 'lg',
+          loading: form.processing,
+        }"
+        @submit="submit" />
 
-        <UButton to="/login" label="Back to sign in" color="neutral" variant="ghost" size="lg" block />
-      </template>
-    </div>
-  </AuthLayout>
+      <UButton to="/login" label="Back to sign in" color="neutral" variant="ghost" size="lg" block />
+    </template>
+  </div>
 </template>

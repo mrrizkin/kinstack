@@ -4,6 +4,20 @@ import type { AuthFormField, FormSubmitEvent } from "@nuxt/ui";
 import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
+import BaseLayout from "@/layouts/BaseLayout.vue";
+
+defineOptions({
+  layout: [
+    BaseLayout,
+    [
+      AuthLayout,
+      {
+        title: "Two-step verification",
+        subtitle: "Enter the 6-digit code from your authenticator app, or one of your recovery codes.",
+      },
+    ],
+  ],
+});
 
 const form = useForm({
   code: "",
@@ -37,29 +51,25 @@ function cancel() {
 
 <template>
   <Head title="Two-step verification" />
-  <AuthLayout
-    title="Two-step verification"
-    subtitle="Enter the 6-digit code from your authenticator app, or one of your recovery codes.">
-    <div class="space-y-4">
-      <UAuthForm
-        :fields="fields"
-        :submit="{
-          label: form.processing ? 'Verifying…' : 'Verify',
-          color: 'primary',
-          block: true,
-          size: 'lg',
-          loading: form.processing,
-        }"
-        @submit="submit" />
+  <div class="space-y-4">
+    <UAuthForm
+      :fields="fields"
+      :submit="{
+        label: form.processing ? 'Verifying…' : 'Verify',
+        color: 'primary',
+        block: true,
+        size: 'lg',
+        loading: form.processing,
+      }"
+      @submit="submit" />
 
-      <UButton
-        label="Back to sign in"
-        color="neutral"
-        variant="ghost"
-        size="lg"
-        block
-        :disabled="form.processing"
-        @click="cancel" />
-    </div>
-  </AuthLayout>
+    <UButton
+      label="Back to sign in"
+      color="neutral"
+      variant="ghost"
+      size="lg"
+      block
+      :disabled="form.processing"
+      @click="cancel" />
+  </div>
 </template>

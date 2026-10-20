@@ -4,7 +4,10 @@ import { computed } from "vue";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
+import BaseLayout from "@/layouts/BaseLayout.vue";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
+
+defineOptions({ layout: [BaseLayout, AppLayout] });
 
 interface Actor {
   username: string;
@@ -186,126 +189,124 @@ const accountLinks = computed(() => {
 
 <template>
   <Head title="Dashboard" />
-  <AppLayout>
-    <UDashboardPanel id="dashboard">
-      <template #header>
-        <UDashboardNavbar title="Dashboard" description="Workspace overview and quick access.">
-          <template #leading>
-            <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
-          </template>
-          <template #right>
-            <AppNotificationBell />
-          </template>
-        </UDashboardNavbar>
-      </template>
+  <UDashboardPanel id="dashboard">
+    <template #header>
+      <UDashboardNavbar title="Dashboard" description="Workspace overview and quick access.">
+        <template #leading>
+          <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
+        </template>
+        <template #right>
+          <AppNotificationBell />
+        </template>
+      </UDashboardNavbar>
+    </template>
 
-      <template #body>
-        <div class="space-y-6">
-          <UCard>
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div class="min-w-0">
-                <p class="text-muted text-xs font-medium tracking-wide uppercase">Welcome</p>
-                <h2 class="text-highlighted mt-1 truncate text-2xl font-semibold">{{ displayName }}</h2>
-                <p class="text-muted mt-1 text-sm">{{ greeting }}, {{ formattedDate }}</p>
-              </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <UBadge color="neutral" variant="subtle" size="sm">{{ roleLabel }}</UBadge>
-                <UBadge
-                  v-if="isSuperuser"
-                  color="warning"
-                  variant="subtle"
-                  size="sm"
-                  icon="i-material-symbols:shield-outline-rounded">
-                  Break-glass access
-                </UBadge>
-                <UBadge
-                  v-else
-                  color="success"
-                  variant="subtle"
-                  size="sm"
-                  icon="i-material-symbols:check-circle-outline-rounded">
-                  Active session
-                </UBadge>
-              </div>
+    <template #body>
+      <div class="space-y-6">
+        <UCard>
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div class="min-w-0">
+              <p class="text-muted text-xs font-medium tracking-wide uppercase">Welcome</p>
+              <h2 class="text-highlighted mt-1 truncate text-2xl font-semibold">{{ displayName }}</h2>
+              <p class="text-muted mt-1 text-sm">{{ greeting }}, {{ formattedDate }}</p>
             </div>
-          </UCard>
+            <div class="flex flex-wrap items-center gap-2">
+              <UBadge color="neutral" variant="subtle" size="sm">{{ roleLabel }}</UBadge>
+              <UBadge
+                v-if="isSuperuser"
+                color="warning"
+                variant="subtle"
+                size="sm"
+                icon="i-material-symbols:shield-outline-rounded">
+                Break-glass access
+              </UBadge>
+              <UBadge
+                v-else
+                color="success"
+                variant="subtle"
+                size="sm"
+                icon="i-material-symbols:check-circle-outline-rounded">
+                Active session
+              </UBadge>
+            </div>
+          </div>
+        </UCard>
 
-          <section>
-            <div class="mb-3">
-              <h3 class="text-highlighted text-sm font-semibold">Overview</h3>
-              <p class="text-muted mt-0.5 text-xs">A quick snapshot of current workspace data.</p>
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <ULink v-for="card in metricCards" :key="card.label" :to="card.to" class="block">
-                <UCard class="hover:bg-elevated/50 h-full transition-colors">
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <p class="text-muted text-xs">{{ card.label }}</p>
-                      <p class="text-highlighted mt-1 text-2xl font-semibold">{{ card.value }}</p>
-                      <p class="text-dimmed mt-1 text-xs">{{ card.hint }}</p>
-                    </div>
-                    <UIcon :name="card.icon" class="text-dimmed size-5 shrink-0" />
+        <section>
+          <div class="mb-3">
+            <h3 class="text-highlighted text-sm font-semibold">Overview</h3>
+            <p class="text-muted mt-0.5 text-xs">A quick snapshot of current workspace data.</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <ULink v-for="card in metricCards" :key="card.label" :to="card.to" class="block">
+              <UCard class="hover:bg-elevated/50 h-full transition-colors">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-muted text-xs">{{ card.label }}</p>
+                    <p class="text-highlighted mt-1 text-2xl font-semibold">{{ card.value }}</p>
+                    <p class="text-dimmed mt-1 text-xs">{{ card.hint }}</p>
                   </div>
-                </UCard>
-              </ULink>
-            </div>
-          </section>
+                  <UIcon :name="card.icon" class="text-dimmed size-5 shrink-0" />
+                </div>
+              </UCard>
+            </ULink>
+          </div>
+        </section>
 
-          <section>
-            <div class="mb-3">
-              <h3 class="text-highlighted text-sm font-semibold">Quick access</h3>
-              <p class="text-muted mt-0.5 text-xs">The pages most frequently used in this workspace.</p>
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              <ULink v-for="link in visibleQuickLinks" :key="link.to" :to="link.to" class="block">
-                <UCard class="hover:bg-elevated/50 h-full transition-colors">
-                  <div class="flex items-start gap-3">
-                    <span
-                      class="bg-elevated text-toned ring-default grid size-10 shrink-0 place-items-center rounded-lg ring">
-                      <UIcon :name="link.icon" class="size-5" />
-                    </span>
-                    <div class="min-w-0 flex-1">
-                      <p class="text-highlighted font-medium">{{ link.label }}</p>
-                      <p class="text-muted mt-1 text-xs leading-5">{{ link.description }}</p>
-                    </div>
-                    <UIcon name="i-material-symbols:arrow-outward-rounded" class="text-dimmed size-4 shrink-0" />
+        <section>
+          <div class="mb-3">
+            <h3 class="text-highlighted text-sm font-semibold">Quick access</h3>
+            <p class="text-muted mt-0.5 text-xs">The pages most frequently used in this workspace.</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <ULink v-for="link in visibleQuickLinks" :key="link.to" :to="link.to" class="block">
+              <UCard class="hover:bg-elevated/50 h-full transition-colors">
+                <div class="flex items-start gap-3">
+                  <span
+                    class="bg-elevated text-toned ring-default grid size-10 shrink-0 place-items-center rounded-lg ring">
+                    <UIcon :name="link.icon" class="size-5" />
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-highlighted font-medium">{{ link.label }}</p>
+                    <p class="text-muted mt-1 text-xs leading-5">{{ link.description }}</p>
                   </div>
-                </UCard>
-              </ULink>
-            </div>
-          </section>
+                  <UIcon name="i-material-symbols:arrow-outward-rounded" class="text-dimmed size-4 shrink-0" />
+                </div>
+              </UCard>
+            </ULink>
+          </div>
+        </section>
 
-          <UCard v-if="!isSuperuser">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h3 class="text-highlighted text-sm font-semibold">Account security</h3>
-                <p class="text-muted mt-1 text-xs leading-5">
-                  Manage your profile, passkeys, and API tokens in one place.
-                </p>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <UButton
-                  v-for="link in accountLinks"
-                  :key="link.to"
-                  :to="link.to"
-                  :icon="link.icon"
-                  :label="link.label"
-                  color="neutral"
-                  variant="outline"
-                  size="sm" />
-              </div>
+        <UCard v-if="!isSuperuser">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 class="text-highlighted text-sm font-semibold">Account security</h3>
+              <p class="text-muted mt-1 text-xs leading-5">
+                Manage your profile, passkeys, and API tokens in one place.
+              </p>
             </div>
-          </UCard>
+            <div class="flex flex-wrap gap-2">
+              <UButton
+                v-for="link in accountLinks"
+                :key="link.to"
+                :to="link.to"
+                :icon="link.icon"
+                :label="link.label"
+                color="neutral"
+                variant="outline"
+                size="sm" />
+            </div>
+          </div>
+        </UCard>
 
-          <UAlert
-            v-else
-            color="warning"
-            variant="subtle"
-            icon="i-material-symbols:shield-outline-rounded"
-            title="Break-glass mode"
-            description="This super admin account has no database profile. Profile settings, passkeys, and API tokens are unavailable; use the Users menu to manage other accounts." />
-        </div>
-      </template>
-    </UDashboardPanel>
-  </AppLayout>
+        <UAlert
+          v-else
+          color="warning"
+          variant="subtle"
+          icon="i-material-symbols:shield-outline-rounded"
+          title="Break-glass mode"
+          description="This super admin account has no database profile. Profile settings, passkeys, and API tokens are unavailable; use the Users menu to manage other accounts." />
+      </div>
+    </template>
+  </UDashboardPanel>
 </template>

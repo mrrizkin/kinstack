@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { en as uiEn } from "@nuxt/ui/locale";
 import type { NavigationMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { useI18n } from "vue-i18n";
 
-import AppFlashToaster from "@/components/AppFlashToaster.vue";
-import AppLoadingBar from "@/components/AppLoadingBar.vue";
 import AppLogo from "@/components/AppLogo.vue";
 
 const { t } = useI18n();
@@ -19,15 +16,7 @@ const year = new Date().getFullYear();
 </script>
 
 <template>
-  <UApp :locale="uiEn">
-    <a
-      href="#main-content"
-      class="bg-default text-highlighted ring-default sr-only rounded-md px-3 py-2 text-sm font-medium ring focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50">
-      {{ t("shell.auth.skipToContent") }}
-    </a>
-    <AppLoadingBar />
-    <AppFlashToaster />
-
+  <div>
     <UHeader>
       <template #left>
         <UButton to="/" color="neutral" variant="ghost" class="-ms-2 p-1">
@@ -67,5 +56,5 @@ const year = new Date().getFullYear();
         <UButton to="/login" label="Sign in" color="neutral" variant="ghost" />
       </template>
     </UFooter>
-  </UApp>
+  </div>
 </template>

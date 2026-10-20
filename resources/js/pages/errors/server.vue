@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
 
+import BaseLayout from "@/layouts/BaseLayout.vue";
+
 defineProps<{ status?: number; message?: string; code?: string }>();
+
+defineOptions({ layout: [BaseLayout] });
 
 function reload() {
   window.location.reload();
@@ -10,7 +14,7 @@ function reload() {
 
 <template>
   <Head title="Something went wrong" />
-  <div class="bg-elevated grid min-h-dvh place-items-center px-4">
+  <main id="main-content" tabindex="-1" class="bg-elevated grid min-h-dvh place-items-center px-4">
     <div class="max-w-md text-center">
       <p class="text-error text-5xl font-bold">{{ status ?? 500 }}</p>
       <h1 class="text-highlighted mt-4 text-xl font-semibold">Something went wrong</h1>
@@ -19,5 +23,5 @@ function reload() {
       </p>
       <UButton @click="reload" color="primary" class="mt-6">Reload</UButton>
     </div>
-  </div>
+  </main>
 </template>

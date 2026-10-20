@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { usePage } from "@inertiajs/vue3";
-import { en as uiEn } from "@nuxt/ui/locale";
 import type { NavigationMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
-import AppFlashToaster from "@/components/AppFlashToaster.vue";
-import AppLoadingBar from "@/components/AppLoadingBar.vue";
 import AppNotificationsSlideover from "@/components/AppNotificationsSlideover.vue";
 import AppUserMenu from "@/components/AppUserMenu.vue";
 import AppWorkspaceMenu from "@/components/AppWorkspaceMenu.vue";
@@ -191,43 +188,38 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <template>
-  <UApp :locale="uiEn">
-    <AppLoadingBar />
-    <AppFlashToaster />
+  <UDashboardGroup id="main-content" tabindex="-1" unit="rem" storage="local">
+    <UDashboardSidebar
+      id="app"
+      v-model:open="sidebarOpen"
+      collapsible
+      resizable
+      class="bg-elevated/25"
+      :ui="{ footer: 'lg:border-t lg:border-default' }">
+      <template #header="{ collapsed }">
+        <AppWorkspaceMenu :collapsed="collapsed" />
+      </template>
 
-    <UDashboardGroup unit="rem" storage="local">
-      <UDashboardSidebar
-        id="app"
-        v-model:open="sidebarOpen"
-        collapsible
-        resizable
-        class="bg-elevated/25"
-        :ui="{ footer: 'lg:border-t lg:border-default' }">
-        <template #header="{ collapsed }">
-          <AppWorkspaceMenu :collapsed="collapsed" />
-        </template>
+      <template #default="{ collapsed }">
+        <UDashboardSearchButton
+          :collapsed="collapsed"
+          :label="t('shell.searchMenu')"
+          class="ring-default bg-transparent" />
 
-        <template #default="{ collapsed }">
-          <UDashboardSearchButton
-            :collapsed="collapsed"
-            :label="t('shell.searchMenu')"
-            class="ring-default bg-transparent" />
+        <UNavigationMenu :collapsed="collapsed" :items="links[0]" orientation="vertical" tooltip popover />
 
-          <UNavigationMenu :collapsed="collapsed" :items="links[0]" orientation="vertical" tooltip popover />
+        <UNavigationMenu :collapsed="collapsed" :items="links[1]" orientation="vertical" tooltip class="mt-auto" />
+      </template>
 
-          <UNavigationMenu :collapsed="collapsed" :items="links[1]" orientation="vertical" tooltip class="mt-auto" />
-        </template>
+      <template #footer="{ collapsed }">
+        <AppUserMenu :collapsed="collapsed" />
+      </template>
+    </UDashboardSidebar>
 
-        <template #footer="{ collapsed }">
-          <AppUserMenu :collapsed="collapsed" />
-        </template>
-      </UDashboardSidebar>
+    <UDashboardSearch :groups="searchGroups" />
 
-      <UDashboardSearch :groups="searchGroups" />
+    <slot />
 
-      <slot />
-
-      <AppNotificationsSlideover />
-    </UDashboardGroup>
-  </UApp>
+    <AppNotificationsSlideover />
+  </UDashboardGroup>
 </template>
