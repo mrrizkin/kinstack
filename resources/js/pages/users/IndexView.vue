@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head } from "@inertiajs/vue3";
+import { Head, router } from "@inertiajs/vue3";
+import { computed } from "vue";
 
 import AppPageHeader from "@/components/AppPageHeader.vue";
 import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
@@ -22,6 +23,7 @@ const { can } = usePermissions();
 const {
   roleOptions,
   formError,
+  actionError,
   showCreate,
   createForm,
   submitCreate,
@@ -29,7 +31,11 @@ const {
   headerActions,
   inviteForm,
   submitInvite,
+  busyUserId,
+  pendingToggle,
+  togglingActive,
   toggleActive,
+  confirmToggleActive,
   changeRole,
   userMenuItems,
   passwordTarget,
@@ -45,9 +51,24 @@ const view = useTableView(
     changeRole,
     resetPassword,
     toggleActive,
+    isBusy: (user) => busyUserId.value === user.public_id,
   }),
   { paged: false },
 );
+
+const emptyActions = computed(() => {
+  const actions: { label: string; icon: string; onClick: () => void }[] = [];
+  if (can(PERMISSIONS.usersManage)) {
+    actions.push({ label: "Add user", icon: "i-bi-person-plus", onClick: () => (showCreate.value = true) });
+    actions.push({ label: "Invite user", icon: "i-bi-envelope-plus", onClick: () => (showInvite.value = true) });
+  } else if (can(PERMISSIONS.accessManage)) {
+    actions.push({ label: "Open access", icon: "i-bi-shield-lock", onClick: () => router.visit("/access") });
+  }
+  if (actions.length === 0) {
+    actions.push({ label: "Back to dashboard", icon: "i-bi-arrow-left", onClick: () => router.visit("/dashboard") });
+  }
+  return actions;
+});
 </script>
 
 <template>
@@ -111,26 +132,36 @@ const view = useTableView(
 
     <template #body>
       <div class="space-y-6">
-        <UAlert v-if="formError" color="error" variant="subtle" :title="formError" class="mb-4" />
+        <UAlert
+          v-if="formError || actionError"
+          color="error"
+          variant="subtle"
+          :title="formError || actionError"
+          class="mb-4" />
 
         <UserDialogs
           v-model:show-create="showCreate"
           v-model:show-invite="showInvite"
           v-model:password-target="passwordTarget"
+          v-model:pending-toggle="pendingToggle"
           :role-options="roleOptions"
           :create-form="createForm"
           :invite-form="inviteForm"
           :password-form="passwordForm"
+          :toggling-active="togglingActive"
           :submit-create="submitCreate"
           :submit-invite="submitInvite"
-          :confirm-reset-password="confirmResetPassword" />
+          :confirm-reset-password="confirmResetPassword"
+          :confirm-toggle-active="confirmToggleActive" />
 
         <UserTable
           :users="props.users"
           :view="view"
           :role-options="roleOptions"
           :menu-items="userMenuItems"
-          :change-role="changeRole" />
+          :change-role="changeRole"
+          :busy-user-id="busyUserId"
+          :empty-actions="emptyActions" />
 
         <AppPagination :page="props.page" url="/users" />
       </div>

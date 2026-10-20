@@ -13,6 +13,7 @@ defineProps<{
   roleOptions: { label: string; value: string }[];
   menuItems: (user: UserAccess) => DropdownMenuItem[];
   assignRole: (user: UserAccess, role: string) => void;
+  assigningRoleId: string | null;
 }>();
 </script>
 
@@ -24,7 +25,17 @@ defineProps<{
       icon="i-bi-info-circle"
       description="Custom permissions add (allow) or remove (deny) a single permission for a specific user. Deny always takes precedence over roles." />
     <AppTableCard :view="view" class="hidden md:block">
-      <UTable :data="users" :columns="view.columns" class="w-full" />
+      <UTable :data="users" :columns="view.columns" class="w-full">
+        <template #empty>
+          <UEmpty
+            icon="i-bi-people"
+            title="No users yet."
+            description="Create a user account before adding custom permissions."
+            variant="naked"
+            :actions="[{ label: 'Open users', to: '/users', icon: 'i-bi-people' }]"
+            class="py-6" />
+        </template>
+      </UTable>
     </AppTableCard>
 
     <div class="md:hidden">
@@ -52,12 +63,19 @@ defineProps<{
           </div>
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Role</span>
-            <USelect
-              :model-value="user.role"
-              :items="roleOptions"
-              size="sm"
-              class="w-44"
-              @update:model-value="(value: unknown) => assignRole(user, String(value))" />
+            <div class="flex items-center gap-2">
+              <USelect
+                :model-value="user.role"
+                :items="roleOptions"
+                size="sm"
+                class="w-44"
+                :disabled="assigningRoleId === user.public_id"
+                @update:model-value="(value: unknown) => assignRole(user, String(value))" />
+              <UIcon
+                v-if="assigningRoleId === user.public_id"
+                name="i-bi-arrow-repeat"
+                class="text-muted size-3.5 animate-spin" />
+            </div>
           </div>
           <div class="space-y-1.5">
             <p class="text-muted text-xs">Custom permissions</p>
@@ -75,7 +93,14 @@ defineProps<{
           </div>
         </article>
       </AppMobileList>
-      <UEmpty v-else icon="i-bi-people" title="No users yet." variant="naked" class="py-10" />
+      <UEmpty
+        v-else
+        icon="i-bi-people"
+        title="No users yet."
+        description="Create a user account before adding custom permissions."
+        variant="naked"
+        :actions="[{ label: 'Open users', to: '/users', icon: 'i-bi-people' }]"
+        class="py-10" />
     </div>
   </div>
 </template>

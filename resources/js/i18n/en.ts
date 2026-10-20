@@ -59,7 +59,7 @@ export const messages = {
       eyebrow: "Management system",
       headline: "One place to manage your team, access, and change history.",
       description: "A clean operational foundation: users, authorization, account security, and audit in one workflow.",
-      featureRbac: "Role- and attribute-based access",
+      featureRbac: "Fine-grained role and user permissions",
       featureAudit: "Traceable change history",
       featureMfa: "Two-factor authentication and passkeys",
       copyright: "© {year} KinStack. Internal access.",

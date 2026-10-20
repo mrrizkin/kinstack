@@ -9,10 +9,15 @@ defineProps<{
   user: UserAccess | null;
   overrideForm: OverrideForm;
   permissionOptions: { label: string; value: string }[];
-  overrideErrors: string;
+  submitting: boolean;
+  fieldError: (field: string) => string;
   submitOverride: () => void;
-  removeOverride: (user: UserAccess, override: Override) => void;
+  requestRemoveOverride: (user: UserAccess, override: Override) => void;
 }>();
+
+function focusPermissionForm() {
+  document.getElementById("override-permission")?.focus();
+}
 </script>
 
 <template>
@@ -28,7 +33,8 @@ defineProps<{
             v-if="user.overrides.length === 0"
             icon="i-bi-slash-circle"
             title="No custom permissions yet"
-            description="This user only uses permissions from their role." />
+            description="This user only uses permissions from their role."
+            :actions="[{ label: 'Add custom permission', icon: 'i-bi-plus', onClick: focusPermissionForm }]" />
           <div v-else class="space-y-2">
             <div
               v-for="override in user.overrides"
@@ -50,7 +56,12 @@ defineProps<{
                   <span v-else-if="override.expires_at"> · until {{ override.expires_at.slice(0, 10) }}</span>
                 </p>
               </div>
-              <UButton size="xs" color="error" variant="link" label="Delete" @click="removeOverride(user, override)" />
+              <UButton
+                size="xs"
+                color="error"
+                variant="link"
+                label="Delete"
+                @click="requestRemoveOverride(user, override)" />
             </div>
           </div>
         </div>
@@ -58,12 +69,17 @@ defineProps<{
         <USeparator />
 
         <div class="space-y-4">
-          <p class="text-muted text-xs font-semibold tracking-wide uppercase">Add / edit permission</p>
-          <UAlert v-if="overrideErrors" color="error" variant="subtle" :description="overrideErrors" />
-          <UFormField label="Permission">
-            <USelect v-model="overrideForm.permission" :items="permissionOptions" class="w-full" />
+          <p id="override-permission-form" class="text-muted text-xs font-semibold tracking-wide uppercase">
+            Add / edit permission
+          </p>
+          <UFormField label="Permission" :error="fieldError('permission')">
+            <USelect
+              id="override-permission"
+              v-model="overrideForm.permission"
+              :items="permissionOptions"
+              class="w-full" />
           </UFormField>
-          <UFormField label="Effect">
+          <UFormField label="Effect" :error="fieldError('effect')">
             <USelect
               v-model="overrideForm.effect"
               :items="[
@@ -72,13 +88,13 @@ defineProps<{
               ]"
               class="w-full" />
           </UFormField>
-          <UFormField label="Reason">
+          <UFormField label="Reason" :error="fieldError('reason')">
             <UInput v-model="overrideForm.reason" placeholder="e.g. covering the night shift" class="w-full" />
           </UFormField>
-          <UFormField label="Valid until (optional)">
+          <UFormField label="Valid until (optional)" :error="fieldError('expires_at')">
             <AppInputDate v-model="overrideForm.expires" placeholder="2026-01-01" class="w-full" />
           </UFormField>
-          <UButton label="Save custom permission" block @click="submitOverride" />
+          <UButton label="Save custom permission" block :loading="submitting" @click="submitOverride" />
         </div>
       </div>
     </template>

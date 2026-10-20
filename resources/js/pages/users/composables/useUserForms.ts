@@ -16,7 +16,8 @@ export function useUserForms(props: UsersProps) {
   const roleOptions = computed(() => props.roles.map((role) => ({ label: role.name, value: role.code })));
   const usersURL = (suffix = "") => `/users${suffix}`;
 
-  const { formError } = useServerErrors();
+  const { formError, message } = useServerErrors();
+  const actionError = computed(() => message("is_active") || message("role") || message("form"));
   const { can } = usePermissions();
 
   const showCreate = ref(false);
@@ -83,29 +84,82 @@ export function useUserForms(props: UsersProps) {
     });
   }
 
+  const busyUserId = ref<string | null>(null);
+  const pendingToggle = ref<User | null>(null);
+  const togglingActive = ref(false);
+
+  function applyActive(user: User, isActive: boolean) {
+    router.post(
+      usersURL(`/${user.public_id}/active`),
+      { is_active: isActive },
+      {
+        preserveScroll: true,
+        onStart: () => (busyUserId.value = user.public_id),
+        onFinish: () => (busyUserId.value = null),
+      },
+    );
+  }
+
   function toggleActive(user: User) {
-    router.post(usersURL(`/${user.public_id}/active`), { is_active: !user.is_active });
+    if (busyUserId.value) return;
+    if (!user.is_active) {
+      applyActive(user, true);
+      return;
+    }
+    pendingToggle.value = user;
+  }
+
+  function confirmToggleActive() {
+    const user = pendingToggle.value;
+    if (!user || togglingActive.value) return;
+    togglingActive.value = true;
+    router.post(
+      usersURL(`/${user.public_id}/active`),
+      { is_active: false },
+      {
+        preserveScroll: true,
+        onStart: () => (busyUserId.value = user.public_id),
+        onFinish: () => {
+          togglingActive.value = false;
+          busyUserId.value = null;
+          pendingToggle.value = null;
+        },
+      },
+    );
   }
 
   function changeRole(user: User, role: string) {
-    router.put(usersURL(`/${user.public_id}`), {
-      email: user.email ?? "",
-      display_name: user.display_name,
-      role,
-    });
+    if (busyUserId.value) return;
+    router.put(
+      usersURL(`/${user.public_id}`),
+      {
+        email: user.email ?? "",
+        display_name: user.display_name,
+        role,
+      },
+      {
+        preserveScroll: true,
+        onStart: () => (busyUserId.value = user.public_id),
+        onFinish: () => (busyUserId.value = null),
+      },
+    );
   }
 
   function userMenuItems(user: User): DropdownMenuItem[] {
+    const busy = busyUserId.value === user.public_id;
     return [
       {
         label: "Reset password",
         icon: "i-bi-key",
+        disabled: busy,
         onSelect: () => resetPassword(user),
       },
       {
         label: user.is_active ? "Deactivate" : "Activate",
         icon: user.is_active ? "i-bi-person-x" : "i-bi-person-check",
         color: user.is_active ? "error" : "success",
+        loading: busy,
+        disabled: busy,
         onSelect: () => toggleActive(user),
       },
     ];
@@ -134,6 +188,7 @@ export function useUserForms(props: UsersProps) {
   return {
     roleOptions,
     formError,
+    actionError,
     showCreate,
     createForm,
     submitCreate,
@@ -141,7 +196,11 @@ export function useUserForms(props: UsersProps) {
     headerActions,
     inviteForm,
     submitInvite,
+    busyUserId,
+    pendingToggle,
+    togglingActive,
     toggleActive,
+    confirmToggleActive,
     changeRole,
     userMenuItems,
     passwordTarget,

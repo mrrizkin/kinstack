@@ -2,6 +2,8 @@ import { router, useForm } from "@inertiajs/vue3";
 import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed, ref } from "vue";
 
+import { useServerErrors } from "@/lib/errors";
+
 import type { Override, OverrideForm, Permission, PermissionCategory, Role, UserAccess } from "../types";
 
 interface AccessProps {
@@ -14,10 +16,13 @@ interface AccessProps {
 export function useAccessForms(props: AccessProps) {
   const accessURL = (suffix = "") => `/access${suffix}`;
   const tab = ref("roles");
+  const { message } = useServerErrors();
+  const actionError = computed(() => message("role") || message("permission") || message("form"));
 
   // ---- Role permission matrix ----
   const editingRole = ref<Role | null>(null);
   const selectedPermissions = ref<string[]>([]);
+  const savingPermissions = ref(false);
 
   const permissionsByCategory = computed<PermissionCategory[]>(() =>
     props.categories
@@ -42,11 +47,16 @@ export function useAccessForms(props: AccessProps) {
 
   function saveRolePermissions() {
     const role = editingRole.value;
-    if (!role) return;
+    if (!role || savingPermissions.value) return;
     router.post(
       accessURL(`/roles/${role.code}/permissions`),
       { permissions: selectedPermissions.value },
-      { preserveScroll: true, onSuccess: () => (editingRole.value = null) },
+      {
+        preserveScroll: true,
+        onStart: () => (savingPermissions.value = true),
+        onFinish: () => (savingPermissions.value = false),
+        onSuccess: () => (editingRole.value = null),
+      },
     );
   }
 
@@ -64,8 +74,29 @@ export function useAccessForms(props: AccessProps) {
     });
   }
 
-  function deleteRole(role: Role) {
-    router.post(accessURL(`/roles/${role.code}/delete`), {}, { preserveScroll: true });
+  // ---- Delete role (confirmed) ----
+  const pendingDeleteRole = ref<Role | null>(null);
+  const deletingRole = ref(false);
+
+  function requestDeleteRole(role: Role) {
+    pendingDeleteRole.value = role;
+  }
+
+  function confirmDeleteRole() {
+    const role = pendingDeleteRole.value;
+    if (!role || deletingRole.value) return;
+    router.post(
+      accessURL(`/roles/${role.code}/delete`),
+      {},
+      {
+        preserveScroll: true,
+        onStart: () => (deletingRole.value = true),
+        onFinish: () => {
+          deletingRole.value = false;
+          pendingDeleteRole.value = null;
+        },
+      },
+    );
   }
 
   // ---- Edit role metadata (name/description/rank are data, not code) ----
@@ -89,7 +120,7 @@ export function useAccessForms(props: AccessProps) {
     });
   }
 
-  // ---- User overrides ----
+  // ---- User custom permissions ----
   // Track only the selected user's id so the panel always reflects the latest
   // props after an Inertia reload (a stored object snapshot would go stale).
   const editingUserId = ref<string | null>(null);
@@ -100,20 +131,25 @@ export function useAccessForms(props: AccessProps) {
     reason: "",
     expires: "",
   });
-  const overrideErrors = ref("");
+  const overrideLocalErrors = ref<Record<string, string>>({});
+  const submittingOverride = ref(false);
 
   const permissionOptions = computed(() =>
     props.permissions.map((permission) => ({
-      label: `${permission.label} · ${permission.code}`,
+      label: permission.label,
       value: permission.code,
     })),
   );
 
   const roleOptions = computed(() => props.roles.map((role) => ({ label: role.name, value: role.code })));
 
+  function overrideFieldError(field: string): string {
+    return overrideLocalErrors.value[field] || message(field);
+  }
+
   function openUserOverrides(user: UserAccess) {
     editingUserId.value = user.public_id;
-    overrideErrors.value = "";
+    overrideLocalErrors.value = {};
     overrideForm.value.permission = permissionOptions.value[0]?.value ?? "";
     overrideForm.value.effect = "allow";
     overrideForm.value.reason = "";
@@ -126,10 +162,10 @@ export function useAccessForms(props: AccessProps) {
 
   function submitOverride() {
     const user = editingUser.value;
-    if (!user) return;
-    overrideErrors.value = "";
+    if (!user || submittingOverride.value) return;
+    overrideLocalErrors.value = {};
     if (!overrideForm.value.permission) {
-      overrideErrors.value = "Select a permission first.";
+      overrideLocalErrors.value.permission = "Select a permission first.";
       return;
     }
     router.post(
@@ -140,20 +176,52 @@ export function useAccessForms(props: AccessProps) {
         reason: overrideForm.value.reason,
         expires_at: overrideForm.value.expires,
       },
-      { preserveScroll: true },
+      {
+        preserveScroll: true,
+        onStart: () => (submittingOverride.value = true),
+        onFinish: () => (submittingOverride.value = false),
+      },
     );
   }
 
-  function removeOverride(user: UserAccess, override: Override) {
+  // ---- Delete custom permission (confirmed) ----
+  const pendingRemoveOverride = ref<{ user: UserAccess; override: Override } | null>(null);
+  const removingOverride = ref(false);
+
+  function requestRemoveOverride(user: UserAccess, override: Override) {
+    pendingRemoveOverride.value = { user, override };
+  }
+
+  function confirmRemoveOverride() {
+    const pending = pendingRemoveOverride.value;
+    if (!pending || removingOverride.value) return;
     router.post(
-      accessURL(`/users/${user.public_id}/permissions/delete`),
-      { permission: override.permission },
-      { preserveScroll: true },
+      accessURL(`/users/${pending.user.public_id}/permissions/delete`),
+      { permission: pending.override.permission },
+      {
+        preserveScroll: true,
+        onStart: () => (removingOverride.value = true),
+        onFinish: () => {
+          removingOverride.value = false;
+          pendingRemoveOverride.value = null;
+        },
+      },
     );
   }
+
+  const assigningRoleId = ref<string | null>(null);
 
   function assignRole(user: UserAccess, role: string) {
-    router.post(accessURL(`/users/${user.public_id}/role`), { role }, { preserveScroll: true });
+    if (assigningRoleId.value) return;
+    router.post(
+      accessURL(`/users/${user.public_id}/role`),
+      { role },
+      {
+        preserveScroll: true,
+        onStart: () => (assigningRoleId.value = user.public_id),
+        onFinish: () => (assigningRoleId.value = null),
+      },
+    );
   }
 
   function roleMenuItems(role: Role): DropdownMenuItem[] {
@@ -174,7 +242,7 @@ export function useAccessForms(props: AccessProps) {
         label: "Delete",
         icon: "i-bi-trash",
         color: "error",
-        onSelect: () => deleteRole(role),
+        onSelect: () => requestDeleteRole(role),
       });
     }
     return actions;
@@ -192,8 +260,10 @@ export function useAccessForms(props: AccessProps) {
 
   return {
     tab,
+    actionError,
     editingRole,
     selectedPermissions,
+    savingPermissions,
     permissionsByCategory,
     openRolePermissions,
     togglePermission,
@@ -201,21 +271,29 @@ export function useAccessForms(props: AccessProps) {
     showCreateRole,
     createRoleForm,
     submitCreateRole,
-    deleteRole,
+    pendingDeleteRole,
+    deletingRole,
+    requestDeleteRole,
+    confirmDeleteRole,
     editingRoleMeta,
     editRoleForm,
     openEditRole,
     submitEditRole,
     editingUser,
     overrideForm,
-    overrideErrors,
+    submittingOverride,
+    overrideFieldError,
     permissionOptions,
     roleOptions,
     openUserOverrides,
     closeUserOverrides,
     submitOverride,
-    removeOverride,
+    pendingRemoveOverride,
+    removingOverride,
+    requestRemoveOverride,
+    confirmRemoveOverride,
     assignRole,
+    assigningRoleId,
     roleMenuItems,
     accessUserMenuItems,
   };

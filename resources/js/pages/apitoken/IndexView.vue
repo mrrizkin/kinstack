@@ -2,6 +2,7 @@
 import { Head, router, useForm } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 
+import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
@@ -27,6 +28,9 @@ const { permissions } = usePageProps();
 
 const showCreate = ref(false);
 const copied = ref(false);
+const copyError = ref("");
+const revokeTarget = ref<APIToken | null>(null);
+const revoking = ref(false);
 const createForm = useForm({ name: "", expires_in_days: 0, scopes: [] as string[] });
 
 function toggleScope(permission: string, checked: boolean) {
@@ -56,17 +60,32 @@ function submitCreate() {
 }
 
 function revoke(token: APIToken) {
-  router.post(`/api-tokens/${token.public_id}/revoke`);
+  revokeTarget.value = token;
+}
+
+function confirmRevoke() {
+  const token = revokeTarget.value;
+  if (!token || revoking.value) return;
+  router.post(`/api-tokens/${token.public_id}/revoke`, undefined, {
+    preserveScroll: true,
+    onStart: () => (revoking.value = true),
+    onFinish: () => {
+      revoking.value = false;
+      revokeTarget.value = null;
+    },
+  });
 }
 
 async function copyToken() {
   if (!props.created_token) return;
+  copyError.value = "";
   try {
     await navigator.clipboard.writeText(props.created_token);
     copied.value = true;
     setTimeout(() => (copied.value = false), 2000);
   } catch {
     copied.value = false;
+    copyError.value = "Could not copy automatically. Select the token and copy it manually.";
   }
 }
 </script>
@@ -94,15 +113,18 @@ async function copyToken() {
         <UAlert v-if="hasCreated" color="success" variant="subtle" icon="i-bi-key" title="Token created">
           <template #description>
             <p class="mb-2">Copy it now. This token is only shown once.</p>
-            <div class="flex items-center gap-2">
-              <UInput :model-value="props.created_token" readonly class="w-full font-mono text-xs" />
-              <UButton
-                :icon="copied ? 'i-bi-check' : 'i-bi-clipboard'"
-                color="neutral"
-                variant="outline"
-                @click="copyToken">
-                {{ copied ? "Copied" : "Copy" }}
-              </UButton>
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <UInput :model-value="props.created_token" readonly class="w-full font-mono text-xs" />
+                <UButton
+                  :icon="copied ? 'i-bi-check' : 'i-bi-clipboard'"
+                  color="neutral"
+                  variant="outline"
+                  @click="copyToken">
+                  {{ copied ? "Copied" : "Copy" }}
+                </UButton>
+              </div>
+              <p v-if="copyError" class="text-error text-xs">{{ copyError }}</p>
             </div>
           </template>
         </UAlert>
@@ -135,11 +157,17 @@ async function copyToken() {
                   <span v-if="token.expires_at"> · Expires {{ formatDateTime(token.expires_at) }}</span>
                 </p>
                 <p v-if="token.scopes?.length" class="text-muted mt-1 text-xs">
-                  Scope: {{ token.scopes.map(permissionLabel).join(", ") }}
+                  Permissions: {{ token.scopes.map(permissionLabel).join(", ") }}
                 </p>
-                <p v-else class="text-muted mt-1 text-xs">No scopes · no access</p>
+                <p v-else class="text-muted mt-1 text-xs">No permissions · no access</p>
               </div>
-              <UButton color="error" variant="outline" size="xs" icon="i-bi-trash" @click="revoke(token)">
+              <UButton
+                color="error"
+                variant="outline"
+                size="xs"
+                icon="i-bi-trash"
+                :loading="revoking && revokeTarget?.public_id === token.public_id"
+                @click="revoke(token)">
                 Revoke
               </UButton>
             </li>
@@ -160,7 +188,7 @@ async function copyToken() {
             <UFormField label="Expiry" :error="createForm.errors.expires_in_days">
               <USelect v-model="createForm.expires_in_days" :items="expiryOptions" class="w-full" />
             </UFormField>
-            <UFormField label="Scope" :error="createForm.errors.scopes">
+            <UFormField label="Permissions" :error="createForm.errors.scopes">
               <div class="space-y-2">
                 <UCheckbox
                   v-for="permission in permissions"
@@ -176,8 +204,8 @@ async function copyToken() {
               </div>
             </UFormField>
             <p class="text-muted text-xs">
-              The token's effective permissions are the intersection of your permissions and these scopes. Without
-              scopes, the token has no access.
+              The token can only use permissions you already have. Without selected permissions, the token has no
+              access.
             </p>
             <div class="flex justify-end gap-2">
               <UButton color="neutral" variant="ghost" @click="showCreate = false">Cancel</UButton>
@@ -188,4 +216,17 @@ async function copyToken() {
       </USlideover>
     </template>
   </UDashboardPanel>
+
+  <AppConfirmDialog
+    :open="revokeTarget !== null"
+    title="Revoke API token"
+    :description="revokeTarget ? `${revokeTarget.name} will stop working immediately. This cannot be undone.` : ''"
+    confirm-label="Revoke token"
+    :loading="revoking"
+    @update:open="
+      (value: boolean) => {
+        if (!value) revokeTarget = null;
+      }
+    "
+    @confirm="confirmRevoke" />
 </template>

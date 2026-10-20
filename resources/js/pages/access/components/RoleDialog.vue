@@ -10,6 +10,7 @@ defineProps<{
   editForm: RoleEditForm;
   permissionsByCategory: PermissionCategory[];
   selectedPermissions: string[];
+  savingPermissions: boolean;
   submitCreate: () => void;
   submitEdit: () => void;
   togglePermission: (code: string, checked: boolean) => void;
@@ -85,7 +86,6 @@ defineProps<{
             :key="permission.code"
             :model-value="selectedPermissions.includes(permission.code)"
             :label="permission.label"
-            :description="permission.code"
             @update:model-value="
               (value: boolean | 'indeterminate') => togglePermission(permission.code, value === true)
             " />
@@ -95,7 +95,7 @@ defineProps<{
     <template #footer>
       <div class="flex justify-end gap-2">
         <UButton color="neutral" variant="ghost" label="Cancel" @click="editingRole = null" />
-        <UButton label="Save permissions" @click="saveRolePermissions" />
+        <UButton label="Save permissions" :loading="savingPermissions" @click="saveRolePermissions" />
       </div>
     </template>
   </USlideover>

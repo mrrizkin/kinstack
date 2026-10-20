@@ -147,7 +147,7 @@ var catalogs = map[Locale]map[string]string{
 		"authz.users_manage.label":             "Manage users",
 		"authz.users_manage.description":       "Create, edit, disable, and reset user passwords.",
 		"authz.access_manage.label":            "Manage access",
-		"authz.access_manage.description":      "Configure roles, role permissions, and per-user overrides.",
+		"authz.access_manage.description":      "Configure roles, role permissions, and custom per-user permissions.",
 		"authz.audit_view.label":               "View audit",
 		"authz.audit_view.description":         "View audit records for activity and system mutations.",
 		"authz.media_view.label":               "View media",
@@ -167,7 +167,7 @@ var catalogs = map[Locale]map[string]string{
 		"authz.reason.role_code_taken":         "That role code is already in use.",
 		"authz.reason.invalid_role":            "Invalid role data.",
 		"authz.reason.unknown_permission_code": "Unknown permission code.",
-		"authz.reason.invalid_override":        "Invalid permission override.",
+		"authz.reason.invalid_override":        "Invalid custom permission.",
 		"authz.reason.user_not_found":          "User not found.",
 
 		"twofactor.not_found":       "User not found.",
@@ -188,7 +188,7 @@ var catalogs = map[Locale]map[string]string{
 
 		// Help content.
 		"help.manage_users":           "Manage users and invitations",
-		"help.manage_access":          "Configure roles, permissions, and access overrides",
+		"help.manage_access":          "Configure roles, permissions, and custom user permissions",
 		"help.trace_audit":            "Trace activity in Audit",
 		"help.manage_media":           "Upload and manage Media",
 		"help.account_security":       "Notifications, sessions, and account security",

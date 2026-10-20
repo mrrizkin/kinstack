@@ -78,6 +78,12 @@ export function useProfileForms(props: ProfileProps) {
   const { message: fieldError, formError } = useServerErrors();
 
   const pendingSession = ref<ActiveSession | null>(null);
+  const revokingSession = ref(false);
+  const pendingRevokeOthers = ref(false);
+  const revokingOthers = ref(false);
+  const beginningTwoFactor = ref(false);
+  const pendingDisableTwoFactor = ref(false);
+  const disablingTwoFactor = ref(false);
 
   const twoFactorForm = useForm({ code: "" });
   const twoFactorPasswordForm = useForm({ password: "" });
@@ -92,7 +98,12 @@ export function useProfileForms(props: ProfileProps) {
   );
 
   function beginTwoFactor() {
-    router.post(`/profile/two-factor/begin`, undefined, { preserveScroll: true });
+    if (beginningTwoFactor.value) return;
+    router.post(`/profile/two-factor/begin`, undefined, {
+      preserveScroll: true,
+      onStart: () => (beginningTwoFactor.value = true),
+      onFinish: () => (beginningTwoFactor.value = false),
+    });
   }
 
   function confirmTwoFactor() {
@@ -103,8 +114,18 @@ export function useProfileForms(props: ProfileProps) {
   }
 
   function disableTwoFactor() {
+    pendingDisableTwoFactor.value = true;
+  }
+
+  function confirmDisableTwoFactor() {
+    if (disablingTwoFactor.value) return;
     twoFactorPasswordForm.post(`/profile/two-factor/disable`, {
       preserveScroll: true,
+      onStart: () => (disablingTwoFactor.value = true),
+      onFinish: () => {
+        disablingTwoFactor.value = false;
+        pendingDisableTwoFactor.value = false;
+      },
       onSuccess: () => twoFactorPasswordForm.reset(),
     });
   }
@@ -118,17 +139,31 @@ export function useProfileForms(props: ProfileProps) {
 
   function confirmRevokeSession() {
     const target = pendingSession.value;
-    if (!target) return;
+    if (!target || revokingSession.value) return;
     router.post(`/profile/sessions/${target.public_id}/revoke`, undefined, {
       preserveScroll: true,
+      onStart: () => (revokingSession.value = true),
       onFinish: () => {
+        revokingSession.value = false;
         pendingSession.value = null;
       },
     });
   }
 
   function revokeOtherSessions() {
-    router.post(`/profile/sessions/revoke-others`, undefined, { preserveScroll: true });
+    pendingRevokeOthers.value = true;
+  }
+
+  function confirmRevokeOtherSessions() {
+    if (revokingOthers.value) return;
+    router.post(`/profile/sessions/revoke-others`, undefined, {
+      preserveScroll: true,
+      onStart: () => (revokingOthers.value = true),
+      onFinish: () => {
+        revokingOthers.value = false;
+        pendingRevokeOthers.value = false;
+      },
+    });
   }
 
   return {
@@ -140,6 +175,12 @@ export function useProfileForms(props: ProfileProps) {
     fieldError,
     formError,
     pendingSession,
+    revokingSession,
+    pendingRevokeOthers,
+    revokingOthers,
+    beginningTwoFactor,
+    pendingDisableTwoFactor,
+    disablingTwoFactor,
     twoFactorForm,
     twoFactorPasswordForm,
     qrDataUrl,
@@ -149,8 +190,10 @@ export function useProfileForms(props: ProfileProps) {
     beginTwoFactor,
     confirmTwoFactor,
     disableTwoFactor,
+    confirmDisableTwoFactor,
     regenerateRecoveryCodes,
     confirmRevokeSession,
     revokeOtherSessions,
+    confirmRevokeOtherSessions,
   };
 }

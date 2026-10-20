@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from "@inertiajs/vue3";
-import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
-import { computed, h, reactive, resolveComponent } from "vue";
+import { computed, reactive, ref } from "vue";
 
 import AppInputDate from "@/components/AppInputDate.vue";
 import AppMobileList from "@/components/AppMobileList.vue";
@@ -13,20 +12,9 @@ import BaseLayout from "@/layouts/BaseLayout.vue";
 import { formatDateTime } from "@/lib/formatters";
 import { useTableView } from "@/lib/table-view";
 
-defineOptions({ layout: [BaseLayout, AppLayout] });
+import { actionLabel, createAuditColumns, type Entry, statusColor } from "./columns";
 
-interface Entry {
-  id: number;
-  occurred_at: string;
-  request_id: string;
-  actor_key: string;
-  action: string;
-  resource: string;
-  method: string;
-  status: number;
-  outcome: string;
-  metadata?: Record<string, string>;
-}
+defineOptions({ layout: [BaseLayout, AppLayout] });
 
 interface Filters {
   actor_key: string;
@@ -59,9 +47,9 @@ const form = reactive<Filters>({
 
 const actionOptions = [
   { label: "All actions", value: ALL_FILTER },
-  { label: "Read", value: "http.read" },
-  { label: "Mutation", value: "http.mutate" },
-  { label: "Background job", value: "background.job" },
+  { label: "Page views", value: "http.read" },
+  { label: "Data changes", value: "http.mutate" },
+  { label: "Background jobs", value: "background.job" },
 ];
 
 const outcomeOptions = [
@@ -92,8 +80,23 @@ const activeFilters = computed<Record<string, string>>(() => {
   return query;
 });
 
+const applying = ref(false);
+const hasFilters = computed(() => Object.keys(activeFilters.value).length > 0);
+
+const emptyActions = computed(() =>
+  hasFilters.value
+    ? [{ label: "Reset filters", icon: "i-bi-arrow-counterclockwise", onClick: resetFilters }]
+    : [{ label: "Back to dashboard", icon: "i-bi-arrow-left", to: "/dashboard" }],
+);
+
 function applyFilters() {
-  router.get("/audit", activeFilters.value, { preserveState: true, preserveScroll: true, replace: true });
+  router.get("/audit", activeFilters.value, {
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+    onStart: () => (applying.value = true),
+    onFinish: () => (applying.value = false),
+  });
 }
 
 function resetFilters() {
@@ -103,76 +106,20 @@ function resetFilters() {
   form.search = "";
   form.from = "";
   form.to = "";
-  router.get("/audit", {}, { preserveState: true, preserveScroll: true, replace: true });
+  router.get(
+    "/audit",
+    {},
+    {
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+      onStart: () => (applying.value = true),
+      onFinish: () => (applying.value = false),
+    },
+  );
 }
 
-const UBadge = resolveComponent("UBadge");
-
-function statusColor(status: number) {
-  if (status >= 500) return "error";
-  if (status >= 400) return "warning";
-  if (status >= 200 && status < 400) return "success";
-  return "neutral";
-}
-
-const columns: TableColumn<Entry>[] = [
-  {
-    accessorKey: "occurred_at",
-    header: "Time",
-    cell: ({ row }) =>
-      h("div", { class: "text-muted whitespace-nowrap text-xs" }, formatDateTime(row.original.occurred_at)),
-  },
-  {
-    accessorKey: "actor_key",
-    header: "Actor",
-    cell: ({ row }) =>
-      h("div", { class: "text-xs" }, [
-        h("div", { class: "text-highlighted font-medium" }, row.original.actor_key || "anonymous"),
-        h("div", { class: "text-muted" }, row.original.request_id || "-"),
-      ]),
-  },
-  {
-    accessorKey: "action",
-    header: "Action",
-    cell: ({ row }) => h(UBadge, { color: "neutral", variant: "subtle", size: "sm" }, () => row.original.action),
-  },
-  {
-    accessorKey: "resource",
-    header: "Resource",
-    cell: ({ row }) =>
-      h("div", { class: "text-xs" }, [
-        h("div", { class: "text-highlighted font-mono" }, row.original.resource || "-"),
-        h("div", { class: "text-muted" }, row.original.method || "-"),
-      ]),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    meta: { class: { th: "text-right", td: "text-right" } },
-    cell: ({ row }) =>
-      h("div", { class: "flex justify-end" }, [
-        h(UBadge, { color: statusColor(row.original.status), variant: "subtle", size: "sm" }, () =>
-          String(row.original.status || "-"),
-        ),
-      ]),
-  },
-  {
-    accessorKey: "outcome",
-    header: "Outcome",
-    cell: ({ row }) =>
-      h(
-        UBadge,
-        {
-          color: row.original.outcome === "failure" ? "error" : "success",
-          variant: "subtle",
-          size: "sm",
-        },
-        () => (row.original.outcome === "failure" ? "Failure" : "Success"),
-      ),
-  },
-];
-
-const view = useTableView("audit", columns, { paged: false });
+const view = useTableView("audit", createAuditColumns(), { paged: false });
 </script>
 
 <template>
@@ -197,8 +144,8 @@ const view = useTableView("audit", columns, { paged: false });
             <UFormField label="Search">
               <UInput v-model="form.search" class="w-full" placeholder="resource, request id, actor" />
             </UFormField>
-            <UFormField label="Actor">
-              <UInput v-model="form.actor_key" class="w-full" placeholder="actor public ID" />
+            <UFormField label="User">
+              <UInput v-model="form.actor_key" class="w-full" placeholder="User ID" />
             </UFormField>
             <UFormField label="Action">
               <USelect v-model="form.action" :items="actionOptions" class="w-full" />
@@ -213,8 +160,14 @@ const view = useTableView("audit", columns, { paged: false });
               <AppInputDate v-model="form.to" placeholder="2026-01-01" class="w-full" />
             </UFormField>
             <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-3">
-              <UButton type="button" color="neutral" variant="outline" label="Reset" @click="resetFilters" />
-              <UButton type="submit" color="primary" icon="i-bi-funnel" label="Apply" />
+              <UButton
+                type="button"
+                color="neutral"
+                variant="outline"
+                label="Reset"
+                :disabled="applying"
+                @click="resetFilters" />
+              <UButton type="submit" color="primary" icon="i-bi-funnel" label="Apply" :loading="applying" />
             </div>
           </form>
         </UCard>
@@ -222,7 +175,17 @@ const view = useTableView("audit", columns, { paged: false });
         <AppTableCard :view="view" class="hidden md:block">
           <UTable :data="entries" :columns="view.columns" class="w-full">
             <template #empty>
-              <UEmpty icon="i-bi-journal-text" title="No audit entries yet." variant="naked" class="py-6" />
+              <UEmpty
+                icon="i-bi-journal-text"
+                :title="hasFilters ? 'No matching audit entries.' : 'No audit entries yet.'"
+                :description="
+                  hasFilters
+                    ? 'Try a different search or reset the filters.'
+                    : 'Activity will appear here as users work.'
+                "
+                variant="naked"
+                :actions="emptyActions"
+                class="py-6" />
             </template>
           </UTable>
           <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
@@ -247,7 +210,7 @@ const view = useTableView("audit", columns, { paged: false });
 
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                  <UBadge color="neutral" variant="subtle" size="sm">{{ entry.action }}</UBadge>
+                  <UBadge color="neutral" variant="subtle" size="sm">{{ actionLabel(entry.action) }}</UBadge>
                   <span class="text-highlighted truncate font-mono text-xs">{{ entry.resource || "-" }}</span>
                 </div>
                 <p class="text-muted mt-1 text-xs">{{ entry.method || "-" }}</p>
@@ -259,7 +222,16 @@ const view = useTableView("audit", columns, { paged: false });
               </div>
             </article>
           </AppMobileList>
-          <UEmpty v-else icon="i-bi-journal-text" title="No audit entries yet." variant="naked" class="py-10" />
+          <UEmpty
+            v-else
+            icon="i-bi-journal-text"
+            :title="hasFilters ? 'No matching audit entries.' : 'No audit entries yet.'"
+            :description="
+              hasFilters ? 'Try a different search or reset the filters.' : 'Activity will appear here as users work.'
+            "
+            variant="naked"
+            :actions="emptyActions"
+            class="py-10" />
           <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
         </div>
       </div>

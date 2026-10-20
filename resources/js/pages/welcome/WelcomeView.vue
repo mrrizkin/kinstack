@@ -14,8 +14,8 @@ const features = [
   },
   {
     icon: "i-material-symbols:shield-lock-outline-rounded",
-    title: "RBAC + ABAC",
-    description: "Roles, permissions, and per-user overrides with fail-closed route policies.",
+    title: "Fine-grained access",
+    description: "Roles, permissions, and custom per-user permissions checked on every request.",
   },
   {
     icon: "i-material-symbols:history-rounded",
@@ -48,7 +48,7 @@ const securityPoints = [
   {
     icon: "i-material-symbols:verified-user-outline-rounded",
     title: "Layered authorization",
-    description: "Effective permissions are derived from roles and user overrides.",
+    description: "Effective permissions combine your role with any custom permissions.",
   },
   {
     icon: "i-material-symbols:visibility-outline-rounded",
@@ -110,7 +110,7 @@ const links = [
           </div>
           <div class="bg-default ring-default rounded-lg p-4 ring">
             <p class="text-muted text-xs uppercase">Access</p>
-            <p class="text-highlighted mt-2 text-2xl font-semibold">RBAC</p>
+            <p class="text-highlighted mt-2 text-2xl font-semibold">Roles</p>
             <div class="mt-4 space-y-2">
               <div class="bg-accented h-2 w-full rounded-full" />
               <div class="bg-accented h-2 w-4/5 rounded-full" />

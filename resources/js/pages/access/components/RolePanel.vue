@@ -11,13 +11,24 @@ defineProps<{
   roles: Role[];
   view: TableView;
   menuItems: (role: Role) => DropdownMenuItem[];
+  emptyActions: { label: string; icon: string; onClick: () => void }[];
 }>();
 </script>
 
 <template>
   <div class="space-y-3">
     <AppTableCard :view="view" class="hidden md:block">
-      <UTable :data="roles" :columns="view.columns" class="w-full" />
+      <UTable :data="roles" :columns="view.columns" class="w-full">
+        <template #empty>
+          <UEmpty
+            icon="i-bi-shield-lock"
+            title="No roles yet."
+            description="Create a role to group permissions for your team."
+            variant="naked"
+            :actions="emptyActions"
+            class="py-6" />
+        </template>
+      </UTable>
     </AppTableCard>
 
     <div class="md:hidden">
@@ -54,7 +65,14 @@ defineProps<{
           </div>
         </article>
       </AppMobileList>
-      <UEmpty v-else icon="i-bi-shield-lock" title="No roles yet." variant="naked" class="py-10" />
+      <UEmpty
+        v-else
+        icon="i-bi-shield-lock"
+        title="No roles yet."
+        description="Create a role to group permissions for your team."
+        variant="naked"
+        :actions="emptyActions"
+        class="py-10" />
     </div>
   </div>
 </template>

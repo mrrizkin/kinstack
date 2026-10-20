@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { z } from "zod";
 
+import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
@@ -26,14 +27,21 @@ const props = defineProps<{ passkeys: Passkey[] }>();
 const { csrfToken } = usePageProps();
 const passkeys = ref([...props.passkeys]);
 const name = ref("This device");
+const nameError = ref("");
 const saving = ref(false);
 const revoking = ref("");
+const revokeTarget = ref<Passkey | null>(null);
 const message = ref("");
 const error = ref("");
 const supported = supportsWebAuthn();
 
 async function addPasskey() {
-  if (saving.value || !name.value.trim()) return;
+  if (saving.value) return;
+  nameError.value = "";
+  if (!name.value.trim()) {
+    nameError.value = "Enter a name so you can recognize this passkey later.";
+    return;
+  }
   saving.value = true;
   message.value = "";
   error.value = "";
@@ -58,8 +66,14 @@ async function addPasskey() {
   }
 }
 
-async function revokePasskey(passkey: Passkey) {
+function revokePasskey(passkey: Passkey) {
   if (revoking.value) return;
+  revokeTarget.value = passkey;
+}
+
+async function confirmRevokePasskey() {
+  const passkey = revokeTarget.value;
+  if (!passkey || revoking.value) return;
   revoking.value = passkey.id;
   error.value = "";
   try {
@@ -73,8 +87,15 @@ async function revokePasskey(passkey: Passkey) {
     error.value = caught instanceof Error ? caught.message : "Failed to revoke passkey.";
   } finally {
     revoking.value = "";
+    revokeTarget.value = null;
   }
 }
+
+const emptyActions = computed(() =>
+  supported
+    ? [{ label: "Add your first passkey", icon: "i-bi-fingerprint", onClick: addPasskey }]
+    : [{ label: "Back to profile", icon: "i-bi-arrow-left", to: "/profile" }],
+);
 </script>
 
 <template>
@@ -100,9 +121,14 @@ async function revokePasskey(passkey: Passkey) {
         <UAlert v-if="error" color="error" variant="subtle" icon="i-bi-exclamation-circle" :title="error" />
 
         <UCard>
-          <div v-if="passkeys.length === 0" class="text-muted py-8 text-center text-sm">
-            No passkeys registered yet.
-          </div>
+          <UEmpty
+            v-if="passkeys.length === 0"
+            icon="i-bi-fingerprint"
+            title="No passkeys yet."
+            description="Add a passkey to sign in with your fingerprint, face, or device PIN."
+            variant="naked"
+            :actions="emptyActions"
+            class="py-8" />
           <ul v-else class="divide-default divide-y">
             <li
               v-for="passkey in passkeys"
@@ -130,7 +156,7 @@ async function revokePasskey(passkey: Passkey) {
 
         <UCard>
           <div class="space-y-4">
-            <UFormField label="Passkey name">
+            <UFormField label="Passkey name" :error="nameError">
               <UInput v-model="name" maxlength="80" placeholder="e.g. Work laptop" class="w-full" />
             </UFormField>
             <UButton
@@ -141,10 +167,23 @@ async function revokePasskey(passkey: Passkey) {
               @click="addPasskey">
               Add passkey
             </UButton>
-            <p v-if="!supported" class="text-muted text-xs">This browser does not support WebAuthn.</p>
+            <p v-if="!supported" class="text-muted text-xs">This browser does not support passkeys.</p>
           </div>
         </UCard>
       </div>
     </template>
   </UDashboardPanel>
+
+  <AppConfirmDialog
+    :open="revokeTarget !== null"
+    title="Revoke passkey"
+    :description="revokeTarget ? `${revokeTarget.name} can no longer be used to sign in.` : ''"
+    confirm-label="Revoke passkey"
+    :loading="Boolean(revoking)"
+    @update:open="
+      (value: boolean) => {
+        if (!value) revokeTarget = null;
+      }
+    "
+    @confirm="confirmRevokePasskey" />
 </template>

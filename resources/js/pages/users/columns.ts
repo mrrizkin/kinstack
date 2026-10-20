@@ -58,12 +58,14 @@ export interface UserColumnsContext {
   changeRole(user: User, role: string): void;
   resetPassword(user: User): void;
   toggleActive(user: User): void;
+  isBusy(user: User): boolean;
 }
 
 export function createUserColumns(ctx: UserColumnsContext): TableColumn<User>[] {
   const UBadge = resolveComponent("UBadge");
   const USelect = resolveComponent("USelect");
   const UButton = resolveComponent("UButton");
+  const UIcon = resolveComponent("UIcon");
 
   return [
     {
@@ -83,13 +85,19 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<User>[] 
       accessorKey: "role",
       header: "Role",
       cell: ({ row }) =>
-        h(USelect, {
-          modelValue: row.original.role,
-          items: ctx.roleOptions(),
-          size: "xs",
-          class: "w-40",
-          "onUpdate:modelValue": (value: unknown) => ctx.changeRole(row.original, String(value)),
-        }),
+        h("div", { class: "flex items-center gap-2" }, [
+          h(USelect, {
+            modelValue: row.original.role,
+            items: ctx.roleOptions(),
+            size: "xs",
+            class: "w-40",
+            disabled: ctx.isBusy(row.original),
+            "onUpdate:modelValue": (value: unknown) => ctx.changeRole(row.original, String(value)),
+          }),
+          ctx.isBusy(row.original)
+            ? h(UIcon, { name: "i-bi-arrow-repeat", class: "text-muted size-3.5 animate-spin" })
+            : null,
+        ]),
     },
     {
       accessorKey: "is_active",
@@ -128,6 +136,7 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<User>[] 
             color: row.original.is_active ? "error" : "success",
             variant: "link",
             label: row.original.is_active ? "Deactivate" : "Activate",
+            loading: ctx.isBusy(row.original),
             onClick: () => ctx.toggleActive(row.original),
           }),
         ]),

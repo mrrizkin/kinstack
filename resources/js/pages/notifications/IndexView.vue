@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from "@inertiajs/vue3";
+import { ref } from "vue";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
@@ -20,13 +21,25 @@ interface Notification {
 
 const props = defineProps<{ notifications: Notification[]; unread: number }>();
 
+const markingId = ref("");
+const markingAll = ref(false);
+
 function markRead(notification: Notification) {
-  if (notification.read) return;
-  router.post(`/notifications/${notification.public_id}/read`, undefined, { preserveScroll: true });
+  if (notification.read || markingId.value) return;
+  router.post(`/notifications/${notification.public_id}/read`, undefined, {
+    preserveScroll: true,
+    onStart: () => (markingId.value = notification.public_id),
+    onFinish: () => (markingId.value = ""),
+  });
 }
 
 function markAllRead() {
-  router.post("/notifications/read-all", undefined, { preserveScroll: true });
+  if (markingAll.value) return;
+  router.post("/notifications/read-all", undefined, {
+    preserveScroll: true,
+    onStart: () => (markingAll.value = true),
+    onFinish: () => (markingAll.value = false),
+  });
 }
 </script>
 
@@ -55,6 +68,7 @@ function markAllRead() {
             variant="outline"
             icon="i-bi-check2-all"
             label="Mark all as read"
+            :loading="markingAll"
             @click="markAllRead" />
         </template>
       </UDashboardNavbar>
@@ -62,12 +76,14 @@ function markAllRead() {
 
     <template #body>
       <div class="space-y-3">
-        <div
+        <UEmpty
           v-if="props.notifications.length === 0"
-          class="border-default rounded-lg border border-dashed py-16 text-center">
-          <UIcon name="i-bi-bell-slash" class="text-muted mx-auto size-8" />
-          <p class="text-muted mt-3 text-sm">No notifications yet.</p>
-        </div>
+          icon="i-bi-bell-slash"
+          title="No notifications yet."
+          description="Account and workspace updates will appear here."
+          variant="naked"
+          :actions="[{ label: 'Back to dashboard', icon: 'i-bi-arrow-left', to: '/dashboard' }]"
+          class="py-12" />
 
         <UCard
           v-for="notification in props.notifications"
@@ -90,6 +106,7 @@ function markAllRead() {
               variant="outline"
               icon="i-bi-check2"
               label="Mark as read"
+              :loading="markingId === notification.public_id"
               @click="markRead(notification)" />
           </div>
         </UCard>

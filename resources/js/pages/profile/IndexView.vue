@@ -29,6 +29,12 @@ const {
   fieldError,
   formError,
   pendingSession,
+  revokingSession,
+  pendingRevokeOthers,
+  revokingOthers,
+  beginningTwoFactor,
+  pendingDisableTwoFactor,
+  disablingTwoFactor,
   twoFactorForm,
   twoFactorPasswordForm,
   qrDataUrl,
@@ -38,9 +44,11 @@ const {
   beginTwoFactor,
   confirmTwoFactor,
   disableTwoFactor,
+  confirmDisableTwoFactor,
   regenerateRecoveryCodes,
   confirmRevokeSession,
   revokeOtherSessions,
+  confirmRevokeOtherSessions,
 } = useProfileForms(props);
 </script>
 
@@ -76,13 +84,21 @@ const {
         :sessions="sessions"
         :qr-data-url="qrDataUrl"
         :field-error="fieldError"
+        :revoking-session="revokingSession"
+        v-model:pending-revoke-others="pendingRevokeOthers"
+        :revoking-others="revokingOthers"
+        :beginning-two-factor="beginningTwoFactor"
+        v-model:pending-disable-two-factor="pendingDisableTwoFactor"
+        :disabling-two-factor="disablingTwoFactor"
         :submit-password="submitPassword"
         :begin-two-factor="beginTwoFactor"
         :confirm-two-factor="confirmTwoFactor"
         :disable-two-factor="disableTwoFactor"
+        :confirm-disable-two-factor="confirmDisableTwoFactor"
         :regenerate-recovery-codes="regenerateRecoveryCodes"
         :revoke-other-sessions="revokeOtherSessions"
-        :confirm-revoke-session="confirmRevokeSession" />
+        :confirm-revoke-session="confirmRevokeSession"
+        :confirm-revoke-other-sessions="confirmRevokeOtherSessions" />
       <AccountPanel
         v-else
         :tab="activeTab"

@@ -6,13 +6,14 @@ import type { Role, UserAccess } from "./types";
 export interface RoleColumnsContext {
   openEditRole(role: Role): void;
   openRolePermissions(role: Role): void;
-  deleteRole(role: Role): void;
+  requestDeleteRole(role: Role): void;
 }
 
 export interface UserColumnsContext {
   roleOptions: () => { label: string; value: string }[];
   assignRole(user: UserAccess, role: string): void;
   openUserOverrides(user: UserAccess): void;
+  assigningRoleId: () => string | null;
 }
 
 export function createRoleColumns(ctx: RoleColumnsContext): TableColumn<Role>[] {
@@ -70,7 +71,7 @@ export function createRoleColumns(ctx: RoleColumnsContext): TableColumn<Role>[] 
                 color: "error",
                 variant: "link",
                 label: "Delete",
-                onClick: () => ctx.deleteRole(row.original),
+                onClick: () => ctx.requestDeleteRole(row.original),
               })
             : null,
         ]),
@@ -82,6 +83,7 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<UserAcce
   const UBadge = resolveComponent("UBadge");
   const UButton = resolveComponent("UButton");
   const USelect = resolveComponent("USelect");
+  const UIcon = resolveComponent("UIcon");
 
   return [
     {
@@ -96,14 +98,20 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<UserAcce
     {
       accessorKey: "role",
       header: "Role",
-      cell: ({ row }) =>
-        h(USelect, {
-          modelValue: row.original.role,
-          items: ctx.roleOptions(),
-          size: "xs",
-          class: "w-40",
-          "onUpdate:modelValue": (value: unknown) => ctx.assignRole(row.original, String(value)),
-        }),
+      cell: ({ row }) => {
+        const busy = ctx.assigningRoleId() === row.original.public_id;
+        return h("div", { class: "flex items-center gap-2" }, [
+          h(USelect, {
+            modelValue: row.original.role,
+            items: ctx.roleOptions(),
+            size: "xs",
+            class: "w-40",
+            disabled: busy,
+            "onUpdate:modelValue": (value: unknown) => ctx.assignRole(row.original, String(value)),
+          }),
+          busy ? h(UIcon, { name: "i-bi-arrow-repeat", class: "text-muted size-3.5 animate-spin" }) : null,
+        ]);
+      },
     },
     {
       id: "overrides",

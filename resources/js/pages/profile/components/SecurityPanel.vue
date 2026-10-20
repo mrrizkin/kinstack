@@ -12,6 +12,20 @@ import type {
 } from "../types";
 
 const pendingSession = defineModel<ActiveSession | null>("pendingSession", { required: true });
+const pendingRevokeOthers = defineModel<boolean>("pendingRevokeOthers", { required: true });
+const pendingDisableTwoFactor = defineModel<boolean>("pendingDisableTwoFactor", { required: true });
+
+function closePendingSession(value: boolean) {
+  if (!value) pendingSession.value = null;
+}
+
+function closeRevokeOthers(value: boolean) {
+  if (!value) pendingRevokeOthers.value = false;
+}
+
+function closeDisableTwoFactor(value: boolean) {
+  if (!value) pendingDisableTwoFactor.value = false;
+}
 
 defineProps<{
   profile: Profile;
@@ -21,14 +35,20 @@ defineProps<{
   twoFactor: TwoFactor;
   sessions: ActiveSession[];
   qrDataUrl: string;
+  revokingSession: boolean;
+  revokingOthers: boolean;
+  beginningTwoFactor: boolean;
+  disablingTwoFactor: boolean;
   fieldError: (field: string, local?: Record<string, unknown>) => string;
   submitPassword: () => void;
   beginTwoFactor: () => void;
   confirmTwoFactor: () => void;
   disableTwoFactor: () => void;
+  confirmDisableTwoFactor: () => void;
   regenerateRecoveryCodes: () => void;
   revokeOtherSessions: () => void;
   confirmRevokeSession: () => void;
+  confirmRevokeOtherSessions: () => void;
 }>();
 </script>
 
@@ -98,6 +118,7 @@ defineProps<{
           size="xs"
           icon="i-bi-qr-code"
           label="Enable 2FA"
+          :loading="beginningTwoFactor"
           @click="beginTwoFactor" />
       </div>
 
@@ -177,7 +198,7 @@ defineProps<{
             size="sm"
             icon="i-bi-shield-slash"
             label="Disable"
-            :loading="twoFactorPasswordForm.processing" />
+            :loading="disablingTwoFactor || twoFactorPasswordForm.processing" />
         </form>
       </div>
     </UCard>
@@ -223,7 +244,12 @@ defineProps<{
             label="Revoke"
             @click="pendingSession = item" />
         </li>
-        <li v-if="sessions.length === 0" class="text-muted py-3 text-sm">No active sessions.</li>
+        <li
+          v-if="sessions.length === 0"
+          class="text-muted flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+          <span>No active sessions.</span>
+          <UButton to="/help" size="xs" color="neutral" variant="link" label="View help" />
+        </li>
       </ul>
     </UCard>
 
@@ -234,11 +260,26 @@ defineProps<{
         pendingSession ? `Device ${pendingSession.user_agent || 'this one'} will be signed out immediately.` : ''
       "
       confirm-label="Revoke session"
-      @update:open="
-        (value: boolean) => {
-          if (!value) pendingSession = null;
-        }
-      "
+      :loading="revokingSession"
+      @update:open="closePendingSession"
       @confirm="confirmRevokeSession" />
+
+    <AppConfirmDialog
+      :open="pendingRevokeOthers"
+      title="Sign out other sessions"
+      description="Every other device will be signed out immediately. This session stays active."
+      confirm-label="Sign out other sessions"
+      :loading="revokingOthers"
+      @update:open="closeRevokeOthers"
+      @confirm="confirmRevokeOtherSessions" />
+
+    <AppConfirmDialog
+      :open="pendingDisableTwoFactor"
+      title="Disable two-step verification"
+      description="Your account will be protected by your password only until you enable 2FA again."
+      confirm-label="Disable 2FA"
+      :loading="disablingTwoFactor"
+      @update:open="closeDisableTwoFactor"
+      @confirm="confirmDisableTwoFactor" />
   </div>
 </template>

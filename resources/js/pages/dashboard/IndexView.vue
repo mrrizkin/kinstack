@@ -58,7 +58,7 @@ const quickLinks: QuickLink[] = [
   },
   {
     label: "Access",
-    description: "Roles, permissions, and per-user permission overrides.",
+    description: "Roles, permissions, and custom permissions for individual users.",
     to: "/access",
     icon: "i-material-symbols:shield-lock-outline-rounded",
     permission: PERMISSIONS.accessManage,
@@ -203,7 +203,7 @@ const accountLinks = computed(() => {
                 variant="subtle"
                 size="sm"
                 icon="i-material-symbols:shield-outline-rounded">
-                Break-glass access
+                Super admin access
               </UBadge>
               <UBadge
                 v-else
@@ -289,7 +289,7 @@ const accountLinks = computed(() => {
           color="warning"
           variant="subtle"
           icon="i-material-symbols:shield-outline-rounded"
-          title="Break-glass mode"
+          title="Super admin mode"
           description="This super admin account has no database profile. Profile settings, passkeys, and API tokens are unavailable; use the Users menu to manage other accounts." />
       </div>
     </template>

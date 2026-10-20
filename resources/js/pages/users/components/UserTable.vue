@@ -14,6 +14,8 @@ defineProps<{
   roleOptions: { label: string; value: string }[];
   menuItems: (user: User) => DropdownMenuItem[];
   changeRole: (user: User, role: string) => void;
+  busyUserId: string | null;
+  emptyActions: { label: string; icon: string; onClick: () => void }[];
 }>();
 </script>
 
@@ -21,7 +23,13 @@ defineProps<{
   <AppTableCard :view="view" class="hidden md:block">
     <UTable :data="users" :columns="view.columns" class="w-full">
       <template #empty>
-        <UEmpty icon="i-bi-people" title="No users yet." variant="naked" class="py-6" />
+        <UEmpty
+          icon="i-bi-people"
+          title="No users yet."
+          description="Add a user or send an invitation to get started."
+          variant="naked"
+          :actions="emptyActions"
+          class="py-6" />
       </template>
     </UTable>
   </AppTableCard>
@@ -55,12 +63,19 @@ defineProps<{
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Role</span>
-            <USelect
-              :model-value="user.role"
-              :items="roleOptions"
-              size="sm"
-              class="w-44"
-              @update:model-value="(value: unknown) => changeRole(user, String(value))" />
+            <div class="flex items-center gap-2">
+              <USelect
+                :model-value="user.role"
+                :items="roleOptions"
+                size="sm"
+                class="w-44"
+                :disabled="busyUserId === user.public_id"
+                @update:model-value="(value: unknown) => changeRole(user, String(value))" />
+              <UIcon
+                v-if="busyUserId === user.public_id"
+                name="i-bi-arrow-repeat"
+                class="text-muted size-3.5 animate-spin" />
+            </div>
           </div>
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Last login</span>
@@ -75,6 +90,7 @@ defineProps<{
       title="No users yet."
       description="Add a user or send an invitation to get started."
       variant="naked"
+      :actions="emptyActions"
       class="py-10" />
   </div>
 </template>

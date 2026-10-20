@@ -2,10 +2,10 @@
 import { Head } from "@inertiajs/vue3";
 import { computed } from "vue";
 
+import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppPageHeader from "@/components/AppPageHeader.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
-import { useServerErrors } from "@/lib/errors";
 import { useTableView } from "@/lib/table-view";
 
 import { createRoleColumns, createUserColumns } from "./columns";
@@ -25,12 +25,12 @@ const props = defineProps<{
   users: UserAccess[];
 }>();
 
-const { formError } = useServerErrors();
-
 const {
   tab,
+  actionError,
   editingRole,
   selectedPermissions,
+  savingPermissions,
   permissionsByCategory,
   openRolePermissions,
   togglePermission,
@@ -38,33 +38,52 @@ const {
   showCreateRole,
   createRoleForm,
   submitCreateRole,
-  deleteRole,
+  pendingDeleteRole,
+  deletingRole,
+  requestDeleteRole,
+  confirmDeleteRole,
   editingRoleMeta,
   editRoleForm,
   openEditRole,
   submitEditRole,
   editingUser,
   overrideForm,
-  overrideErrors,
+  submittingOverride,
+  overrideFieldError,
   permissionOptions,
   roleOptions,
   openUserOverrides,
   closeUserOverrides,
   submitOverride,
-  removeOverride,
+  pendingRemoveOverride,
+  removingOverride,
+  requestRemoveOverride,
+  confirmRemoveOverride,
   assignRole,
+  assigningRoleId,
   roleMenuItems,
   accessUserMenuItems,
 } = useAccessForms(props);
 
-const roleView = useTableView("access.roles", createRoleColumns({ openEditRole, openRolePermissions, deleteRole }), {
-  paged: false,
-});
-const userView = useTableView(
-  "access.users",
-  createUserColumns({ roleOptions: () => roleOptions.value, assignRole, openUserOverrides }),
+const roleView = useTableView(
+  "access.roles",
+  createRoleColumns({ openEditRole, openRolePermissions, requestDeleteRole }),
   { paged: false },
 );
+const userView = useTableView(
+  "access.users",
+  createUserColumns({
+    roleOptions: () => roleOptions.value,
+    assignRole,
+    openUserOverrides,
+    assigningRoleId: () => assigningRoleId.value,
+  }),
+  { paged: false },
+);
+
+const emptyRoleActions = computed(() => [
+  { label: "Create a role", icon: "i-bi-plus", onClick: () => (showCreateRole.value = true) },
+]);
 
 const overrideOpen = computed({
   get: () => editingUser.value !== null,
@@ -78,7 +97,7 @@ const overrideOpen = computed({
   <Head title="Access" />
   <UDashboardPanel id="access">
     <template #header>
-      <AppPageHeader title="Access" description="Manage roles, permissions, and per-user overrides">
+      <AppPageHeader title="Access" description="Manage roles, permissions, and custom user permissions">
         <template #actions>
           <UButton icon="i-bi-plus" label="New role" color="primary" size="sm" @click="showCreateRole = true" />
         </template>
@@ -87,11 +106,11 @@ const overrideOpen = computed({
 
     <template #body>
       <UAlert
-        v-if="formError"
+        v-if="actionError"
         color="error"
         variant="subtle"
         icon="i-bi-exclamation-triangle"
-        :description="formError"
+        :description="actionError"
         class="mb-4" />
 
       <UAlert
@@ -99,7 +118,7 @@ const overrideOpen = computed({
         variant="subtle"
         icon="i-bi-info-circle"
         title="Roles are managed from this page"
-        description="Each role has permissions you can configure. Use this page to create custom roles or per-user permission overrides."
+        description="Each role has permissions you can configure. Create custom roles or add custom permissions for a single user."
         class="mb-4" />
 
       <UTabs
@@ -110,14 +129,20 @@ const overrideOpen = computed({
         ]"
         class="w-full">
         <template #content="{ item }">
-          <RolePanel v-if="item.value === 'roles'" :roles="roles" :view="roleView" :menu-items="roleMenuItems" />
+          <RolePanel
+            v-if="item.value === 'roles'"
+            :roles="roles"
+            :view="roleView"
+            :menu-items="roleMenuItems"
+            :empty-actions="emptyRoleActions" />
           <UserAccessPanel
             v-else
             :users="users"
             :view="userView"
             :role-options="roleOptions"
             :menu-items="accessUserMenuItems"
-            :assign-role="assignRole" />
+            :assign-role="assignRole"
+            :assigning-role-id="assigningRoleId" />
         </template>
       </UTabs>
     </template>
@@ -131,6 +156,7 @@ const overrideOpen = computed({
     :edit-form="editRoleForm"
     :permissions-by-category="permissionsByCategory"
     :selected-permissions="selectedPermissions"
+    :saving-permissions="savingPermissions"
     :submit-create="submitCreateRole"
     :submit-edit="submitEditRole"
     :toggle-permission="togglePermission"
@@ -141,7 +167,40 @@ const overrideOpen = computed({
     :user="editingUser"
     :override-form="overrideForm"
     :permission-options="permissionOptions"
-    :override-errors="overrideErrors"
+    :submitting="submittingOverride"
+    :field-error="overrideFieldError"
     :submit-override="submitOverride"
-    :remove-override="removeOverride" />
+    :request-remove-override="requestRemoveOverride" />
+
+  <AppConfirmDialog
+    :open="pendingDeleteRole !== null"
+    title="Delete role"
+    :description="
+      pendingDeleteRole ? `Delete the ${pendingDeleteRole.name} role? Users must be moved to another role first.` : ''
+    "
+    confirm-label="Delete role"
+    :loading="deletingRole"
+    @update:open="
+      (value: boolean) => {
+        if (!value) pendingDeleteRole = null;
+      }
+    "
+    @confirm="confirmDeleteRole" />
+
+  <AppConfirmDialog
+    :open="pendingRemoveOverride !== null"
+    title="Delete custom permission"
+    :description="
+      pendingRemoveOverride
+        ? `Remove ${pendingRemoveOverride.override.label} from ${pendingRemoveOverride.user.display_name}?`
+        : ''
+    "
+    confirm-label="Delete permission"
+    :loading="removingOverride"
+    @update:open="
+      (value: boolean) => {
+        if (!value) pendingRemoveOverride = null;
+      }
+    "
+    @confirm="confirmRemoveOverride" />
 </template>

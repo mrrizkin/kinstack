@@ -2,6 +2,7 @@
 import { Head, router, useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 
+import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
@@ -35,6 +36,8 @@ const form = useForm<{ file: File | null }>({ file: null });
 const fileInput = ref<HTMLInputElement | null>(null);
 const dragging = ref(false);
 const clientError = ref("");
+const deleteTarget = ref<Asset | null>(null);
+const deleting = ref(false);
 
 function pickFile() {
   fileInput.value?.click();
@@ -90,8 +93,20 @@ function upload() {
 }
 
 function remove(asset: Asset) {
-  if (!window.confirm(`Delete ${asset.filename}?`)) return;
-  router.post(`/media/${asset.public_id}/delete`, undefined, { preserveScroll: true });
+  deleteTarget.value = asset;
+}
+
+function confirmRemove() {
+  const asset = deleteTarget.value;
+  if (!asset || deleting.value) return;
+  router.post(`/media/${asset.public_id}/delete`, undefined, {
+    preserveScroll: true,
+    onStart: () => (deleting.value = true),
+    onFinish: () => {
+      deleting.value = false;
+      deleteTarget.value = null;
+    },
+  });
 }
 
 function humanSize(bytes: number) {
@@ -130,38 +145,42 @@ function isImage(contentType: string) {
 
     <template #body>
       <div class="space-y-6">
-        <UAlert
-          v-if="clientError || form.errors.file"
-          color="error"
-          variant="subtle"
-          title="Upload failed"
-          :description="clientError || String(form.errors.file)" />
-
-        <div
-          v-if="canManage"
-          class="border-default bg-elevated/20 hover:border-primary/50 rounded-lg border border-dashed p-6 text-center transition-colors"
-          :class="dragging ? 'border-primary bg-primary/5' : ''"
-          @click="pickFile"
-          @dragover.prevent="dragging = true"
-          @dragleave.prevent="dragging = false"
-          @drop.prevent="onDrop">
-          <input ref="fileInput" type="file" class="hidden" :accept="ACCEPTED" @change="onFile" />
-          <UIcon name="i-material-symbols:cloud-upload-outline-rounded" class="text-muted mx-auto size-8" />
-          <p class="text-highlighted mt-3 text-sm font-medium">Drag a file here or click to choose one</p>
-          <p class="text-muted mt-1 text-xs">{{ ACCEPTED_LABEL }}</p>
+        <UFormField v-if="canManage" label="Upload file" :error="clientError || String(form.errors.file || '')">
           <div
-            v-if="form.processing"
-            class="bg-accented mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full">
+            class="border-default bg-elevated/20 hover:border-primary/50 w-full rounded-lg border border-dashed p-6 text-center transition-colors"
+            :class="dragging ? 'border-primary bg-primary/5' : ''"
+            @click="pickFile"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="onDrop">
+            <input ref="fileInput" type="file" class="hidden" :accept="ACCEPTED" @change="onFile" />
+            <UIcon name="i-material-symbols:cloud-upload-outline-rounded" class="text-muted mx-auto size-8" />
+            <p class="text-highlighted mt-3 text-sm font-medium">Drag a file here or click to choose one</p>
+            <p class="text-muted mt-1 text-xs">{{ ACCEPTED_LABEL }}</p>
             <div
-              class="bg-primary h-full rounded-full transition-all"
-              :style="{ width: `${form.progress?.percentage ?? 0}%` }" />
+              v-if="form.processing"
+              class="bg-accented mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full">
+              <div
+                class="bg-primary h-full rounded-full transition-all"
+                :style="{ width: `${form.progress?.percentage ?? 0}%` }" />
+            </div>
           </div>
-        </div>
+        </UFormField>
 
-        <div v-if="props.assets.length === 0" class="border-default rounded-lg border border-dashed py-16 text-center">
-          <UIcon name="i-bi-images" class="text-muted mx-auto size-8" />
-          <p class="text-muted mt-3 text-sm">No files yet.</p>
-        </div>
+        <UEmpty
+          v-if="props.assets.length === 0"
+          icon="i-bi-images"
+          title="No files yet."
+          :description="
+            canManage ? 'Upload an image, PDF, text, or CSV file to get started.' : 'No files have been uploaded yet.'
+          "
+          variant="naked"
+          :actions="
+            canManage
+              ? [{ label: 'Upload a file', icon: 'i-bi-cloud-arrow-up', onClick: pickFile }]
+              : [{ label: 'Back to dashboard', icon: 'i-bi-arrow-left', to: '/dashboard' }]
+          "
+          class="py-12" />
 
         <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <UCard v-for="asset in props.assets" :key="asset.public_id" :ui="{ body: 'p-0' }">
@@ -194,6 +213,7 @@ function isImage(contentType: string) {
                   variant="outline"
                   icon="i-bi-trash"
                   label="Delete"
+                  :loading="deleting && deleteTarget?.public_id === asset.public_id"
                   @click="remove(asset)" />
               </div>
             </div>
@@ -202,4 +222,17 @@ function isImage(contentType: string) {
       </div>
     </template>
   </UDashboardPanel>
+
+  <AppConfirmDialog
+    :open="deleteTarget !== null"
+    title="Delete file"
+    :description="deleteTarget ? `${deleteTarget.filename} will be permanently deleted.` : ''"
+    confirm-label="Delete file"
+    :loading="deleting"
+    @update:open="
+      (value: boolean) => {
+        if (!value) deleteTarget = null;
+      }
+    "
+    @confirm="confirmRemove" />
 </template>

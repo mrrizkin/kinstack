@@ -1,18 +1,23 @@
 <script setup lang="ts">
+import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
+
 import type { CreateUserForm, InviteUserForm, PasswordForm, User } from "../columns";
 
 const showCreate = defineModel<boolean>("showCreate", { required: true });
 const showInvite = defineModel<boolean>("showInvite", { required: true });
 const passwordTarget = defineModel<User | null>("passwordTarget", { required: true });
+const pendingToggle = defineModel<User | null>("pendingToggle", { required: true });
 
 defineProps<{
   roleOptions: { label: string; value: string }[];
   createForm: CreateUserForm;
   inviteForm: InviteUserForm;
   passwordForm: PasswordForm;
+  togglingActive: boolean;
   submitCreate: () => void;
   submitInvite: () => void;
   confirmResetPassword: () => void;
+  confirmToggleActive: () => void;
 }>();
 </script>
 
@@ -102,4 +107,19 @@ defineProps<{
       </div>
     </template>
   </UModal>
+
+  <AppConfirmDialog
+    :open="pendingToggle !== null"
+    title="Deactivate user"
+    :description="
+      pendingToggle ? `${pendingToggle.display_name} will be signed out and cannot sign in until reactivated.` : ''
+    "
+    confirm-label="Deactivate user"
+    :loading="togglingActive"
+    @update:open="
+      (value: boolean) => {
+        if (!value) pendingToggle = null;
+      }
+    "
+    @confirm="confirmToggleActive" />
 </template>
