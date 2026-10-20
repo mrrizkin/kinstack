@@ -287,6 +287,14 @@ func TestListPaginatesAndCounts(t *testing.T) {
 		t.Fatalf("unexpected page: %+v", list.Page)
 	}
 
+	past, err := service.List(testContext(), pagination.Query{Page: 99, PerPage: 2})
+	if err != nil {
+		t.Fatalf("list past the end: %v", err)
+	}
+	if past.Page.Page != 3 || len(past.Users) != 1 {
+		t.Fatalf("past-end page must clamp to the last page: page=%+v rows=%d", past.Page, len(past.Users))
+	}
+
 	counts, err := service.Count(testContext())
 	if err != nil {
 		t.Fatalf("count users: %v", err)

@@ -10,7 +10,7 @@ const (
 	// DefaultPerPage is used when a request omits or sends an invalid page size.
 	DefaultPerPage = 25
 	// MaxPerPage caps the page size so one request cannot stream a whole table.
-	MaxPerPage = 200
+	MaxPerPage = 100
 )
 
 // Query is a normalized page request.
@@ -50,6 +50,22 @@ type Page struct {
 	To         int  `json:"to"`
 	HasPrev    bool `json:"has_prev"`
 	HasNext    bool `json:"has_next"`
+}
+
+// ClampPage moves a request that points past the end of the result set to the
+// last page, so a stale link shows rows instead of an empty window.
+func ClampPage(query Query, total int) Query {
+	if total <= 0 || query.PerPage <= 0 {
+		return query
+	}
+	pages := (total + query.PerPage - 1) / query.PerPage
+	if pages < 1 {
+		pages = 1
+	}
+	if query.Page > pages {
+		query.Page = pages
+	}
+	return query
 }
 
 // NewPage derives the display window for one query and total row count.

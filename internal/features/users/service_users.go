@@ -17,8 +17,8 @@ import (
 
 // Page size bounds for the users list.
 const (
-	DefaultPerPage = 25
-	MaxPerPage     = 100
+	DefaultPerPage = pagination.DefaultPerPage
+	MaxPerPage     = pagination.MaxPerPage
 )
 
 // ParsePageQuery validates raw page/per-page query strings. Invalid values are
@@ -64,11 +64,12 @@ type UserList struct {
 
 // List returns one page of active (non-deleted) accounts.
 func (s *Service) List(ctx context.Context, query pagination.Query) (UserList, error) {
-	results, err := s.repository.ListUsers(ctx, query)
+	counts, err := s.repository.CountUsers(ctx)
 	if err != nil {
 		return UserList{}, err
 	}
-	counts, err := s.repository.CountUsers(ctx)
+	query = pagination.ClampPage(query, counts.Total)
+	results, err := s.repository.ListUsers(ctx, query)
 	if err != nil {
 		return UserList{}, err
 	}

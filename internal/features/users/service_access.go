@@ -66,11 +66,12 @@ func (s *Service) AccessView(
 		})
 	}
 
-	users, err := s.repository.ListUsers(ctx, query)
+	counts, err := s.repository.CountUsers(ctx)
 	if err != nil {
 		return AccessPageProps{}, err
 	}
-	counts, err := s.repository.CountUsers(ctx)
+	query = pagination.ClampPage(query, counts.Total)
+	users, err := s.repository.ListUsers(ctx, query)
 	if err != nil {
 		return AccessPageProps{}, err
 	}

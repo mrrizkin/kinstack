@@ -70,3 +70,16 @@ func TestNewPageWindows(t *testing.T) {
 		})
 	}
 }
+
+func TestClampPageMovesPastEndRequestsToLastPage(t *testing.T) {
+	query := Query{Page: 99, PerPage: 2}
+	if got := ClampPage(query, 5); got.Page != 3 {
+		t.Fatalf("clamped page = %d, want 3", got.Page)
+	}
+	if got := ClampPage(query, 0); got.Page != 99 {
+		t.Fatalf("empty result must keep the request, got %d", got.Page)
+	}
+	if got := ClampPage(Query{Page: 1, PerPage: 2}, 5); got.Page != 1 {
+		t.Fatalf("first page must stay, got %d", got.Page)
+	}
+}
