@@ -274,7 +274,9 @@ func (r *SQLRepository) UpsertIdentity(
 		return fmt.Errorf("upsert identity rows: %w", err)
 	}
 	if affected == 0 {
-		return ErrNotFound
+		// Either the account disappeared or the subject already belongs to a
+		// different account; both are refusals, not internal failures.
+		return ErrIdentityConflict
 	}
 	return nil
 }
