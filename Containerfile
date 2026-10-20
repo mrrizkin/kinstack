@@ -14,6 +14,10 @@ FROM golang:1.27.2-bookworm AS builder
 
 WORKDIR /src
 
+# Asset version used by Inertia to invalidate cached pages. The build context
+# excludes .git, so the revision must be supplied by the caller.
+ARG VERSION=dev
+
 COPY go.mod go.sum ./
 RUN go mod download
 
@@ -22,7 +26,9 @@ COPY --from=frontend /src/public/build ./public/build
 
 RUN go tool templ generate
 RUN CGO_ENABLED=1 GOOS=linux \
-    go build -trimpath -ldflags="-s -w" -o /out/kinstack ./cmd/kinstack
+    go build -trimpath \
+      -ldflags="-s -w -X kinstack/internal/platform/inertia.buildVersion=${VERSION}" \
+      -o /out/kinstack ./cmd/kinstack
 RUN CGO_ENABLED=1 GOOS=linux \
     go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate
 

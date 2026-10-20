@@ -21,7 +21,7 @@ generate-views:
 build: build-assets build-app
 
 build-app: generate-views
-    go build -trimpath -o ./build/kinstack ./cmd/kinstack
+    go build -trimpath -ldflags "-X kinstack/internal/platform/inertia.buildVersion=`git rev-parse --short HEAD || echo dev`" -o ./build/kinstack ./cmd/kinstack
 
 build-assets:
     bun x vite build

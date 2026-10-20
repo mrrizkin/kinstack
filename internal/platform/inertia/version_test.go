@@ -2,6 +2,16 @@ package inertia
 
 import "testing"
 
+func TestBuildVersionPrefersInjectedValue(t *testing.T) {
+	previous := buildVersion
+	buildVersion = "release-abc123"
+	defer func() { buildVersion = previous }()
+
+	if got := BuildVersion(); got != "release-abc123" {
+		t.Fatalf("injected version must win, got %q", got)
+	}
+}
+
 func TestBuildVersionIsStableAndNonEmpty(t *testing.T) {
 	first := BuildVersion()
 	if first == "" {

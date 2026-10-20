@@ -82,10 +82,20 @@ func New(d Dependency) *fibertia.Fibertia {
 	return adapter
 }
 
-// BuildVersion derives the Inertia asset version from VCS metadata embedded by
-// the Go toolchain. A new commit therefore invalidates every cached page, and
-// local builds without VCS metadata fall back to a stable development marker.
+// buildVersion is injected at build time, for example with
+// -ldflags "-X kinstack/internal/platform/inertia.buildVersion=$GIT_SHA".
+// Container builds strip .git, so this is the only reliable version source
+// there.
+var buildVersion string
+
+// BuildVersion resolves the Inertia asset version. Build-time injection wins;
+// otherwise VCS metadata embedded by the Go toolchain is used. A new commit or
+// build therefore invalidates cached pages, and builds without either source
+// fall back to a stable development marker.
 func BuildVersion() string {
+	if version := strings.TrimSpace(buildVersion); version != "" {
+		return version
+	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "dev"
