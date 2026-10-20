@@ -81,6 +81,9 @@ type Repository interface {
 	DeleteRole(context.Context, string) error
 
 	RolePermissions(context.Context, string) ([]Permission, error)
+	// RolePermissionsMany loads the permission sets of several roles in one
+	// query so list views do not issue a query per role.
+	RolePermissionsMany(context.Context, []string) (map[string][]Permission, error)
 	ReplaceRolePermissions(context.Context, string, []Permission) error
 	CountRoleAssignments(context.Context, string) (int, error)
 

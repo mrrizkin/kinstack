@@ -151,6 +151,26 @@ func (r *MemoryRepository) RolePermissions(_ context.Context, code string) ([]Pe
 	return permissions, nil
 }
 
+// RolePermissionsMany returns the permission sets of several roles at once.
+func (r *MemoryRepository) RolePermissionsMany(
+	_ context.Context,
+	codes []string,
+) (map[string][]Permission, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	result := make(map[string][]Permission, len(codes))
+	for _, code := range codes {
+		set := r.rolePerms[code]
+		permissions := make([]Permission, 0, len(set))
+		for permission := range set {
+			permissions = append(permissions, permission)
+		}
+		sort.Slice(permissions, func(i, j int) bool { return permissions[i] < permissions[j] })
+		result[code] = permissions
+	}
+	return result, nil
+}
+
 // ReplaceRolePermissions replaces a role's permission set.
 func (r *MemoryRepository) ReplaceRolePermissions(
 	_ context.Context,

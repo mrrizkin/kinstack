@@ -377,3 +377,26 @@ func TestEffectiveBoundsTheResolutionCache(t *testing.T) {
 		t.Fatal("the new resolution must be cached after eviction")
 	}
 }
+
+func TestRolePermissionsManyFiltersUnknownCodes(t *testing.T) {
+	service, repository := newTestService(t)
+	repository.SeedRolePermissions("staff", PermissionUsersView, Permission("made.up"))
+
+	grouped, err := service.RolePermissionsMany(
+		context.Background(),
+		[]string{"staff", adminRole, "missing"},
+	)
+	if err != nil {
+		t.Fatalf("batch permissions: %v", err)
+	}
+	if got := grouped["staff"]; len(got) != 1 || got[0] != PermissionUsersView {
+		t.Fatalf("unknown codes must be filtered, got %+v", got)
+	}
+	if len(grouped[adminRole]) == 0 {
+		t.Fatal("administrator permissions must be returned")
+	}
+	empty, ok := grouped["missing"]
+	if !ok || empty == nil || len(empty) != 0 {
+		t.Fatalf("missing roles must map to an empty slice, got %#v", empty)
+	}
+}

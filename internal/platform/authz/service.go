@@ -329,6 +329,31 @@ func (s *Service) RolePermissions(ctx context.Context, code string) ([]Permissio
 	return result, nil
 }
 
+// RolePermissionsMany returns the permission sets of several roles in one
+// round trip, filtering unknown codes like RolePermissions does.
+func (s *Service) RolePermissionsMany(
+	ctx context.Context,
+	codes []string,
+) (map[string][]Permission, error) {
+	grouped, err := s.repository.RolePermissionsMany(ctx, codes)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][]Permission, len(codes))
+	for _, code := range codes {
+		permissions := grouped[code]
+		filtered := make([]Permission, 0, len(permissions))
+		for _, permission := range permissions {
+			if IsKnown(permission) {
+				filtered = append(filtered, permission)
+			}
+		}
+		sort.Slice(filtered, func(i, j int) bool { return filtered[i] < filtered[j] })
+		result[code] = filtered
+	}
+	return result, nil
+}
+
 // CreateRole validates and persists a new role.
 func (s *Service) CreateRole(
 	ctx context.Context,

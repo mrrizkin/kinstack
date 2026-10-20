@@ -363,6 +363,16 @@ func TestAccessViewPaginatesUsersAndBatchesOverrides(t *testing.T) {
 		t.Fatalf("access view must include roles and permissions: %d roles, %d permissions",
 			len(props.Roles), len(props.Permissions))
 	}
+	rolePermissions := 0
+	for _, role := range props.Roles {
+		if role.Code == testAdminRole && len(role.Permissions) == 0 {
+			t.Fatal("administrator role must carry its permission set")
+		}
+		rolePermissions += len(role.Permissions)
+	}
+	if rolePermissions == 0 {
+		t.Fatal("role permission sets must be populated from the batched query")
+	}
 
 	found := false
 	for _, user := range props.Users {

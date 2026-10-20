@@ -52,6 +52,12 @@ FROM role_permissions
 WHERE role_code = $1
 ORDER BY permission_code ASC`
 
+	rolePermissionsManyQuery = `
+SELECT role_code, permission_code
+FROM role_permissions
+WHERE role_code = ANY($1)
+ORDER BY role_code ASC, permission_code ASC`
+
 	replaceRolePermissionsQuery = `
 WITH target AS (
     SELECT code FROM roles WHERE code = $1 AND is_system = false
@@ -126,6 +132,7 @@ type SQLRepository struct {
 	updateRoleStmt       *sqlx.Stmt
 	deleteRoleStmt       *sqlx.Stmt
 	rolePermissionsStmt  *sqlx.Stmt
+	rolePermsManyStmt    *sqlx.Stmt
 	replacePermsStmt     *sqlx.Stmt
 	overridesStmt        *sqlx.Stmt
 	overridesManyStmt    *sqlx.Stmt
@@ -161,6 +168,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.updateRoleStmt, "authz_update_role", updateRoleQuery},
 		{&repository.deleteRoleStmt, "authz_delete_role", deleteRoleQuery},
 		{&repository.rolePermissionsStmt, "authz_role_permissions", rolePermissionsQuery},
+		{&repository.rolePermsManyStmt, "authz_role_permissions_many", rolePermissionsManyQuery},
 		{&repository.replacePermsStmt, "authz_replace_role_permissions", replaceRolePermissionsQuery},
 		{&repository.overridesStmt, "authz_user_overrides", userOverridesQuery},
 		{&repository.overridesManyStmt, "authz_user_overrides_many", userOverridesManyQuery},
@@ -271,6 +279,31 @@ func (r *SQLRepository) RolePermissions(ctx context.Context, code string) ([]Per
 		return nil, fmt.Errorf("role permissions: %w", err)
 	}
 	return permissions, nil
+}
+
+// rolePermissionRow is the flat projection used by the batched permission query.
+type rolePermissionRow struct {
+	RoleCode   string     `db:"role_code"`
+	Permission Permission `db:"permission_code"`
+}
+
+// RolePermissionsMany returns the permission sets of several roles in one query.
+func (r *SQLRepository) RolePermissionsMany(
+	ctx context.Context,
+	codes []string,
+) (map[string][]Permission, error) {
+	result := make(map[string][]Permission, len(codes))
+	if len(codes) == 0 {
+		return result, nil
+	}
+	rows := make([]rolePermissionRow, 0)
+	if err := r.rolePermsManyStmt.SelectContext(ctx, &rows, pq.Array(codes)); err != nil {
+		return nil, fmt.Errorf("role permissions batch: %w", err)
+	}
+	for _, row := range rows {
+		result[row.RoleCode] = append(result[row.RoleCode], row.Permission)
+	}
+	return result, nil
 }
 
 // ReplaceRolePermissions atomically replaces a role's permission set.

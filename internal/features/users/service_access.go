@@ -40,15 +40,19 @@ func (s *Service) AccessView(
 	if err != nil {
 		return AccessPageProps{}, err
 	}
+	codes := make([]string, 0, len(roles))
+	for _, role := range roles {
+		codes = append(codes, role.Code)
+	}
+	permissionsByRole, err := authorization.RolePermissionsMany(ctx, codes)
+	if err != nil {
+		return AccessPageProps{}, err
+	}
 	roleDTOs := make([]RoleDTO, 0, len(roles))
 	roleNames := make(map[string]string, len(roles))
 	for _, role := range roles {
-		permissions, err := authorization.RolePermissions(ctx, role.Code)
-		if err != nil {
-			return AccessPageProps{}, err
-		}
 		roleNames[role.Code] = role.Name
-		roleDTOs = append(roleDTOs, roleToDTO(role, permissions))
+		roleDTOs = append(roleDTOs, roleToDTO(role, permissionsByRole[role.Code]))
 	}
 
 	definitions := authz.SortByCategory()
