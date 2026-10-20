@@ -90,26 +90,6 @@ func principalOf(user UserResult) authz.Principal {
 	}
 }
 
-func (s *Service) countActiveAccessManagers(
-	ctx context.Context,
-	excludePublicID string,
-) (int, error) {
-	users, err := s.repository.ListAllUsers(ctx)
-	if err != nil {
-		return 0, err
-	}
-	count := 0
-	for _, user := range users {
-		if user.PublicID == excludePublicID || !user.IsActive {
-			continue
-		}
-		if s.authorization.Can(ctx, principalOf(user), authz.PermissionAccessManage, nil).Allowed {
-			count++
-		}
-	}
-	return count, nil
-}
-
 func userToDTO(result UserResult) UserDTO {
 	dto := UserDTO{
 		PublicID:    result.PublicID,

@@ -140,6 +140,33 @@ func (r *MemoryRepository) UpdatePassword(_ context.Context, publicID, _ string)
 	return nil
 }
 
+// DeactivateGuarded approximates the PostgreSQL guard by refusing to disable
+// the only active account. Tests that need a precise manager count use the
+// PostgreSQL repository contract test.
+func (r *MemoryRepository) DeactivateGuarded(
+	_ context.Context,
+	publicID string,
+) (UserResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	user, ok := r.users[publicID]
+	if !ok {
+		return UserResult{}, ErrNotFound
+	}
+	others := 0
+	for _, candidate := range r.users {
+		if candidate.PublicID != publicID && candidate.IsActive {
+			others++
+		}
+	}
+	if others == 0 {
+		return UserResult{}, ErrLastAdministrator
+	}
+	user.IsActive = false
+	r.users[user.PublicID] = user
+	return user, nil
+}
+
 func (r *MemoryRepository) SetActive(
 	_ context.Context,
 	publicID string,

@@ -352,13 +352,16 @@ func (s *Service) SetActive(
 			authz.PermissionAccessManage,
 			nil,
 		).Allowed {
-			others, err := s.countActiveAccessManagers(ctx, publicID)
-			if err != nil {
+			result, err := s.repository.DeactivateGuarded(ctx, publicID)
+			switch {
+			case errors.Is(err, ErrLastAdministrator):
+				return UserDTO{}, ErrLastAdministrator
+			case errors.Is(err, ErrNotFound):
+				return UserDTO{}, ErrNotFound
+			case err != nil:
 				return UserDTO{}, err
 			}
-			if others == 0 {
-				return UserDTO{}, ErrLastAdministrator
-			}
+			return userToDTO(result), nil
 		}
 	}
 	result, err := s.repository.SetActive(ctx, publicID, active)

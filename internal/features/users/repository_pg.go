@@ -86,6 +86,43 @@ SET password_hash = $2, updated_at = now()
 WHERE public_id = $1
   AND deleted_at IS NULL`
 
+	// lockAccessManagers serializes every decision that could remove the last
+	// account able to manage access. The key is a constant, so all replicas
+	// contend on the same advisory lock.
+	lockAccessManagersQuery = `SELECT pg_advisory_xact_lock(hashtext('kinstack:access_managers'))`
+
+	countActiveAccessManagersQuery = `
+SELECT COUNT(*)
+FROM users u
+WHERE u.public_id <> $1
+  AND u.is_active
+  AND u.deleted_at IS NULL
+  AND (
+    EXISTS (
+        SELECT 1
+        FROM user_roles ur
+        JOIN role_permissions rp ON rp.role_code = ur.role_code
+        WHERE ur.user_public_id = u.public_id
+          AND rp.permission_code = 'access.manage'
+      )
+    OR EXISTS (
+        SELECT 1
+        FROM user_permissions up
+        WHERE up.user_public_id = u.public_id
+          AND up.permission_code = 'access.manage'
+          AND up.effect = 'allow'
+          AND (up.expires_at IS NULL OR up.expires_at > now())
+      )
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM user_permissions up
+    WHERE up.user_public_id = u.public_id
+      AND up.permission_code = 'access.manage'
+      AND up.effect = 'deny'
+      AND (up.expires_at IS NULL OR up.expires_at > now())
+  )`
+
 	setActiveQuery = `
 WITH updated AS (
     UPDATE users
@@ -100,6 +137,7 @@ FROM updated u`
 
 // SQLRepository is the PostgreSQL user account repository.
 type SQLRepository struct {
+	db           *sqlx.DB
 	owner        *platformdatabase.StatementOwner
 	listStmt     *sqlx.Stmt
 	listAllStmt  *sqlx.Stmt
@@ -123,7 +161,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "users database is required")
 
 	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &SQLRepository{owner: owner}
+	repository := &SQLRepository{db: dependency.DB, owner: owner}
 	statements := []struct {
 		target **sqlx.Stmt
 		name   string
@@ -260,6 +298,46 @@ func (r *SQLRepository) UpdatePassword(ctx context.Context, publicID, hash strin
 		return ErrNotFound
 	}
 	return nil
+}
+
+// DeactivateGuarded disables an account and refuses when it is the last active
+// account that can manage access. The check and the update share one
+// transaction under an advisory lock, so two concurrent deactivations cannot
+// both observe a surviving administrator.
+func (r *SQLRepository) DeactivateGuarded(
+	ctx context.Context,
+	publicID string,
+) (UserResult, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return UserResult{}, fmt.Errorf("begin deactivate transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, lockAccessManagersQuery); err != nil {
+		return UserResult{}, fmt.Errorf("lock access managers: %w", err)
+	}
+
+	var others int
+	if err := tx.GetContext(ctx, &others, countActiveAccessManagersQuery, publicID); err != nil {
+		return UserResult{}, fmt.Errorf("count access managers: %w", err)
+	}
+	if others == 0 {
+		return UserResult{}, ErrLastAdministrator
+	}
+
+	var result UserResult
+	err = tx.GetContext(ctx, &result, setActiveQuery, publicID, false)
+	if errors.Is(err, sql.ErrNoRows) {
+		return UserResult{}, ErrNotFound
+	}
+	if err != nil {
+		return UserResult{}, fmt.Errorf("deactivate account: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return UserResult{}, fmt.Errorf("commit deactivate: %w", err)
+	}
+	return result, nil
 }
 
 // SetActive enables or disables an account.

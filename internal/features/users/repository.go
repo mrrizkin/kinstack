@@ -53,4 +53,7 @@ type Repository interface {
 	UpdateUser(context.Context, UpdateUserInput) (UserResult, error)
 	UpdatePassword(context.Context, string, string) error
 	SetActive(context.Context, string, bool) (UserResult, error)
+	// DeactivateGuarded disables an account in one transaction and refuses when
+	// it would leave no active account able to manage access.
+	DeactivateGuarded(context.Context, string) (UserResult, error)
 }
