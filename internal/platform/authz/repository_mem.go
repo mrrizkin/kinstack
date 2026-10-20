@@ -70,7 +70,14 @@ func (r *MemoryRepository) ListRoles(context.Context) ([]Role, error) {
 		roles = append(roles, role)
 	}
 	sort.Slice(roles, func(i, j int) bool { return roles[i].Code < roles[j].Code })
-	return roles, nil
+	return roles[:min(len(roles), 100)], nil
+}
+
+// CountRoles returns the number of roles.
+func (r *MemoryRepository) CountRoles(context.Context) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.roles), nil
 }
 
 // FindRole resolves a role.

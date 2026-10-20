@@ -27,7 +27,14 @@ SELECT ` + assetProjection + `
 FROM media_assets
 WHERE owner_public_id = $1
   AND deleted_at IS NULL
-ORDER BY created_at DESC, id DESC`
+ORDER BY created_at DESC, id DESC
+LIMIT 100`
+
+	countAssetsQuery = `
+SELECT COUNT(*)
+FROM media_assets
+WHERE owner_public_id = $1
+  AND deleted_at IS NULL`
 
 	createAssetQuery = `
 INSERT INTO media_assets (public_id, owner_public_id, filename, content_type, size_bytes, object_key)
@@ -55,6 +62,7 @@ RETURNING ` + assetProjection
 type SQLRepository struct {
 	owner      *platformdatabase.StatementOwner
 	listStmt   *sqlx.Stmt
+	countStmt  *sqlx.Stmt
 	createStmt *sqlx.Stmt
 	findStmt   *sqlx.Stmt
 	deleteStmt *sqlx.Stmt
@@ -79,6 +87,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		query  string
 	}{
 		{&repository.listStmt, "media_list", listAssetsQuery},
+		{&repository.countStmt, "media_count", countAssetsQuery},
 		{&repository.createStmt, "media_create", createAssetQuery},
 		{&repository.findStmt, "media_find", findAssetQuery},
 		{&repository.deleteStmt, "media_delete", deleteAssetQuery},
@@ -126,6 +135,15 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateAssetInput) (Ass
 		return Asset{}, fmt.Errorf("create media: %w", err)
 	}
 	return asset, nil
+}
+
+// Count returns the number of active assets owned by the actor.
+func (r *SQLRepository) Count(ctx context.Context, ownerPublicID string) (int, error) {
+	var count int
+	if err := r.countStmt.GetContext(ctx, &count, ownerPublicID); err != nil {
+		return 0, fmt.Errorf("count media: %w", err)
+	}
+	return count, nil
 }
 
 // Find returns one active asset owned by the actor.

@@ -56,7 +56,7 @@ func (r *MemoryRepository) ListByUser(_ context.Context, userPublicID string) ([
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].CreatedAt.After(results[j].CreatedAt)
 	})
-	return results, nil
+	return results[:min(len(results), 100)], nil
 }
 
 // FindByPublicID resolves one token by its public identifier.

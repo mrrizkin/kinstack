@@ -58,7 +58,7 @@ func (s *Service) AccessView(ctx context.Context) (AccessPageProps, error) {
 		})
 	}
 
-	users, err := s.repository.ListUsers(ctx)
+	users, err := s.repository.ListAllUsers(ctx)
 	if err != nil {
 		return AccessPageProps{}, err
 	}

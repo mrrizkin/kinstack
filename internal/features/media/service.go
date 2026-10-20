@@ -142,6 +142,15 @@ func (s *Service) Upload(
 	return s.toDTO(asset), nil
 }
 
+// Count returns the number of assets owned by the actor.
+func (s *Service) Count(ctx context.Context, ownerPublicID string) (int, error) {
+	ownerPublicID = strings.TrimSpace(ownerPublicID)
+	if ownerPublicID == "" {
+		return 0, ErrInvalidInput
+	}
+	return s.repository.Count(ctx, ownerPublicID)
+}
+
 // List returns every active asset owned by the actor, newest first.
 func (s *Service) List(ctx context.Context, ownerPublicID string) ([]AssetDTO, error) {
 	ownerPublicID = strings.TrimSpace(ownerPublicID)

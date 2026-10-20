@@ -118,18 +118,12 @@ func dashboardMetrics(c fiber.Ctx, d WebRoutesDependency) fiber.Map {
 		"users_total": 0, "users_active": 0, "roles_total": 0,
 		"audit_24h": 0, "media_total": 0, "notifications_unread": 0,
 	}
-	if users, err := d.Users.Service().List(c.Context()); err == nil {
-		active := 0
-		for _, user := range users {
-			if user.IsActive {
-				active++
-			}
-		}
-		metrics["users_total"] = len(users)
-		metrics["users_active"] = active
+	if counts, err := d.Users.Service().Count(c.Context()); err == nil {
+		metrics["users_total"] = counts.Total
+		metrics["users_active"] = counts.Active
 	}
-	if roles, err := d.Authz.ListRoles(c.Context()); err == nil {
-		metrics["roles_total"] = len(roles)
+	if roles, err := d.Authz.CountRoles(c.Context()); err == nil {
+		metrics["roles_total"] = roles
 	}
 	from := time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339)
 	if page, err := d.Audit.Service().List(c.Context(), audit.FilterRequest{From: from, Page: 1, PerPage: 1}); err == nil {
@@ -138,8 +132,8 @@ func dashboardMetrics(c fiber.Ctx, d WebRoutesDependency) fiber.Map {
 	session := d.Actor.ActorFromContext(c)
 	if session != nil {
 		if d.Media != nil {
-			if assets, err := d.Media.Service().List(c.Context(), session.PublicID); err == nil {
-				metrics["media_total"] = len(assets)
+			if count, err := d.Media.Service().Count(c.Context(), session.PublicID); err == nil {
+				metrics["media_total"] = count
 			}
 		}
 		if page, err := d.Notifications.Service().List(c.Context(), session.PublicID); err == nil {

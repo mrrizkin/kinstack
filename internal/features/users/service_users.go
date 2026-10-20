@@ -6,16 +6,82 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/pkg/publicid"
 	"kinstack/internal/platform/authz"
 	platformpassword "kinstack/internal/platform/password"
 )
 
-// List returns every active (non-deleted) account.
-func (s *Service) List(ctx context.Context) ([]UserDTO, error) {
-	results, err := s.repository.ListUsers(ctx)
+// Page size bounds for the users list.
+const (
+	DefaultPerPage = 25
+	MaxPerPage     = 100
+)
+
+// ParsePageQuery validates raw page/per-page query strings. Invalid values are
+// rejected rather than clamped so the API stays fail-closed.
+func ParsePageQuery(rawPage, rawPerPage string) (pagination.Query, error) {
+	page, err := parsePositive(rawPage)
+	if err != nil {
+		return pagination.Query{}, err
+	}
+	perPage, err := parsePositive(rawPerPage)
+	if err != nil {
+		return pagination.Query{}, err
+	}
+	if perPage == 0 {
+		perPage = DefaultPerPage
+	}
+	if perPage > MaxPerPage {
+		return pagination.Query{}, ErrInvalidInput
+	}
+	if page == 0 {
+		page = 1
+	}
+	return pagination.Query{Page: page, PerPage: perPage}, nil
+}
+
+func parsePositive(raw string) (int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 1 {
+		return 0, ErrInvalidInput
+	}
+	return value, nil
+}
+
+// UserList is one page of accounts plus its display window.
+type UserList struct {
+	Users []UserDTO
+	Page  pagination.Page
+}
+
+// List returns one page of active (non-deleted) accounts.
+func (s *Service) List(ctx context.Context, query pagination.Query) (UserList, error) {
+	results, err := s.repository.ListUsers(ctx, query)
+	if err != nil {
+		return UserList{}, err
+	}
+	counts, err := s.repository.CountUsers(ctx)
+	if err != nil {
+		return UserList{}, err
+	}
+	items := make([]UserDTO, 0, len(results))
+	for _, result := range results {
+		items = append(items, userToDTO(result))
+	}
+	return UserList{Users: items, Page: pagination.NewPage(query, counts.Total)}, nil
+}
+
+// ListAll returns every account for access management views.
+func (s *Service) ListAll(ctx context.Context) ([]UserDTO, error) {
+	results, err := s.repository.ListAllUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -24,6 +90,11 @@ func (s *Service) List(ctx context.Context) ([]UserDTO, error) {
 		items = append(items, userToDTO(result))
 	}
 	return items, nil
+}
+
+// Count returns total and active account counts.
+func (s *Service) Count(ctx context.Context) (UserCounts, error) {
+	return s.repository.CountUsers(ctx)
 }
 
 // Create validates and persists a new account.

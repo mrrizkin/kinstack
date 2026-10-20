@@ -7,6 +7,7 @@ import (
 	"kinstack/internal/pkg/log"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
+	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
 
 	"codeberg.org/mrrizkin/fibertia"
@@ -73,7 +74,13 @@ func (h *Handler) Mount(router fiber.Router) {
 }
 
 func (h *Handler) index(c fiber.Ctx) error {
-	items, err := h.service.List(c.Context())
+	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"))
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": i18n.T("common.invalid_payload"),
+		})
+	}
+	list, err := h.service.List(c.Context(), query)
 	if err != nil {
 		h.logger.Errorw("list users", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
@@ -83,7 +90,11 @@ func (h *Handler) index(c fiber.Ctx) error {
 		h.logger.Errorw("list roles", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
 	}
-	return c.Render("users/IndexView", fiber.Map{"users": items, "roles": roles})
+	return c.Render("users/IndexView", fiber.Map{
+		"users": list.Users,
+		"roles": roles,
+		"page":  list.Page,
+	})
 }
 
 func (h *Handler) access(c fiber.Ctx) error {

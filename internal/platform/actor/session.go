@@ -25,11 +25,11 @@ const SuperuserPublicID = "break-glass"
 
 // SessionActor is the authenticated actor carried by the browser session.
 type SessionActor struct {
-	PublicID    string   `json:"public_id"`
-	Username    string   `json:"username,omitempty"`
-	DisplayName string   `json:"display_name,omitempty"`
-	Role        string   `json:"role,omitempty"`
-	Superuser   bool     `json:"superuser,omitempty"`
+	PublicID    string `json:"public_id"`
+	Username    string `json:"username,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+	Role        string `json:"role,omitempty"`
+	Superuser   bool   `json:"superuser,omitempty"`
 	// Scopes carries a personal API token's permission allowlist. It is nil for
 	// normal browser sessions and non-nil (possibly empty) for bearer tokens.
 	Scopes []string `json:"scopes,omitempty"`

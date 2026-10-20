@@ -253,6 +253,11 @@ func (s *Service) FindRole(ctx context.Context, code string) (Role, error) {
 }
 
 // ListRoles returns every role ordered by rank then code.
+// CountRoles returns the total number of roles.
+func (s *Service) CountRoles(ctx context.Context) (int, error) {
+	return s.repository.CountRoles(ctx)
+}
+
 func (s *Service) ListRoles(ctx context.Context) ([]Role, error) {
 	roles, err := s.repository.ListRoles(ctx)
 	if err != nil {

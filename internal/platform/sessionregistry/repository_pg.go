@@ -50,7 +50,8 @@ FROM user_sessions s
 JOIN users u ON u.id = s.user_id
 WHERE u.public_id = $1
   AND s.revoked_at IS NULL
-ORDER BY s.last_seen_at DESC, s.id DESC`
+ORDER BY s.last_seen_at DESC, s.id DESC
+LIMIT 50`
 
 	findSessionByPublicIDQuery = `
 SELECT ` + sessionColumns + `

@@ -44,7 +44,7 @@ func (r *MemoryRepository) List(_ context.Context, ownerPublicID string) ([]Asse
 	sort.SliceStable(assets, func(i, j int) bool {
 		return assets[i].CreatedAt.After(assets[j].CreatedAt)
 	})
-	return assets, nil
+	return assets[:min(len(assets), 100)], nil
 }
 
 // Create persists one uploaded asset.
@@ -63,6 +63,19 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateAssetInput) (As
 	}
 	r.assets[asset.PublicID] = asset
 	return asset, nil
+}
+
+// Count returns the number of assets owned by the actor.
+func (r *MemoryRepository) Count(_ context.Context, ownerPublicID string) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	count := 0
+	for _, asset := range r.assets {
+		if asset.OwnerPublicID == ownerPublicID {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // Find returns one active asset owned by the actor.

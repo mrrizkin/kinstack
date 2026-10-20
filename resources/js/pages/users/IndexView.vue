@@ -2,6 +2,7 @@
 import { Head } from "@inertiajs/vue3";
 
 import AppPageHeader from "@/components/AppPageHeader.vue";
+import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
@@ -14,7 +15,7 @@ import { useUserForms } from "./composables/useUserForms";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
-const props = defineProps<{ users: User[]; roles: Role[] }>();
+const props = defineProps<{ users: User[]; roles: Role[]; page: PageInfo }>();
 
 const { can } = usePermissions();
 
@@ -130,6 +131,8 @@ const view = useTableView(
           :role-options="roleOptions"
           :menu-items="userMenuItems"
           :change-role="changeRole" />
+
+        <AppPagination :page="props.page" url="/users" />
       </div>
     </template>
   </UDashboardPanel>

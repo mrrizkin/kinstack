@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 )
 
 // MemoryRepository is the deterministic in-memory repository used by service
@@ -31,15 +32,42 @@ func (r *MemoryRepository) Seed(user UserResult) {
 	r.users[user.PublicID] = user
 }
 
-func (r *MemoryRepository) ListUsers(_ context.Context) ([]UserResult, error) {
+func (r *MemoryRepository) ListUsers(_ context.Context, query pagination.Query) ([]UserResult, error) {
+	items, err := r.ListAllUsers(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	start := min(query.Offset(), len(items))
+	end := min(start+query.Limit(), len(items))
+	return items[start:end], nil
+}
+
+func (r *MemoryRepository) ListAllUsers(_ context.Context) ([]UserResult, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	items := make([]UserResult, 0, len(r.users))
 	for _, user := range r.users {
 		items = append(items, user)
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.Before(items[j].CreatedAt) })
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].PublicID < items[j].PublicID
+		}
+		return items[i].CreatedAt.Before(items[j].CreatedAt)
+	})
 	return items, nil
+}
+
+func (r *MemoryRepository) CountUsers(_ context.Context) (UserCounts, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	counts := UserCounts{Total: len(r.users)}
+	for _, user := range r.users {
+		if user.IsActive {
+			counts.Active++
+		}
+	}
+	return counts, nil
 }
 
 func (r *MemoryRepository) FindUserByPublicID(

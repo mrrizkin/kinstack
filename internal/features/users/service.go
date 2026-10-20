@@ -85,7 +85,7 @@ func (s *Service) countActiveAccessManagers(
 	ctx context.Context,
 	excludePublicID string,
 ) (int, error) {
-	users, err := s.repository.ListUsers(ctx)
+	users, err := s.repository.ListAllUsers(ctx)
 	if err != nil {
 		return 0, err
 	}

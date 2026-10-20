@@ -35,7 +35,8 @@ SELECT ` + tokenColumns + `
 FROM api_tokens
 WHERE user_public_id = $1
   AND revoked_at IS NULL
-ORDER BY created_at DESC, id DESC`
+ORDER BY created_at DESC, id DESC
+LIMIT 100`
 
 	findTokenQuery = `
 SELECT ` + tokenColumns + `

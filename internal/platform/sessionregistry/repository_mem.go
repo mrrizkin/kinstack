@@ -98,7 +98,7 @@ func (r *MemoryRepository) ListActive(ctx context.Context, userPublicID string) 
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].LastSeenAt.After(results[j].LastSeenAt)
 	})
-	return results, nil
+	return results[:min(len(results), 50)], nil
 }
 
 // FindByPublicID returns one active session.

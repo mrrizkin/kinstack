@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	platformdatabase "kinstack/internal/platform/database"
 
 	"github.com/jmoiron/sqlx"
@@ -36,7 +37,21 @@ const (
 SELECT ` + userProjection + `
 FROM users u
 WHERE u.deleted_at IS NULL
+ORDER BY u.created_at ASC, u.id ASC
+LIMIT $1 OFFSET $2`
+
+	listAllUsersQuery = `
+SELECT ` + userProjection + `
+FROM users u
+WHERE u.deleted_at IS NULL
 ORDER BY u.created_at ASC, u.id ASC`
+
+	countUsersQuery = `
+SELECT
+    COUNT(*) AS total,
+    COUNT(*) FILTER (WHERE u.is_active) AS active
+FROM users u
+WHERE u.deleted_at IS NULL`
 
 	findUserByPublicIDQuery = `
 SELECT ` + userProjection + `
@@ -87,6 +102,8 @@ FROM updated u`
 type SQLRepository struct {
 	owner        *platformdatabase.StatementOwner
 	listStmt     *sqlx.Stmt
+	listAllStmt  *sqlx.Stmt
+	countStmt    *sqlx.Stmt
 	findStmt     *sqlx.Stmt
 	createStmt   *sqlx.Stmt
 	updateStmt   *sqlx.Stmt
@@ -113,6 +130,8 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		query  string
 	}{
 		{&repository.listStmt, "users_list", listUsersQuery},
+		{&repository.listAllStmt, "users_list_all", listAllUsersQuery},
+		{&repository.countStmt, "users_count", countUsersQuery},
 		{&repository.findStmt, "users_find_by_public_id", findUserByPublicIDQuery},
 		{&repository.createStmt, "users_create", createUserQuery},
 		{&repository.updateStmt, "users_update", updateUserQuery},
@@ -137,13 +156,31 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// ListUsers returns every non-deleted account.
-func (r *SQLRepository) ListUsers(ctx context.Context) ([]UserResult, error) {
+// ListUsers returns one page of non-deleted accounts.
+func (r *SQLRepository) ListUsers(ctx context.Context, query pagination.Query) ([]UserResult, error) {
 	rows := make([]UserResult, 0)
-	if err := r.listStmt.SelectContext(ctx, &rows); err != nil {
+	if err := r.listStmt.SelectContext(ctx, &rows, query.Limit(), query.Offset()); err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
 	return rows, nil
+}
+
+// ListAllUsers returns every non-deleted account for access management views.
+func (r *SQLRepository) ListAllUsers(ctx context.Context) ([]UserResult, error) {
+	rows := make([]UserResult, 0)
+	if err := r.listAllStmt.SelectContext(ctx, &rows); err != nil {
+		return nil, fmt.Errorf("list all users: %w", err)
+	}
+	return rows, nil
+}
+
+// CountUsers returns the total and active account counts in one query.
+func (r *SQLRepository) CountUsers(ctx context.Context) (UserCounts, error) {
+	var counts UserCounts
+	if err := r.countStmt.GetContext(ctx, &counts); err != nil {
+		return UserCounts{}, fmt.Errorf("count users: %w", err)
+	}
+	return counts, nil
 }
 
 // FindUserByPublicID resolves a single account.

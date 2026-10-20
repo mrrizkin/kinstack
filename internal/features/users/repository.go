@@ -3,6 +3,8 @@ package users
 import (
 	"context"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 // UserResult is the account projection shared by user queries.
@@ -35,9 +37,17 @@ type UpdateUserInput struct {
 	DisplayName string
 }
 
+// UserCounts is the aggregate projection used by the dashboard and pagination.
+type UserCounts struct {
+	Total  int
+	Active int
+}
+
 // Repository is the persistence contract owned by the users slice.
 type Repository interface {
-	ListUsers(context.Context) ([]UserResult, error)
+	ListUsers(context.Context, pagination.Query) ([]UserResult, error)
+	ListAllUsers(context.Context) ([]UserResult, error)
+	CountUsers(context.Context) (UserCounts, error)
 	FindUserByPublicID(context.Context, string) (UserResult, error)
 	CreateUser(context.Context, CreateUserInput) (UserResult, error)
 	UpdateUser(context.Context, UpdateUserInput) (UserResult, error)

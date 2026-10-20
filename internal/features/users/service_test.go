@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/authz"
 )
 
@@ -205,5 +206,79 @@ func TestInviteRejectsUnknownRole(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidRole) {
 		t.Fatalf("expected invalid role, got %v", err)
+	}
+}
+
+func TestParsePageQueryRejectsInvalidValues(t *testing.T) {
+	cases := []struct{ name, page, perPage string }{
+		{name: "non-numeric page", page: "x"},
+		{name: "zero page", page: "0"},
+		{name: "negative page", page: "-1"},
+		{name: "non-numeric per page", perPage: "x"},
+		{name: "zero per page", perPage: "0"},
+		{name: "too many per page", perPage: "101"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := ParsePageQuery(test.page, test.perPage); !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("expected ErrInvalidInput, got %v", err)
+			}
+		})
+	}
+}
+
+func TestParsePageQueryAppliesDefaults(t *testing.T) {
+	query, err := ParsePageQuery("", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if query.Page != 1 || query.PerPage != DefaultPerPage {
+		t.Fatalf("unexpected query: %+v", query)
+	}
+
+	query, err = ParsePageQuery("3", "100")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if query.Page != 3 || query.PerPage != MaxPerPage {
+		t.Fatalf("unexpected query: %+v", query)
+	}
+}
+
+func TestListPaginatesAndCounts(t *testing.T) {
+	repository := newSeededRepository()
+	base := time.Now().UTC().Add(-time.Hour)
+	for index := 0; index < 4; index++ {
+		repository.Seed(UserResult{
+			PublicID:    "staff-" + string(rune('a'+index)),
+			Username:    "staff" + string(rune('a'+index)),
+			DisplayName: "Staf",
+			Role:        testStaffRole,
+			IsActive:    index%2 == 0,
+			CreatedAt:   base.Add(time.Duration(index) * time.Minute),
+		})
+	}
+	service := NewService(ServiceDependency{
+		Repository:    repository,
+		Authorization: newSeededAuthorization(),
+	})
+
+	list, err := service.List(context.Background(), pagination.Query{Page: 2, PerPage: 2})
+	if err != nil {
+		t.Fatalf("list users: %v", err)
+	}
+	if len(list.Users) != 2 {
+		t.Fatalf("expected 2 users, got %d", len(list.Users))
+	}
+	if list.Page.Total != 5 || list.Page.TotalPages != 3 || list.Page.From != 3 || list.Page.To != 4 {
+		t.Fatalf("unexpected page: %+v", list.Page)
+	}
+
+	counts, err := service.Count(context.Background())
+	if err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if counts.Total != 5 || counts.Active != 3 {
+		t.Fatalf("unexpected counts: %+v", counts)
 	}
 }

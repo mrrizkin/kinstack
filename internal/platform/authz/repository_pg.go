@@ -19,7 +19,11 @@ const (
 	listRolesQuery = `
 SELECT ` + roleColumns + `
 FROM roles
-ORDER BY rank DESC, code ASC`
+ORDER BY rank DESC, code ASC
+LIMIT 100`
+
+	countRolesQuery = `
+SELECT COUNT(*) FROM roles`
 
 	findRoleQuery = `
 SELECT ` + roleColumns + `
@@ -97,6 +101,7 @@ type SQLRepository struct {
 	owner *platformdatabase.StatementOwner
 
 	listRolesStmt        *sqlx.Stmt
+	countRolesStmt       *sqlx.Stmt
 	findRoleStmt         *sqlx.Stmt
 	createRoleStmt       *sqlx.Stmt
 	updateRoleStmt       *sqlx.Stmt
@@ -129,6 +134,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		query  string
 	}{
 		{&repository.listRolesStmt, "authz_list_roles", listRolesQuery},
+		{&repository.countRolesStmt, "authz_count_roles", countRolesQuery},
 		{&repository.findRoleStmt, "authz_find_role", findRoleQuery},
 		{&repository.createRoleStmt, "authz_create_role", createRoleQuery},
 		{&repository.updateRoleStmt, "authz_update_role", updateRoleQuery},
@@ -166,6 +172,15 @@ func (r *SQLRepository) ListRoles(ctx context.Context) ([]Role, error) {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
 	return roles, nil
+}
+
+// CountRoles returns the number of roles.
+func (r *SQLRepository) CountRoles(ctx context.Context) (int, error) {
+	var count int
+	if err := r.countRolesStmt.GetContext(ctx, &count); err != nil {
+		return 0, fmt.Errorf("count roles: %w", err)
+	}
+	return count, nil
 }
 
 // FindRole resolves a single role.

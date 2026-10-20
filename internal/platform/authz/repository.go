@@ -74,6 +74,7 @@ type SetOverrideInput struct {
 // Repository is the persistence contract owned by the authz platform package.
 type Repository interface {
 	ListRoles(context.Context) ([]Role, error)
+	CountRoles(context.Context) (int, error)
 	FindRole(context.Context, string) (Role, error)
 	CreateRole(context.Context, CreateRoleInput) (Role, error)
 	UpdateRole(context.Context, UpdateRoleInput) (Role, error)

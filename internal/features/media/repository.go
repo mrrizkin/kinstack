@@ -29,6 +29,7 @@ type CreateAssetInput struct {
 // Repository is the persistence contract owned by the media slice.
 type Repository interface {
 	List(context.Context, string) ([]Asset, error)
+	Count(context.Context, string) (int, error)
 	Create(context.Context, CreateAssetInput) (Asset, error)
 	Find(context.Context, string, string) (Asset, error)
 	Delete(context.Context, string, string) (Asset, error)
