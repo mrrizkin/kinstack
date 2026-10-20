@@ -26,6 +26,18 @@ type Permission string
 // self-service routes that must not require a dedicated permission.
 const Authenticated Permission = "authenticated"
 
+// BrowserSession is a sentinel meaning "an actor signed in through the browser
+// session". Personal API tokens are authenticated actors too, but they carry a
+// scope allowlist that only restricts permission checks: the Authenticated
+// sentinel short-circuits those checks, so token requests would otherwise reach
+// credential management routes (profile, 2FA, passkeys, API tokens, session
+// revocation) with the full authority of the account owner. Guard those routes
+// with BrowserSession so a stolen token can never rotate credentials.
+//
+// Like Authenticated it is internal: it is not part of the assignable catalog
+// and IsKnown reports false for it.
+const BrowserSession Permission = "browser_session"
+
 // Permission codes recognised by the application.
 const (
 	PermissionUsersView   Permission = "users.view"

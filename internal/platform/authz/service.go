@@ -85,6 +85,15 @@ func (s *Service) Can(
 		}
 		return Allow("authenticated", i18n.T("authz.reason.authenticated"))
 	}
+	if permission == BrowserSession {
+		if principal.PublicID == "" {
+			return Deny("browser_session", i18n.T("authz.reason.invalid_session"))
+		}
+		if principal.Scopes != nil {
+			return Deny("browser_session", i18n.T("authz.reason.browser_session_required"))
+		}
+		return Allow("browser_session", i18n.T("authz.reason.browser_session"))
+	}
 	if !IsKnown(permission) {
 		return Deny("catalog", i18n.T("authz.reason.unknown_permission"))
 	}

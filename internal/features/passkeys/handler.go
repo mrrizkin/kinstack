@@ -155,6 +155,11 @@ func (h *Handler) beginPasskeyRegistration(c fiber.Ctx) error {
 	if actor == nil {
 		return fiber.ErrUnauthorized
 	}
+	// Enrollment is credential management: a personal API token must never be
+	// able to register a passkey, which would outlive the token itself.
+	if actor.Scopes != nil {
+		return fiber.ErrForbidden
+	}
 	if actor.Superuser {
 		return fiber.ErrForbidden
 	}
@@ -191,6 +196,9 @@ func (h *Handler) finishPasskeyRegistration(c fiber.Ctx) error {
 	actor := h.actor.ActorFromContext(c)
 	if actor == nil {
 		return fiber.ErrUnauthorized
+	}
+	if actor.Scopes != nil {
+		return fiber.ErrForbidden
 	}
 	if actor.Superuser {
 		return fiber.ErrForbidden
@@ -326,6 +334,9 @@ func (h *Handler) deletePasskey(c fiber.Ctx) error {
 	actor := h.actor.ActorFromContext(c)
 	if actor == nil {
 		return fiber.ErrUnauthorized
+	}
+	if actor.Scopes != nil {
+		return fiber.ErrForbidden
 	}
 	if actor.Superuser {
 		return fiber.ErrForbidden

@@ -158,6 +158,8 @@ var catalogs = map[Locale]map[string]string{
 		"authz.reason.unknown_permission":      "Unknown permission.",
 		"authz.reason.resolution_failed":       "Permissions could not be loaded.",
 		"authz.reason.authenticated":           "Authenticated user.",
+		"authz.reason.browser_session":          "Signed in through the browser.",
+		"authz.reason.browser_session_required": "This action requires an interactive browser session. API tokens cannot manage credentials.",
 		"authz.reason.role_allowed":            "Allowed by role.",
 		"authz.reason.role_denied":             "The role does not grant this permission.",
 		"authz.reason.amount_limit":            "The amount exceeds your role limit.",

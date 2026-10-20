@@ -149,25 +149,27 @@ func dashboardMetrics(c fiber.Ctx, d WebRoutesDependency) fiber.Map {
 var routePolicy = authz.RoutePolicy{
 	"GET /dashboard": authz.Authenticated,
 
-	"GET /profile":                            authz.Authenticated,
-	"POST /profile":                           authz.Authenticated,
+	// Credential and session management is browser-only. See authz.BrowserSession:
+	// API tokens cannot rotate the credentials they authenticate with.
+	"GET /profile":                            authz.BrowserSession,
+	"POST /profile":                           authz.BrowserSession,
 	"POST /profile/preferences":               authz.Authenticated,
-	"POST /profile/password":                  authz.Authenticated,
-	"POST /profile/sessions/:publicID/revoke": authz.Authenticated,
-	"POST /profile/sessions/revoke-others":    authz.Authenticated,
-	"POST /profile/two-factor/begin":          authz.Authenticated,
-	"POST /profile/two-factor/confirm":        authz.Authenticated,
-	"POST /profile/two-factor/disable":        authz.Authenticated,
-	"POST /profile/two-factor/recovery-codes": authz.Authenticated,
+	"POST /profile/password":                  authz.BrowserSession,
+	"POST /profile/sessions/:publicID/revoke": authz.BrowserSession,
+	"POST /profile/sessions/revoke-others":    authz.BrowserSession,
+	"POST /profile/two-factor/begin":          authz.BrowserSession,
+	"POST /profile/two-factor/confirm":        authz.BrowserSession,
+	"POST /profile/two-factor/disable":        authz.BrowserSession,
+	"POST /profile/two-factor/recovery-codes": authz.BrowserSession,
 
-	"GET /api-tokens":                   authz.Authenticated,
-	"POST /api-tokens":                  authz.Authenticated,
-	"POST /api-tokens/:publicID/revoke": authz.Authenticated,
+	"GET /api-tokens":                   authz.BrowserSession,
+	"POST /api-tokens":                  authz.BrowserSession,
+	"POST /api-tokens/:publicID/revoke": authz.BrowserSession,
 
-	"GET /passkeys":                       authz.Authenticated,
-	"POST /passkeys/register/options":     authz.Authenticated,
-	"POST /passkeys/register":             authz.Authenticated,
-	"POST /passkeys/:credentialID/delete": authz.Authenticated,
+	"GET /passkeys":                       authz.BrowserSession,
+	"POST /passkeys/register/options":     authz.BrowserSession,
+	"POST /passkeys/register":             authz.BrowserSession,
+	"POST /passkeys/:credentialID/delete": authz.BrowserSession,
 
 	"GET /users": authz.PermissionUsersView, "POST /users": authz.PermissionUsersManage,
 	"POST /users/invite":             authz.PermissionUsersManage,

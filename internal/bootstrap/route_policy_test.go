@@ -50,7 +50,7 @@ func TestRoutePolicyCoversWorkspaceRoutes(t *testing.T) {
 			t.Errorf("route %q is missing from routePolicy", route)
 			continue
 		}
-		if policy != authz.Authenticated && !authz.IsKnown(policy) {
+		if policy != authz.Authenticated && policy != authz.BrowserSession && !authz.IsKnown(policy) {
 			t.Errorf("route %q has unknown permission %q", route, policy)
 		}
 	}
@@ -78,6 +78,35 @@ func TestSensitiveRoutesRequirePermission(t *testing.T) {
 	for route, want := range sensitive {
 		if got := routePolicy[route]; got != want {
 			t.Errorf("route %q policy = %q, want %q", route, got, want)
+		}
+	}
+}
+
+// Credential and session management must be browser-session only: the
+// Authenticated sentinel skips scope restriction, so an API token would
+// otherwise be able to rotate the credentials it authenticates with.
+func TestCredentialRoutesRequireBrowserSession(t *testing.T) {
+	credentialRoutes := []string{
+		"GET /profile",
+		"POST /profile",
+		"POST /profile/password",
+		"POST /profile/sessions/:publicID/revoke",
+		"POST /profile/sessions/revoke-others",
+		"POST /profile/two-factor/begin",
+		"POST /profile/two-factor/confirm",
+		"POST /profile/two-factor/disable",
+		"POST /profile/two-factor/recovery-codes",
+		"GET /api-tokens",
+		"POST /api-tokens",
+		"POST /api-tokens/:publicID/revoke",
+		"GET /passkeys",
+		"POST /passkeys/register/options",
+		"POST /passkeys/register",
+		"POST /passkeys/:credentialID/delete",
+	}
+	for _, route := range credentialRoutes {
+		if got := routePolicy[route]; got != authz.BrowserSession {
+			t.Errorf("credential route %q policy = %q, want %q", route, got, authz.BrowserSession)
 		}
 	}
 }

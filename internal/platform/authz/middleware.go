@@ -3,6 +3,7 @@ package authz
 import (
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/platform/actor"
+	"kinstack/internal/platform/i18n"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -131,6 +132,11 @@ func (g *GuardRouter) wrap(
 		return append(chain, handlers...)
 	}
 
+	if permission == BrowserSession {
+		chain = append(chain, RequireBrowserSession(g.actor), handler)
+		return append(chain, handlers...)
+	}
+
 	var guard fiber.Handler
 	if resolve, ok := g.resolvers[method+" "+path]; ok && resolve != nil {
 		guard = RequirePermissionResource(g.actor, g.service, permission, resolve)
@@ -152,6 +158,30 @@ func PrincipalFromActor(session *actor.SessionActor) Principal {
 		DisplayName: session.DisplayName,
 		Superuser:   session.Superuser,
 		Scopes:      session.Scopes,
+	}
+}
+
+// RequireBrowserSession rejects personal API tokens. Credential management
+// routes (password, 2FA, passkeys, API token lifecycle, session revocation) are
+// guarded with it so a leaked token cannot mint new credentials: token scopes
+// never restrict the Authenticated sentinel, and a passkey registered by a
+// token is persistent access that outlives token revocation.
+func RequireBrowserSession(actorBoundary *actor.Actor) fiber.Handler {
+	assert.Assert(actorBoundary != nil, "actor boundary is required")
+
+	return func(c fiber.Ctx) error {
+		session := actorBoundary.ActorFromContext(c)
+		if session == nil || session.PublicID == "" {
+			return fiber.ErrUnauthorized
+		}
+		if session.Scopes != nil {
+			c.Locals(decisionLocalKey, Deny(
+				"browser_session",
+				i18n.T("authz.reason.browser_session_required"),
+			))
+			return fiber.ErrForbidden
+		}
+		return c.Next()
 	}
 }
 
