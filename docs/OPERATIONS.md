@@ -145,6 +145,16 @@ expand → migrate → contract pattern.
 - A TOTP code is accepted once per timestep; replaying a code inside its
   validity window is rejected.
 
+## Passkeys and SSO
+
+- Passkey ceremonies require user verification (`VerificationRequired`). A
+  passkey enrolled before this rule (or on an authenticator without a PIN or
+  biometric) can no longer sign in; the user signs in with password + 2FA and
+  re-enrolls the passkey from the profile page.
+- OAuth and SAML accounts are bound to `(provider, subject)`. The SAML IdP must
+  assert a persistent NameID; transient NameIDs create a new binding on every
+  login and are not supported.
+
 ## Capacity
 
 - PostgreSQL pool: `DB_MAX_CONNS` open (default 10), `DB_MAX_IDLE_CONNS` idle
