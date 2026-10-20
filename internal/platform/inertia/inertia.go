@@ -4,6 +4,7 @@ package inertia
 import (
 	"context"
 	"io"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 )
+
+// documentTimeout bounds one shell render. Rendering only writes buffered
+// strings, so a healthy render finishes in milliseconds.
+const documentTimeout = 10 * time.Second
 
 // Dependency contains the environment and session boundaries used to construct the adapter.
 type Dependency struct {
@@ -52,12 +57,14 @@ func New(d Dependency) *fibertia.Fibertia {
 	adapter := fibertia.New(fibertia.Config{
 		EncryptHistory: true,
 		RootView:       "app",
-		Version:        "v3",
+		Version:        BuildVersion(),
 	})
 	adapter.SetSession(platformsession.NewInertiaSessionStore(d.SessionStore))
 	adapter.SetRendererWithData(
 		func(w io.Writer, head fibertia.InertiaHead, body fibertia.InertiaBody, data map[string]any) error {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			// The document renderer is adapter scoped and receives no request
+			// context, so it owns a short deadline instead of an unbounded one.
+			ctx, cancel := context.WithTimeout(context.Background(), documentTimeout)
 			defer cancel()
 			nonce, _ := data["nonce"].(string)
 			viteTags, err := tags(nonce)
@@ -73,6 +80,36 @@ func New(d Dependency) *fibertia.Fibertia {
 		},
 	)
 	return adapter
+}
+
+// BuildVersion derives the Inertia asset version from VCS metadata embedded by
+// the Go toolchain. A new commit therefore invalidates every cached page, and
+// local builds without VCS metadata fall back to a stable development marker.
+func BuildVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+	revision := ""
+	dirty := false
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			revision = setting.Value
+		case "vcs.modified":
+			dirty = setting.Value == "true"
+		}
+	}
+	if len(revision) > 12 {
+		revision = revision[:12]
+	}
+	if revision == "" {
+		return "dev"
+	}
+	if dirty {
+		return revision + "-dirty"
+	}
+	return revision
 }
 
 func newVite() *vitego.Vite {
