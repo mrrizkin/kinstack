@@ -46,7 +46,8 @@ const (
 	// larger is discarded; the endpoint never buffers an unbounded body.
 	maxCSPReportBytes = 8 * 1024
 	// maxCSPLogValue bounds each structured field written to the log so a
-	// hostile document cannot flood or forge log lines.
+	// hostile document cannot flood or forge log lines. It counts runes, not
+	// bytes, so truncation never splits a UTF-8 sequence.
 	maxCSPLogValue = 200
 )
 
@@ -110,8 +111,9 @@ func sanitizeCSPValue(value string) string {
 		return r
 	}, value)
 	cleaned = strings.Join(strings.Fields(cleaned), " ")
-	if len(cleaned) > maxCSPLogValue {
-		cleaned = cleaned[:maxCSPLogValue]
+	runes := []rune(cleaned)
+	if len(runes) > maxCSPLogValue {
+		cleaned = string(runes[:maxCSPLogValue])
 	}
 	return cleaned
 }

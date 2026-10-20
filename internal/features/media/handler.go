@@ -81,7 +81,13 @@ func (h *Handler) file(c fiber.Ctx) error {
 	}
 	defer func() { _ = body.Close() }()
 
-	data, err := io.ReadAll(io.LimitReader(body, asset.SizeBytes+1))
+	// Clamp to the upload ceiling: a corrupted row must not turn into an
+	// unbounded read even though the recorded size says otherwise.
+	limit := asset.SizeBytes + 1
+	if limit > maxUploadSize+1 {
+		limit = maxUploadSize + 1
+	}
+	data, err := io.ReadAll(io.LimitReader(body, limit))
 	if err != nil {
 		return h.internalServerError(c, "read media", err)
 	}

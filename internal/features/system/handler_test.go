@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	applog "kinstack/internal/pkg/log"
 
@@ -118,6 +119,13 @@ func TestSanitizeCSPValueBoundsLength(t *testing.T) {
 	got := sanitizeCSPValue(strings.Repeat("a", maxCSPLogValue+50))
 	if len(got) != maxCSPLogValue {
 		t.Fatalf("len=%d, want %d", len(got), maxCSPLogValue)
+	}
+	multibyte := sanitizeCSPValue(strings.Repeat("é", maxCSPLogValue+10))
+	if !utf8.ValidString(multibyte) {
+		t.Fatalf("truncation must not split a rune: %q", multibyte)
+	}
+	if runes := len([]rune(multibyte)); runes != maxCSPLogValue {
+		t.Fatalf("rune length=%d, want %d", runes, maxCSPLogValue)
 	}
 	if got := sanitizeCSPValue("a\tb\nc\x00d"); got != "a b c d" {
 		t.Fatalf("unexpected sanitized value: %q", got)
