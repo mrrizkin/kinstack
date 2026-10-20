@@ -254,3 +254,62 @@ func TestMemoryRepositoryDeleteBeforePrunesOldEvents(t *testing.T) {
 		t.Fatalf("expected ErrInvalidEvent for a zero cutoff, got %v", err)
 	}
 }
+
+func TestSQLRepositoryDeleteBeforePrunesOldRows(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL is not set")
+	}
+	db, err := sqlx.Connect("postgres", dsn)
+	if err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var table string
+	if err := db.GetContext(ctx, &table, `SELECT to_regclass('audit_events')`); err != nil || table == "" {
+		t.Skip("audit events migration is not applied")
+	}
+
+	repository, err := NewSQLRepository(RepositoryDependency{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repository.Close()
+
+	requestID := fmt.Sprintf("prune-audit-%d", time.Now().UnixNano())
+	for _, occurredAt := range []time.Time{
+		time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Now().UTC(),
+	} {
+		if _, err := repository.Insert(ctx, AuditRecord{
+			OccurredAt: occurredAt,
+			RequestID:  requestID,
+			Action:     "http.mutate",
+			Outcome:    "success",
+		}); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM audit_events WHERE request_id = $1`, requestID)
+	})
+
+	deleted, err := repository.DeleteBefore(ctx, time.Now().UTC().Add(-24*time.Hour))
+	if err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+	if deleted < 1 {
+		t.Fatalf("expected at least one pruned row, got %d", deleted)
+	}
+	var remaining int
+	if err := db.GetContext(ctx, &remaining,
+		`SELECT count(*) FROM audit_events WHERE request_id = $1`, requestID,
+	); err != nil {
+		t.Fatalf("count remaining: %v", err)
+	}
+	if remaining != 1 {
+		t.Fatalf("expected the recent row to survive, got %d rows", remaining)
+	}
+}

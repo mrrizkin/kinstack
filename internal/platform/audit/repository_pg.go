@@ -39,7 +39,12 @@ const (
 
 	deleteBeforeQuery = `
 		DELETE FROM audit_events
-		WHERE occurred_at < $1`
+		WHERE id IN (
+			SELECT id FROM audit_events
+			WHERE occurred_at < $1
+			ORDER BY occurred_at ASC
+			LIMIT $2
+		)`
 
 	listAuditQuery = `
 		SELECT id, occurred_at, request_id, actor_key, action, resource,
@@ -118,20 +123,30 @@ func (r *sqlRepository) Close() error {
 	return r.owner.Close()
 }
 
-// DeleteBefore removes audit rows older than the cutoff.
+// pruneAuditBatchSize bounds one DELETE so pruning a large table does not hold
+// locks for the whole operation.
+const pruneAuditBatchSize = 5_000
+
+// DeleteBefore removes audit rows older than the cutoff in bounded batches.
 func (r *sqlRepository) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	if err := ctx.Err(); err != nil {
-		return 0, err
+	var total int64
+	for {
+		if err := ctx.Err(); err != nil {
+			return total, err
+		}
+		result, err := r.deleteBeforeStmt.ExecContext(ctx, cutoff, pruneAuditBatchSize)
+		if err != nil {
+			return total, fmt.Errorf("prune audit events: %w", err)
+		}
+		deleted, err := result.RowsAffected()
+		if err != nil {
+			return total, fmt.Errorf("count pruned audit events: %w", err)
+		}
+		total += deleted
+		if deleted < pruneAuditBatchSize {
+			return total, nil
+		}
 	}
-	result, err := r.deleteBeforeStmt.ExecContext(ctx, cutoff)
-	if err != nil {
-		return 0, fmt.Errorf("prune audit events: %w", err)
-	}
-	deleted, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("count pruned audit events: %w", err)
-	}
-	return deleted, nil
 }
 
 // Insert appends a record to audit_events.
