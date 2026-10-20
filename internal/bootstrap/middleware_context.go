@@ -78,9 +78,10 @@ func registerContextMiddleware(d GlobalMiddlewareDependency) {
 	})
 }
 
+// skipStatic reports whether the request is served by the static asset handler
+// and therefore must not receive Inertia shared props.
 func skipStatic(c fiber.Ctx) bool {
-	path := c.Path()
-	return strings.HasPrefix(path, "/build/") || strings.HasPrefix(path, "/uploads/")
+	return strings.HasPrefix(c.Path(), "/build/")
 }
 
 // effectivePermissions resolves the actor's permission codes for the frontend.

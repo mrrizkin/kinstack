@@ -88,7 +88,6 @@ func newFiberApp(d FiberAppDependency) *fiber.App {
 		fiberConfig.TrustProxyConfig = fiber.TrustProxyConfig{Loopback: true, Private: true}
 	}
 	app := fiber.New(fiberConfig)
-	registerStaticAssets(app)
 	d.Log.Infow("Fiber configured")
 	return app
 }

@@ -76,6 +76,11 @@ func NewApp(d AppDependency) (*fiber.App, func()) {
 		Telemetry:     d.Telemetry,
 	})
 
+	// Static assets are registered after the security middleware so build output
+	// and root files also carry the CSP, HSTS, and cache headers. The remaining
+	// skip is limited to /build/ because those responses never render Inertia.
+	registerStaticAssets(app)
+
 	RegisterWebRoutes(WebRoutesDependency{
 		App:           app,
 		Config:        d.Config,
