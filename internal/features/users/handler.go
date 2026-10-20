@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"kinstack/internal/pkg/assert"
@@ -60,6 +61,23 @@ func (h *Handler) context(c fiber.Ctx) context.Context {
 func (h *Handler) usersPath() string {
 	return "/users"
 }
+
+// accessPathFor keeps the user on the access page they were viewing after a
+// successful mutation. Invalid values fall back to the first page.
+func (h *Handler) accessPathFor(c fiber.Ctx) string {
+	raw := strings.TrimSpace(c.Query("page"))
+	if raw == "" {
+		return h.accessPath()
+	}
+	page, err := strconv.Atoi(raw)
+	if err != nil || page < 1 || page > maxAccessPage {
+		return h.accessPath()
+	}
+	return h.accessPath() + "?page=" + strconv.Itoa(page)
+}
+
+// maxAccessPage bounds the page number accepted from a redirect hint.
+const maxAccessPage = 10_000
 
 func (h *Handler) accessPath() string {
 	return "/access"

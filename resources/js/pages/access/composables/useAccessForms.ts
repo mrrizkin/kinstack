@@ -11,10 +11,17 @@ interface AccessProps {
   permissions: Permission[];
   categories: string[];
   users: UserAccess[];
+  page?: { page: number };
 }
 
 export function useAccessForms(props: AccessProps) {
   const accessURL = (suffix = "") => `/access${suffix}`;
+  // User-table mutations return to the page the user was viewing. Role
+  // mutations live on the roles tab and do not need it.
+  const pageQuery = computed(() => {
+    const current = props.page?.page ?? 1;
+    return current > 1 ? `?page=${current}` : "";
+  });
   const tab = ref("roles");
   const { message } = useServerErrors();
   const actionError = computed(() => message("role") || message("permission") || message("form"));
@@ -169,7 +176,7 @@ export function useAccessForms(props: AccessProps) {
       return;
     }
     router.post(
-      accessURL(`/users/${user.public_id}/permissions`),
+      accessURL(`/users/${user.public_id}/permissions${pageQuery.value}`),
       {
         permission: overrideForm.value.permission,
         effect: overrideForm.value.effect,
@@ -196,7 +203,7 @@ export function useAccessForms(props: AccessProps) {
     const pending = pendingRemoveOverride.value;
     if (!pending || removingOverride.value) return;
     router.post(
-      accessURL(`/users/${pending.user.public_id}/permissions/delete`),
+      accessURL(`/users/${pending.user.public_id}/permissions/delete${pageQuery.value}`),
       { permission: pending.override.permission },
       {
         preserveScroll: true,
@@ -214,7 +221,7 @@ export function useAccessForms(props: AccessProps) {
   function assignRole(user: UserAccess, role: string) {
     if (assigningRoleId.value) return;
     router.post(
-      accessURL(`/users/${user.public_id}/role`),
+      accessURL(`/users/${user.public_id}/role${pageQuery.value}`),
       { role },
       {
         preserveScroll: true,

@@ -62,7 +62,7 @@ func (h *Handler) assignRole(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.accessPath(),
+		h.accessPathFor(c),
 		i18n.T("users.role_updated"),
 	)
 }
@@ -75,7 +75,12 @@ func (h *Handler) setOverride(c fiber.Ctx) error {
 	if err := h.service.SetOverride(h.context(c), c.Params("publicID"), request); err != nil {
 		return h.writeErrorAt(c, h.accessPath(), err)
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.accessPath(), i18n.T("users.custom_permissions_saved"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.accessPathFor(c),
+		i18n.T("users.custom_permissions_saved"),
+	)
 }
 
 func (h *Handler) deleteOverride(c fiber.Ctx) error {
@@ -90,5 +95,10 @@ func (h *Handler) deleteOverride(c fiber.Ctx) error {
 	); err != nil {
 		return h.writeErrorAt(c, h.accessPath(), err)
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.accessPath(), i18n.T("users.custom_permissions_deleted"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.accessPathFor(c),
+		i18n.T("users.custom_permissions_deleted"),
+	)
 }

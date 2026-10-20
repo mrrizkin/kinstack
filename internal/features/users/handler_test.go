@@ -93,3 +93,31 @@ func TestWantsJSONDetectsMachineClients(t *testing.T) {
 		}
 	}
 }
+
+func TestAccessPathForPreservesValidPage(t *testing.T) {
+	handler := &Handler{}
+	app := fiber.New()
+	app.Get("/access", func(c fiber.Ctx) error {
+		return c.SendString(handler.accessPathFor(c))
+	})
+
+	cases := map[string]string{
+		"/access":               "/access",
+		"/access?page=3":        "/access?page=3",
+		"/access?page=abc":      "/access",
+		"/access?page=0":        "/access",
+		"/access?page=-2":       "/access",
+		"/access?page=99999999": "/access",
+	}
+	for target, want := range cases {
+		response, err := app.Test(httptest.NewRequest(http.MethodGet, target, nil))
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		body, _ := io.ReadAll(response.Body)
+		response.Body.Close()
+		if string(body) != want {
+			t.Errorf("%s -> %q, want %q", target, body, want)
+		}
+	}
+}
