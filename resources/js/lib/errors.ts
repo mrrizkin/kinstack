@@ -1,8 +1,8 @@
-import { usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
 
+import { usePageProps } from "./page-props";
+
 type ErrorValue = string | string[] | undefined;
-type ErrorBag = Record<string, ErrorValue>;
 
 function firstMessage(value: ErrorValue): string {
   if (Array.isArray(value)) {
@@ -16,8 +16,7 @@ function firstMessage(value: ErrorValue): string {
  * so everything is normalised to a single string before rendering.
  */
 export function useServerErrors() {
-  const page = usePage();
-  const errors = computed<ErrorBag>(() => (page.props.errors ?? {}) as ErrorBag);
+  const { errors } = usePageProps();
 
   // Local form state can hold arrays too, so normalise both sources.
   const message = (field: string, local?: Record<string, unknown>): string =>

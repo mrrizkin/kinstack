@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from "@inertiajs/vue3";
+import { Head, router, useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { formatDateTime } from "@/lib/formatters";
+import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
@@ -21,9 +22,9 @@ interface Asset {
 
 const props = defineProps<{ assets: Asset[] }>();
 
-const page = usePage();
 const { can } = usePermissions();
-const isSuperuser = Boolean((page.props.actor as { superuser?: boolean } | null)?.superuser);
+const { actor } = usePageProps();
+const isSuperuser = Boolean(actor.value?.superuser);
 const canManage = can(PERMISSIONS.mediaManage) && !isSuperuser;
 
 const MAX_UPLOAD = 10 * 1024 * 1024;

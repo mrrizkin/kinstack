@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from "@inertiajs/vue3";
+import { Head, useForm } from "@inertiajs/vue3";
 import type { AuthFormField, FormSubmitEvent } from "@nuxt/ui";
 import { computed, ref } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { passkeyCredentialSchema, passkeyOptionsSchema } from "@/lib/contracts/passkeys";
+import { requestJson } from "@/lib/http";
+import { usePageProps } from "@/lib/page-props";
 import { getPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
 defineOptions({
@@ -25,8 +28,7 @@ const props = defineProps<{
   saml_enabled?: boolean;
 }>();
 
-const page = usePage();
-const csrfToken = computed(() => String(page.props.csrf_token ?? ""));
+const { csrfToken } = usePageProps();
 const passkeySupported = supportsWebAuthn();
 const hasAlternatives = computed(() =>
   Boolean(
@@ -96,24 +98,16 @@ async function submitPasskey() {
   passkeyLoading.value = true;
   passkeyError.value = "";
   try {
-    const optionsResponse = await fetch("/login/passkey/options", {
+    const options = await requestJson("/login/passkey/options", passkeyOptionsSchema, {
       method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: "application/json", "X-XSRF-TOKEN": csrfToken.value },
+      csrfToken: csrfToken.value,
     });
-    if (!optionsResponse.ok) throw new Error("Unable to start passkey sign-in.");
-    const credential = await getPasskey(await optionsResponse.json());
-    const response = await fetch("/login/passkey", {
+    const credential = await getPasskey(options);
+    await requestJson("/login/passkey", passkeyCredentialSchema, {
       method: "POST",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "X-XSRF-TOKEN": csrfToken.value,
-      },
-      body: JSON.stringify(credential),
+      csrfToken: csrfToken.value,
+      body: credential,
     });
-    if (!response.ok) throw new Error("Passkey could not be verified.");
     window.location.assign("/");
   } catch (caught) {
     passkeyError.value = caught instanceof Error ? caught.message : "Passkey sign-in failed.";

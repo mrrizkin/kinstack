@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { Head, usePage } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { Head } from "@inertiajs/vue3";
+import { ref } from "vue";
+import { z } from "zod";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { passkeyOptionsSchema, passkeySummarySchema } from "@/lib/contracts/passkeys";
 import { formatDateTime } from "@/lib/formatters";
+import { requestJson } from "@/lib/http";
+import { usePageProps } from "@/lib/page-props";
 import { createPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
@@ -19,14 +23,13 @@ interface Passkey {
 
 const props = defineProps<{ passkeys: Passkey[] }>();
 
-const page = usePage();
+const { csrfToken } = usePageProps();
 const passkeys = ref([...props.passkeys]);
 const name = ref("This device");
 const saving = ref(false);
 const revoking = ref("");
 const message = ref("");
 const error = ref("");
-const csrfToken = computed(() => String(page.props.csrf_token ?? ""));
 const supported = supportsWebAuthn();
 
 async function addPasskey() {
@@ -35,28 +38,18 @@ async function addPasskey() {
   message.value = "";
   error.value = "";
   try {
-    const optionsResponse = await fetch("/passkeys/register/options", {
+    const options = await requestJson("/passkeys/register/options", passkeyOptionsSchema, {
       method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: "application/json", "X-XSRF-TOKEN": csrfToken.value },
+      csrfToken: csrfToken.value,
     });
-    if (!optionsResponse.ok) throw new Error("Unable to start passkey registration.");
-    const credential = await createPasskey(await optionsResponse.json());
+    const credential = await createPasskey(options);
     credential.name = name.value.trim();
-    const response = await fetch("/passkeys/register", {
+    const saved = await requestJson("/passkeys/register", passkeySummarySchema, {
       method: "POST",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "X-XSRF-TOKEN": csrfToken.value,
-      },
-      body: JSON.stringify(credential),
+      csrfToken: csrfToken.value,
+      body: credential,
     });
-    if (!response.ok) {
-      throw new Error(response.status === 409 ? "This passkey is already registered." : "Passkey could not be saved.");
-    }
-    passkeys.value.push(await response.json());
+    passkeys.value.push(saved);
     message.value = "Passkey added. You can now sign in with this device.";
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Passkey registration was cancelled or failed.";
@@ -70,12 +63,10 @@ async function revokePasskey(passkey: Passkey) {
   revoking.value = passkey.id;
   error.value = "";
   try {
-    const response = await fetch(`/passkeys/${encodeURIComponent(passkey.id)}/delete`, {
+    await requestJson(`/passkeys/${encodeURIComponent(passkey.id)}/delete`, z.unknown(), {
       method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: "application/json", "X-XSRF-TOKEN": csrfToken.value },
+      csrfToken: csrfToken.value,
     });
-    if (!response.ok) throw new Error("Passkey could not be revoked.");
     passkeys.value = passkeys.value.filter((item) => item.id !== passkey.id);
     message.value = "Passkey revoked.";
   } catch (caught) {

@@ -2,19 +2,16 @@
 import { onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { notificationFeedSchema } from "@/lib/contracts/notifications";
 import { notificationsOpen, unreadCount } from "@/lib/dashboard";
+import { requestJson } from "@/lib/http";
 
 const { t } = useI18n();
 
 async function refresh() {
   try {
-    const response = await fetch("/notifications/feed", {
-      headers: { Accept: "application/json" },
-      credentials: "same-origin",
-    });
-    if (!response.ok) return;
-    const payload = (await response.json()) as { unread?: number };
-    unreadCount.value = payload.unread ?? 0;
+    const payload = await requestJson("/notifications/feed", notificationFeedSchema);
+    unreadCount.value = payload.unread;
   } catch {
     // The slideover shows the actionable error when opened.
   }

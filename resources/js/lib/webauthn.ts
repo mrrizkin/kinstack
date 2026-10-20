@@ -1,6 +1,8 @@
-type WebAuthnOptions = {
-  publicKey: Record<string, unknown>;
-};
+import { passkeyOptionsSchema, type PasskeyCredential, type PasskeyOptions } from "./contracts/passkeys";
+
+// The WebAuthn API is a browser-native boundary: decoded binary fields are
+// intentionally cast here because the DOM types describe ArrayBuffers, not the
+// JSON-shaped wire payload the server sends.
 
 function decode(value: string): ArrayBuffer {
   const normalized = value
@@ -18,8 +20,12 @@ function encode(value: ArrayBuffer): string {
     .replace(/=+$/g, "");
 }
 
+export function parsePasskeyOptions(payload: unknown): PasskeyOptions {
+  return passkeyOptionsSchema.parse(payload);
+}
+
 function prepareOptions(
-  payload: WebAuthnOptions,
+  payload: PasskeyOptions,
   registration: boolean,
 ): PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions {
   const publicKey = { ...payload.publicKey } as Record<string, unknown>;
@@ -43,9 +49,9 @@ function prepareOptions(
   return publicKey as unknown as PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions;
 }
 
-function serializeCredential(credential: PublicKeyCredential): Record<string, unknown> {
+function serializeCredential(credential: PublicKeyCredential): PasskeyCredential {
   const response = credential.response;
-  const serialized: Record<string, unknown> = {
+  const serialized: PasskeyCredential = {
     id: credential.id,
     rawId: encode(credential.rawId),
     type: credential.type,
@@ -74,7 +80,7 @@ export function supportsWebAuthn(): boolean {
   return typeof window !== "undefined" && typeof PublicKeyCredential !== "undefined" && !!navigator.credentials;
 }
 
-export async function createPasskey(payload: WebAuthnOptions): Promise<Record<string, unknown>> {
+export async function createPasskey(payload: PasskeyOptions): Promise<PasskeyCredential> {
   if (!supportsWebAuthn()) throw new Error("This browser does not support WebAuthn.");
   const credential = await navigator.credentials.create({
     publicKey: prepareOptions(payload, true) as PublicKeyCredentialCreationOptions,
@@ -83,7 +89,7 @@ export async function createPasskey(payload: WebAuthnOptions): Promise<Record<st
   return serializeCredential(credential);
 }
 
-export async function getPasskey(payload: WebAuthnOptions): Promise<Record<string, unknown>> {
+export async function getPasskey(payload: PasskeyOptions): Promise<PasskeyCredential> {
   if (!supportsWebAuthn()) throw new Error("This browser does not support WebAuthn.");
   const credential = await navigator.credentials.get({
     publicKey: prepareOptions(payload, false) as PublicKeyCredentialRequestOptions,

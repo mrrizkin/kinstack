@@ -1,20 +1,14 @@
 <script setup lang="ts">
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import { computed } from "vue";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
-
-interface Actor {
-  username: string;
-  display_name: string;
-  role: string;
-  superuser?: boolean;
-}
 
 interface QuickLink {
   label: string;
@@ -35,17 +29,8 @@ interface Metrics {
 
 const props = defineProps<{ metrics: Metrics }>();
 
-const page = usePage();
 const { can } = usePermissions();
-
-const actor = computed(() => (page.props.actor as Actor | null) ?? null);
-const authMethods = computed(
-  () =>
-    (page.props.auth_methods ?? {}) as {
-      passkey?: boolean;
-      api_token?: boolean;
-    },
-);
+const { actor, authMethods } = usePageProps();
 
 const displayName = computed(() => actor.value?.display_name || actor.value?.username || "User");
 const isSuperuser = computed(() => Boolean(actor.value?.superuser));

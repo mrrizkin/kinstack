@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import { computed } from "vue";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import PublicLayout from "@/layouts/PublicLayout.vue";
+import { usePageProps } from "@/lib/page-props";
 
 defineOptions({
   layout: (props: { actor?: unknown }) => (props.actor ? [BaseLayout, AppLayout] : [BaseLayout, PublicLayout]),
@@ -18,8 +19,8 @@ interface Shortcut {
 
 defineProps<{ topics: string[]; shortcuts: Shortcut[] }>();
 
-const page = usePage();
-const isAuthenticated = computed(() => Boolean(page.props.actor));
+const { actor } = usePageProps();
+const isAuthenticated = computed(() => Boolean(actor.value));
 </script>
 
 <template>

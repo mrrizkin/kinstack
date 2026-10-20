@@ -25,9 +25,6 @@ interface NavigationGroup {
 const page = usePage();
 const { t } = useI18n();
 const { can } = usePermissions();
-const isSuperuser = computed(() => Boolean((page.props.actor as { superuser?: boolean } | null)?.superuser));
-const authMethods = computed(() => (page.props.auth_methods ?? {}) as { passkey?: boolean; api_token?: boolean });
-
 const sidebarOpen = ref(false);
 
 const primaryNavigation = computed<NavigationGroup[]>(() => [

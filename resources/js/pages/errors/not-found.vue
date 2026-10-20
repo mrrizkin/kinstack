@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import { computed } from "vue";
 
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { usePageProps } from "@/lib/page-props";
 
 defineProps<{ status?: number; message?: string }>();
 
 defineOptions({ layout: [BaseLayout] });
 
-const page = usePage();
-const actor = computed(() => page.props.actor as { username?: string } | null);
+const { actor } = usePageProps();
 const homeHref = computed(() => (actor.value ? "/dashboard" : "/"));
 const homeLabel = computed(() => (actor.value ? "Go to dashboard" : "Go to home"));
 </script>

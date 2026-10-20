@@ -1,26 +1,18 @@
 <script setup lang="ts">
-import { usePage } from "@inertiajs/vue3";
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { z } from "zod";
 
+import { notificationFeedSchema, type NotificationItem } from "@/lib/contracts/notifications";
 import { notificationsOpen, unreadCount } from "@/lib/dashboard";
 import { formatRelativeTime } from "@/lib/formatters";
+import { requestJson } from "@/lib/http";
+import { usePageProps } from "@/lib/page-props";
 
-interface Notification {
-  public_id: string;
-  kind: string;
-  title: string;
-  body: string;
-  read: boolean;
-  created_at: string;
-  read_at?: string;
-}
-
-const page = usePage();
 const { t } = useI18n();
-const csrfToken = computed(() => String(page.props.csrf_token ?? ""));
+const { csrfToken } = usePageProps();
 
-const notifications = ref<Notification[]>([]);
+const notifications = ref<NotificationItem[]>([]);
 const unread = unreadCount;
 const loading = ref(false);
 const marking = ref(false);
@@ -43,14 +35,9 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    const response = await fetch("/notifications/feed", {
-      headers: { Accept: "application/json" },
-      credentials: "same-origin",
-    });
-    if (!response.ok) throw new Error(t("shell.notifications.loadError"));
-    const payload = (await response.json()) as { notifications?: Notification[]; unread?: number };
-    notifications.value = payload.notifications ?? [];
-    unread.value = payload.unread ?? 0;
+    const payload = await requestJson("/notifications/feed", notificationFeedSchema);
+    notifications.value = payload.notifications;
+    unread.value = payload.unread;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : t("shell.notifications.loadError");
   } finally {
@@ -58,14 +45,14 @@ async function load() {
   }
 }
 
-async function markRead(notification: Notification) {
+async function markRead(notification: NotificationItem) {
   if (notification.read) return;
-  const response = await fetch(`/notifications/${encodeURIComponent(notification.public_id)}/read`, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { Accept: "application/json", "X-XSRF-TOKEN": csrfToken.value },
-  });
-  if (!response.ok) {
+  try {
+    await requestJson(`/notifications/${encodeURIComponent(notification.public_id)}/read`, z.unknown(), {
+      method: "POST",
+      csrfToken: csrfToken.value,
+    });
+  } catch {
     error.value = t("shell.notifications.markError");
     return;
   }
@@ -78,12 +65,10 @@ async function markAllRead() {
   marking.value = true;
   error.value = "";
   try {
-    const response = await fetch("/notifications/read-all", {
+    await requestJson("/notifications/read-all", z.unknown(), {
       method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: "application/json", "X-XSRF-TOKEN": csrfToken.value },
+      csrfToken: csrfToken.value,
     });
-    if (!response.ok) throw new Error(t("shell.notifications.markAllError"));
     notifications.value = notifications.value.map((item) => ({ ...item, read: true }));
     unread.value = 0;
   } catch (caught) {

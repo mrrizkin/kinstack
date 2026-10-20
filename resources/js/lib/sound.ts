@@ -1,10 +1,14 @@
 import { ref, watch } from "vue";
 
+import { parseSoundPreference } from "./contracts/preferences";
+
 export type NotificationSound = "success" | "error" | "info" | "mute";
 
 const STORAGE_KEY = "kinstack-sound";
 
-const enabled = ref(typeof window === "undefined" ? true : window.localStorage.getItem(STORAGE_KEY) !== "off");
+const enabled = ref(
+  typeof window === "undefined" ? true : parseSoundPreference(window.localStorage.getItem(STORAGE_KEY)) === "on",
+);
 
 let context: AudioContext | undefined;
 

@@ -1,31 +1,20 @@
 <script setup lang="ts">
-import { router, usePage } from "@inertiajs/vue3";
+import { router } from "@inertiajs/vue3";
 import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { notificationsOpen } from "@/lib/dashboard";
+import { usePageProps } from "@/lib/page-props";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 
 const props = defineProps<{ collapsed?: boolean }>();
 
-const page = usePage();
 const { t } = useI18n();
 const { preference, setPreference } = useTheme();
+const { actor, authMethods } = usePageProps();
 
-const actor = computed(
-  () =>
-    (page.props.actor as {
-      username: string;
-      display_name: string;
-      role: string;
-      superuser?: boolean;
-    } | null) ?? null,
-);
 const isSuperuser = computed(() => Boolean(actor.value?.superuser));
-const authMethods = computed(
-  () => (page.props.auth_methods ?? {}) as { magic_link?: boolean; passkey?: boolean; api_token?: boolean },
-);
 const displayName = computed(() => actor.value?.display_name || actor.value?.username || "User");
 const initials = computed(() =>
   displayName.value

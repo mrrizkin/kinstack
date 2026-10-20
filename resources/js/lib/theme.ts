@@ -1,7 +1,9 @@
 import { useColorMode } from "@vueuse/core";
 import { computed } from "vue";
 
-export type ThemePreference = "light" | "dark" | "system";
+import { parseThemePreference, type ThemePreference } from "./contracts/preferences";
+
+export type { ThemePreference };
 
 // Nuxt UI's Vue runtime shares this exact composable, so both the components and
 // the toggle below stay in sync (same storage key and same <html> class).
@@ -9,13 +11,7 @@ const colorMode = useColorMode();
 
 const STORAGE_KEY = "vueuse-color-scheme";
 
-const toPreference = (value: string | null | undefined): ThemePreference => {
-  if (value === "dark") return "dark";
-  if (value === "light") return "light";
-  return "system";
-};
-
-const preference = computed<ThemePreference>(() => toPreference(colorMode.store.value));
+const preference = computed<ThemePreference>(() => parseThemePreference(colorMode.store.value));
 const resolved = computed<"light" | "dark">(() => (colorMode.value === "dark" ? "dark" : "light"));
 
 /** Color mode helper shared by the layouts (light / dark / system). */

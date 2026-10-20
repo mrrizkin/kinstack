@@ -5,8 +5,9 @@
  * `permissions` Inertia prop. UI gating is a convenience only: every route is
  * still guarded on the server, so hiding a menu item never grants access.
  */
-import { usePage } from "@inertiajs/vue3";
-import { computed, type ComputedRef } from "vue";
+import type { ComputedRef } from "vue";
+
+import { usePageProps } from "./page-props";
 
 export interface PermissionHelpers {
   permissions: ComputedRef<string[]>;
@@ -15,11 +16,7 @@ export interface PermissionHelpers {
 }
 
 export function usePermissions(): PermissionHelpers {
-  const page = usePage();
-  const permissions = computed<string[]>(() => {
-    const value = page.props.authz_permissions as string[] | undefined;
-    return Array.isArray(value) ? value : [];
-  });
+  const { permissions } = usePageProps();
 
   const can = (code: string) => permissions.value.includes(code);
   const canAny = (...codes: string[]) => codes.some((code) => can(code));

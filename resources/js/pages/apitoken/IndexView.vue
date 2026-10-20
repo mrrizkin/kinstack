@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from "@inertiajs/vue3";
+import { Head, router, useForm } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { formatDateTime } from "@/lib/formatters";
+import { usePageProps } from "@/lib/page-props";
 import { permissionLabel } from "@/lib/permissions";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
@@ -22,8 +23,7 @@ interface APIToken {
 
 const props = defineProps<{ tokens: APIToken[]; created_token?: string }>();
 
-const page = usePage();
-const permissions = computed(() => (page.props.authz_permissions as string[]) ?? []);
+const { permissions } = usePageProps();
 
 const showCreate = ref(false);
 const copied = ref(false);

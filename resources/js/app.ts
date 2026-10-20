@@ -12,21 +12,12 @@ import { createApp, h } from "vue";
 
 import "../css/global.css";
 import { i18n } from "./i18n";
+import { sharedPagePropsSchema } from "./lib/contracts/page-props";
 import { captureException, installGlitchTip } from "./lib/glitchtip";
 import { installUmami } from "./lib/umami";
 
 const pages = import.meta.glob<DefineComponent>("./pages/**/*.vue");
 let csrfToken = "";
-
-type IntegrationProps = {
-  csrf_token?: string;
-  observability?: {
-    glitchtip?: Parameters<typeof installGlitchTip>[1];
-  };
-  analytics?: {
-    umami?: Parameters<typeof installUmami>[0];
-  };
-};
 
 createInertiaApp({
   title: (title) => (title ? `${title} · KinStack` : "KinStack"),
@@ -34,10 +25,9 @@ createInertiaApp({
   resolve: (name: string) => resolvePageComponent(`./pages/${name}.vue`, pages),
 
   setup({ el, App, props, plugin }) {
-    const pageProps = props.initialPage.props as IntegrationProps;
-    const initialToken = pageProps.csrf_token;
-    if (typeof initialToken === "string") {
-      csrfToken = initialToken;
+    const pageProps = sharedPagePropsSchema.parse(props.initialPage.props);
+    if (pageProps.csrf_token) {
+      csrfToken = pageProps.csrf_token;
     }
     const app = createApp({ render: () => h(App, props) })
       .use(plugin)
@@ -61,9 +51,9 @@ createInertiaApp({
 });
 
 router.on("navigate", (event) => {
-  const token = event.detail.page.props.csrf_token;
-  if (typeof token === "string") {
-    csrfToken = token;
+  const parsed = sharedPagePropsSchema.safeParse(event.detail.page.props);
+  if (parsed.success && parsed.data.csrf_token) {
+    csrfToken = parsed.data.csrf_token;
   }
 });
 
