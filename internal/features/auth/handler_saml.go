@@ -79,6 +79,13 @@ func (h *Handler) samlACS(c fiber.Ctx) error {
 		if errors.Is(err, platformsaml.ErrUnavailable) {
 			return fiber.ErrServiceUnavailable
 		}
+		if errors.Is(err, platformsaml.ErrUnstableSubject) {
+			return h.renderOAuthError(
+				c,
+				fiber.StatusUnprocessableEntity,
+				i18n.T("auth.saml_unstable_subject"),
+			)
+		}
 		return h.renderOAuthError(
 			c,
 			fiber.StatusUnprocessableEntity,

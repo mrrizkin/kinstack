@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"encoding/xml"
+	"errors"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -121,4 +122,31 @@ func idpMetadataServer(t *testing.T) *httptest.Server {
 		w.Header().Set("Content-Type", "application/samlmetadata+xml")
 		_, _ = w.Write(payload)
 	}))
+}
+
+func TestIdentityFromAssertionRejectsUnstableSubjects(t *testing.T) {
+	transient := &saml.Assertion{Subject: &saml.Subject{NameID: &saml.NameID{
+		Value:  "session-only",
+		Format: transientNameIDFormat,
+	}}}
+	if _, err := identityFromAssertion(transient); !errors.Is(err, ErrUnstableSubject) {
+		t.Fatalf("expected ErrUnstableSubject for a transient NameID, got %v", err)
+	}
+
+	missing := &saml.Assertion{}
+	if _, err := identityFromAssertion(missing); !errors.Is(err, ErrUnstableSubject) {
+		t.Fatalf("expected ErrUnstableSubject for a missing NameID, got %v", err)
+	}
+
+	persistent := &saml.Assertion{Subject: &saml.Subject{NameID: &saml.NameID{
+		Value:  "persistent-1",
+		Format: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+	}}}
+	identity, err := identityFromAssertion(persistent)
+	if err != nil {
+		t.Fatalf("persistent NameID: %v", err)
+	}
+	if identity.Provider != "saml" || identity.Subject != "persistent-1" {
+		t.Fatalf("unexpected identity: %+v", identity)
+	}
 }

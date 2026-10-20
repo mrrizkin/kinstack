@@ -29,6 +29,9 @@ var (
 	ErrInvalidConfig = errors.New("saml provider configuration is invalid")
 	// ErrInvalidResponse identifies a rejected or invalid SAML response.
 	ErrInvalidResponse = errors.New("saml response is invalid")
+	// ErrUnstableSubject identifies an assertion whose subject cannot identify
+	// an account across logins (missing or transient NameID).
+	ErrUnstableSubject = errors.New("saml subject identifier is not persistent")
 )
 
 // Config carries the service-provider settings. Every value is required when
@@ -127,13 +130,23 @@ func (p *Provider) Complete(request *http.Request, requestID string) (platformoa
 	if err != nil {
 		return platformoauth.Identity{}, fmt.Errorf("%w: %v", ErrInvalidResponse, err)
 	}
-	return identityFromAssertion(assertion), nil
+	return identityFromAssertion(assertion)
 }
 
-func identityFromAssertion(assertion *saml.Assertion) platformoauth.Identity {
+// identityFromAssertion extracts the base identity fields. A subject that is
+// missing or explicitly transient cannot be bound to an account: accepting it
+// would create a new identity row on every login.
+func identityFromAssertion(assertion *saml.Assertion) (platformoauth.Identity, error) {
 	identity := platformoauth.Identity{Provider: "saml"}
 	if assertion.Subject != nil && assertion.Subject.NameID != nil {
-		identity.Subject = strings.TrimSpace(assertion.Subject.NameID.Value)
+		nameID := assertion.Subject.NameID
+		if isTransientNameIDFormat(nameID.Format) {
+			return platformoauth.Identity{}, ErrUnstableSubject
+		}
+		identity.Subject = strings.TrimSpace(nameID.Value)
+	}
+	if identity.Subject == "" {
+		return platformoauth.Identity{}, ErrUnstableSubject
 	}
 	for _, statement := range assertion.AttributeStatements {
 		for _, attribute := range statement.Attributes {
@@ -158,7 +171,15 @@ func identityFromAssertion(assertion *saml.Assertion) platformoauth.Identity {
 		identity.DisplayName = identity.Email
 	}
 	identity.EmailVerified = identity.Email != ""
-	return identity
+	return identity, nil
+}
+
+// transientNameIDFormat is the SAML 2.0 transient NameID format. Identities in
+// this format are valid only for one session.
+const transientNameIDFormat = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
+
+func isTransientNameIDFormat(format string) bool {
+	return strings.EqualFold(strings.TrimSpace(format), transientNameIDFormat)
 }
 
 func isEmailAttribute(name string) bool {
