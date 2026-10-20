@@ -8,6 +8,7 @@ var catalogs = map[Locale]map[string]string{
 		"common.invalid_payload": "Invalid request payload.",
 		"common.invalid_input":   "Invalid input.",
 		"common.unavailable":     "The requested service is unavailable.",
+		"common.invalid_page":    "That page does not exist. Showing the first page instead.",
 
 		// Authentication.
 		"auth.invalid_credentials":    "Incorrect username or password.",

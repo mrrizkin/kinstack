@@ -1,6 +1,7 @@
 package users
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,7 +25,9 @@ func TestIndexRejectsInvalidPagination(t *testing.T) {
 	}
 	for _, target := range cases {
 		t.Run(target, func(t *testing.T) {
-			response, err := app.Test(httptest.NewRequest(http.MethodGet, target, nil))
+			request := httptest.NewRequest(http.MethodGet, target, nil)
+			request.Header.Set("Accept", "application/json")
+			response, err := app.Test(request)
 			if err != nil {
 				t.Fatalf("request failed: %v", err)
 			}
@@ -45,7 +48,9 @@ func TestAccessRejectsInvalidPagination(t *testing.T) {
 
 	for _, target := range []string{"/access?page=0", "/access?per_page=101", "/access?per_page=abc"} {
 		t.Run(target, func(t *testing.T) {
-			response, err := app.Test(httptest.NewRequest(http.MethodGet, target, nil))
+			request := httptest.NewRequest(http.MethodGet, target, nil)
+			request.Header.Set("Accept", "application/json")
+			response, err := app.Test(request)
 			if err != nil {
 				t.Fatalf("request failed: %v", err)
 			}
@@ -54,5 +59,37 @@ func TestAccessRejectsInvalidPagination(t *testing.T) {
 				t.Fatalf("status = %d, want %d", response.StatusCode, fiber.StatusUnprocessableEntity)
 			}
 		})
+	}
+}
+
+func TestWantsJSONDetectsMachineClients(t *testing.T) {
+	app := fiber.New()
+	app.Get("/", func(c fiber.Ctx) error {
+		if wantsJSON(c) {
+			return c.SendString("json")
+		}
+		return c.SendString("page")
+	})
+
+	cases := map[string]string{
+		"application/json":                "json",
+		"application/json, */*":           "json",
+		"text/html,application/xhtml+xml": "page",
+		"":                                "page",
+	}
+	for accept, want := range cases {
+		request := httptest.NewRequest(http.MethodGet, "/", nil)
+		if accept != "" {
+			request.Header.Set("Accept", accept)
+		}
+		response, err := app.Test(request)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		body, _ := io.ReadAll(response.Body)
+		response.Body.Close()
+		if string(body) != want {
+			t.Errorf("accept %q -> %q, want %q", accept, body, want)
+		}
 	}
 }

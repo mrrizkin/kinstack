@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
@@ -86,9 +87,7 @@ func (h *Handler) Mount(router fiber.Router) {
 func (h *Handler) index(c fiber.Ctx) error {
 	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"))
 	if err != nil {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-			"error": i18n.T("common.invalid_payload"),
-		})
+		return h.invalidPagination(c, h.usersPath())
 	}
 	list, err := h.service.List(c.Context(), query)
 	if err != nil {
@@ -110,9 +109,7 @@ func (h *Handler) index(c fiber.Ctx) error {
 func (h *Handler) access(c fiber.Ctx) error {
 	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"))
 	if err != nil {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-			"error": i18n.T("common.invalid_payload"),
-		})
+		return h.invalidPagination(c, h.accessPath())
 	}
 	props, err := h.service.AccessView(c.Context(), query)
 	if err != nil {
@@ -129,13 +126,20 @@ func (h *Handler) access(c fiber.Ctx) error {
 }
 
 func (h *Handler) writeError(c fiber.Ctx, err error) error {
+	return h.writeErrorAt(c, h.usersPath(), err)
+}
+
+// writeErrorAt reports a mutation failure and redirects validation errors back
+// to the page that produced them. The caller supplies the path; the Referer
+// header is never trusted.
+func (h *Handler) writeErrorAt(c fiber.Ctx, back string, err error) error {
 	switch {
 	case errors.Is(err, ErrUsernameTaken):
-		return h.validationFields(c, map[string]string{"username": err.Error()})
+		return h.validationFieldsAt(c, back, map[string]string{"username": err.Error()})
 	case errors.Is(err, ErrInvalidRole), errors.Is(err, authz.ErrInvalidRole):
-		return h.validationFields(c, map[string]string{"role": err.Error()})
+		return h.validationFieldsAt(c, back, map[string]string{"role": err.Error()})
 	case errors.Is(err, ErrLastAdministrator):
-		return h.validationFields(c, map[string]string{"is_active": err.Error()})
+		return h.validationFieldsAt(c, back, map[string]string{"is_active": err.Error()})
 	case errors.Is(err, ErrForbidden),
 		errors.Is(err, ErrSelfChange),
 		errors.Is(err, authz.ErrPrivilegeEscalation),
@@ -150,7 +154,7 @@ func (h *Handler) writeError(c fiber.Ctx, err error) error {
 		errors.Is(err, authz.ErrUnknownPermission),
 		errors.Is(err, authz.ErrInvalidOverride),
 		errors.Is(err, authz.ErrUserNotFound):
-		return h.validationError(c, err.Error())
+		return h.validationFieldsAt(c, back, map[string]string{"form": err.Error()})
 	case errors.Is(err, ErrNotFound), errors.Is(err, authz.ErrRoleNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
 	default:
@@ -159,14 +163,23 @@ func (h *Handler) writeError(c fiber.Ctx, err error) error {
 	}
 }
 
-func (h *Handler) validationError(c fiber.Ctx, message string) error {
-	return h.validationFields(c, map[string]string{"form": message})
+func (h *Handler) validationFieldsAt(c fiber.Ctx, back string, fields map[string]string) error {
+	return platforminertia.ValidationErrors(h.inertia, c, back, fields)
 }
 
-func (h *Handler) validationFields(c fiber.Ctx, fields map[string]string) error {
-	back := c.Get("Referer")
-	if back == "" {
-		back = h.usersPath()
+// invalidPagination answers a malformed page request. JSON clients get the
+// usual 422 envelope; browser navigation is redirected back to the first page
+// with a flash message instead of a JSON document.
+func (h *Handler) invalidPagination(c fiber.Ctx, back string) error {
+	message := i18n.T("common.invalid_page")
+	if wantsJSON(c) {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": message})
 	}
-	return platforminertia.ValidationErrors(h.inertia, c, back, fields)
+	return platforminertia.RedirectWithFlash(h.inertia, c, back, message)
+}
+
+// wantsJSON reports whether the client asked for a machine-readable error
+// instead of a page navigation.
+func wantsJSON(c fiber.Ctx) bool {
+	return strings.Contains(c.Get(fiber.HeaderAccept), "application/json")
 }
