@@ -20,9 +20,11 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 )
 
-// registerSecurityMiddleware installs transport hardening, rate limiting,
-// bearer authentication, and CSRF protection, in that order.
-func registerSecurityMiddleware(d GlobalMiddlewareDependency) {
+// registerTransportMiddleware installs response headers, panic recovery,
+// request ids, access logging, and telemetry. It runs before static assets so
+// asset responses carry the same header and request-id contract without paying
+// for a session load.
+func registerTransportMiddleware(d GlobalMiddlewareDependency) {
 	d.App.Use(helmet.New(helmet.Config{
 		ContentTypeNosniff:        "nosniff",
 		XFrameOptions:             "SAMEORIGIN",
@@ -51,6 +53,11 @@ func registerSecurityMiddleware(d GlobalMiddlewareDependency) {
 	d.App.Use(requestid.New())
 	d.App.Use(log.HTTPMiddleware(d.Log))
 	d.App.Use(d.Telemetry.Middleware())
+}
+
+// registerAccessMiddleware installs the session, rate limiting, bearer
+// authentication, and CSRF protection that only application routes need.
+func registerAccessMiddleware(d GlobalMiddlewareDependency) {
 	d.App.Use(d.Session)
 
 	// Bearer traffic is limited per token, not per session. The raw token is

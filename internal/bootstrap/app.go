@@ -59,7 +59,7 @@ func NewApp(d AppDependency) (*fiber.App, func()) {
 
 	deps := newAppDependencies(d, inertiaAdapter)
 
-	RegisterGlobalMiddleware(GlobalMiddlewareDependency{
+	middleware := GlobalMiddlewareDependency{
 		App:           app,
 		Config:        d.Config,
 		Inertia:       inertiaAdapter,
@@ -74,12 +74,14 @@ func NewApp(d AppDependency) (*fiber.App, func()) {
 		Sessions:      deps.SessionRegistry,
 		BearerAuth:    deps.BearerAuth,
 		Telemetry:     d.Telemetry,
-	})
+	}
 
-	// Static assets are registered after the security middleware so build output
-	// and root files also carry the CSP, HSTS, and cache headers. The remaining
-	// skip is limited to /build/ because those responses never render Inertia.
+	// Transport middleware (headers, request ids, logging) must run first so
+	// assets also carry CSP/HSTS; assets are mounted before the session and
+	// authorization layers so cached files never touch the session store.
+	registerTransportMiddleware(middleware)
 	registerStaticAssets(app)
+	RegisterGlobalMiddleware(middleware)
 
 	RegisterWebRoutes(WebRoutesDependency{
 		App:           app,

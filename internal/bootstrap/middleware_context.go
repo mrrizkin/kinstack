@@ -1,8 +1,6 @@
 package bootstrap
 
 import (
-	"strings"
-
 	platformactor "kinstack/internal/platform/actor"
 	"kinstack/internal/platform/audit"
 	"kinstack/internal/platform/authz"
@@ -21,16 +19,8 @@ func registerContextMiddleware(d GlobalMiddlewareDependency) {
 	}))
 
 	inertiaHandler := inertia.Middleware(d.Inertia)
+	d.App.Use(inertiaHandler)
 	d.App.Use(func(c fiber.Ctx) error {
-		if skipStatic(c) {
-			return c.Next()
-		}
-		return inertiaHandler(c)
-	})
-	d.App.Use(func(c fiber.Ctx) error {
-		if skipStatic(c) {
-			return c.Next()
-		}
 		d.Inertia.ShareWith(c, "app_name", d.Config.App.Name)
 		d.Inertia.ShareWith(c, "csrf_token", csrf.TokenFromContext(c))
 		d.Inertia.ShareWith(c, "pdf_enabled", d.Documents.Enabled())
@@ -76,12 +66,6 @@ func registerContextMiddleware(d GlobalMiddlewareDependency) {
 		}
 		return c.Next()
 	})
-}
-
-// skipStatic reports whether the request is served by the static asset handler
-// and therefore must not receive Inertia shared props.
-func skipStatic(c fiber.Ctx) bool {
-	return strings.HasPrefix(c.Path(), "/build/")
 }
 
 // effectivePermissions resolves the actor's permission codes for the frontend.
