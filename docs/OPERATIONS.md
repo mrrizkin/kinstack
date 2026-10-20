@@ -138,17 +138,14 @@ Migrations must be backward compatible during the rollout. Avoid direct
 
 - Break-glass `ACCESS_KEY`/`SECRET_KEY`: rotate periodically and after any
   suspected leak. Use at least 32 random characters.
-- `AUTH_STATE_SECRET`: rotate only when no OAuth login is in progress.
+- `AUTH_STATE_SECRET`: rotate during a maintenance window.
 - SMTP, S3/RustFS, and database credentials: keep them in a secret manager, not
   in the repository.
 - After rotation, smoke test login, email, and media.
 
-## Capacity and future work
+## Capacity
 
-- The DB pool is currently 10 open / 5 idle; measure before increasing it.
-- Email and PDF rendering are still called inline. Before volume grows, move them
-  to a worker queue with retries and a dead-letter queue.
-- Audit is not yet tamper-evident; consider a hash chain/WORM if compliance
-  requirements appear.
-- Uploads do not pass through antivirus/re-encoding yet; consider adding it for
-  deployments that accept files from external users.
+- The PostgreSQL pool is configured for 10 open and 5 idle connections.
+- Email delivery and PDF rendering run synchronously in the request path.
+- Audit records are stored in PostgreSQL with the configured retention policy.
+- Media uploads are validated by magic bytes and image dimensions before storage.

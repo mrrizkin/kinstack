@@ -1,154 +1,137 @@
 # KinStack
 
-Application base built with Go + Fiber v3 + Inertia (Vue 3 + Nuxt UI), PostgreSQL
-(sqlx + Goose), and Valkey. This repository is a **generic foundation**:
-authentication, user management, RBAC + ABAC authorization, profiles, account
-security, and a dashboard shell. Feature slices are not included and are added
-on top of this base as separate vertical slices.
+KinStack is a generic application base built with Go, Fiber v3, Inertia, Vue 3,
+Nuxt UI, PostgreSQL, and Valkey. It provides the shared platform concerns that
+most internal applications need before domain-specific work begins.
 
-## What the base includes
+## Capabilities
 
-| Area | Status |
+- Username and password authentication with Argon2id, optional TOTP two-step
+  verification, passkeys, magic links, password reset, invitations, OAuth/OIDC,
+  SAML, and break-glass super admin credentials.
+- User, role, and permission management with hybrid RBAC and ABAC, including
+  per-user allow/deny overrides and fail-closed route policies.
+- Profile and account security: display name, password, active sessions, theme,
+  notification sound, two-step verification, and personal API tokens.
+- Append-only audit records for HTTP mutations and an audit viewer.
+- S3-compatible media storage with authenticated file delivery and upload
+  validation.
+- In-app notifications, dashboard shell, public landing page, and split-screen
+  authentication pages.
+- Optional GlitchTip error tracking, OpenObserve telemetry, and Umami analytics.
+- English-only i18n boundaries for frontend copy and Go response messages.
+
+## Stack
+
+| Layer | Technology |
 |---|---|
-| Username + password auth (break-glass super admin via env) | Done |
-| User & role management | Done |
-| Hybrid RBAC + ABAC authorization (roles, permissions, per-user overrides) | Done |
-| Profile & preferences (theme, sound, active sessions, 2FA) | Done |
-| Data change audit | Done |
-| Dashboard shell (Nuxt UI `dashboard-vue`) | Done |
-| Opt-in observability: GlitchTip, OpenObserve (OTLP), Umami | Done |
-| Feature slices | Not included |
+| Backend | Go 1.27, Fiber v3 |
+| Frontend | Vue 3, Inertia, Nuxt UI 4, Vite |
+| Database | PostgreSQL, sqlx, pgx, Goose |
+| Sessions and cache | Valkey |
+| Object storage | S3-compatible storage (RustFS in development) |
+| Documents | Gotenberg |
+| Email | SMTP, Maizzle templates |
+| Development tooling | Bun, `just`, Docker Compose |
 
-See [`docs/README.md`](./docs/README.md) for the module map,
-[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for structure and rules,
-[`docs/OBSERVABILITY.md`](./docs/OBSERVABILITY.md) for the GlitchTip,
-OpenObserve, and Umami integrations, and
-[`docs/INTERNATIONALIZATION.md`](./docs/INTERNATIONALIZATION.md) for the
-frontend/backend i18n boundary. The backup/alert/incident runbook lives in
-[`docs/OPERATIONS.md`](./docs/OPERATIONS.md); the accessibility checklist is in
-[`docs/ACCESSIBILITY.md`](./docs/ACCESSIBILITY.md).
+## Requirements
 
-## Development
+- Go 1.27+
+- Bun
+- Docker and Docker Compose
+- `just`
+- `ripgrep` (`rg`) for `just check-feature-slices`
 
-Requirements: Go 1.27+, Bun, Docker, [`just`](https://just.systems/), and
-`ripgrep` (`rg`) for `just check-feature-slices`.
+## Quick start
 
 ```bash
 cp .env.example .env
-just setup              # bun install
-just infra-up           # PostgreSQL + Valkey + Mailpit + observability UIs
-just migrate            # create the schema
-just dev                # app + vite dev server
+just setup
+just infra-up
+just migrate
+just dev
 ```
 
-Open <http://localhost:3000>. Development email is captured by Mailpit at
-<http://localhost:8025> (`SMTP_HOST=localhost`, `SMTP_PORT=1025`).
+Open <http://localhost:3000>. Mailpit captures development email at
+<http://localhost:8025>.
 
-Maizzle email preview runs at <http://localhost:3001> while Vite dev is running.
+`just infra-up` starts the core services and the local observability stack. To
+start only the services required by `just dev`, use `just infra-up-core`.
 
-### Super admin login
-
-Login uses credentials from the environment, not a database account:
-
-- `ACCESS_KEY` = username
-- `SECRET_KEY` = password
-
-Set both in `.env` (generate them yourself, at least 32 characters). These
-credentials are a break-glass super admin that works like HTTP basic auth: they
-are checked before the database, do not create or promote any account, and the
-session is ephemeral with full access that bypasses RBAC. After signing in,
-create other roles and accounts from the **Users** and **Access** menus.
-
-After login, the workspace opens the **Dashboard** page. The dashboard contains
-quick access to the pages available under the current permissions, plus
-shortcuts to account settings. The break-glass super admin is also sent to the
-Dashboard, but profile settings, passkeys, and API tokens are unavailable
-because that account has no database profile.
-
-Routes use normal paths at the application root: `/login`, `/2fa`, `/logout`,
-`/dashboard`, `/profile`, `/users`, and `/access`.
-
-### Other commands
+## Commands
 
 ```bash
-just test               # vue-tsc + go test + bun test
-just coverage           # Go coverage report (optional)
-just verify             # full gate: types, tests, vet, staticcheck, lint, format
-just audit              # bun audit + govulncheck
-just smoke-csp          # CSP smoke test with a production build (Vite must be stopped)
-just check-feature-slices
-just build              # build assets + binary
-just infra-down
+just dev                 # application + Vite dev server
+just test                # types, Go tests, frontend tests
+just verify              # full gate: build, tests, vet, staticcheck, lint, format
+just audit               # frontend audit + govulncheck
+just coverage            # informational Go coverage report
+just build               # production assets + binary
+just migrate             # apply Goose migrations
+just migrate-status      # show the applied migration
+just smoke-csp           # CSP smoke test with a production build
+just infra-up            # core services + GlitchTip, Umami, OpenObserve
+just infra-up-core       # PostgreSQL, Valkey, Mailpit, RustFS, Gotenberg
+just infra-down          # stop the local stack
 ```
 
-### Migrations during deployment
+## Local observability
 
-The schema is managed by Goose and embedded in the binary (`db/migrations`).
-Apply it before or alongside a release:
-
-```bash
-just migrate        # same as: go run ./cmd/migrate up
-just migrate-status # show the applied version
-```
-
-### Local hardening
-
-- The default request body limit is 12 MiB (`APP_BODY_LIMIT_MB`), while media is
-  capped at 10 MiB so multipart overhead does not cut off uploads.
-- Media upload validates file contents (magic bytes), not just the browser
-  `Content-Type`, and rejects images above 12,000 px per side.
-- Login is rate limited per IP and locked out per account
-  (`AUTH_LOCKOUT_MAX`, `AUTH_LOCKOUT_WINDOW`).
-- Requests using an API bearer token are rate limited per token
-  (`API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW`).
-- The HTTP server uses `HTTP_READ_TIMEOUT`, `HTTP_WRITE_TIMEOUT`, and
-  `HTTP_IDLE_TIMEOUT`.
-- Application queries use `DB_STATEMENT_TIMEOUT` (default 15 seconds);
-  migrations are not subject to this limit.
-- CSP can be tested with `just smoke-csp` after `bun x vite build`.
-
-The security policy and reporting process are in
-[`SECURITY.md`](./SECURITY.md). The license is in [`LICENSE`](./LICENSE).
-
-### Dependency scanning
-
-```bash
-bun audit                                             # frontend dependencies
-go run golang.org/x/vuln/cmd/govulncheck@latest ./... # backend dependencies
-```
-
-Renovate is configured in `renovate.json` for Go modules, Bun/npm, GitHub
-Actions, Dockerfile, and container images (`deploy/compose.yml`). See
-[`docs/RENOVATE.md`](./docs/RENOVATE.md) for running it on Forgejo.
-
-### Container deployment
-
-`Containerfile` builds the frontend assets (Bun) and the Go binary + `migrate`,
-then runs them in a distroless image. On every push to `main`, the
-`docker-build.yml` workflow publishes the image to GitHub Container Registry with
-an automatic version tag (`v<YEAR>.<WEEK>.<PATCH>`) and `latest`.
-
-## Local observability stack
-
-`just infra-up` starts the core services plus the optional observability tools:
-
-| Tool | UI |
+| Tool | URL |
 |---|---|
 | GlitchTip | <http://localhost:8000> |
 | Umami | <http://localhost:3003> |
 | OpenObserve | <http://localhost:5080> |
 
-Start the stack, then create the resources for each tool. The application
-integrations remain opt-in:
+The application integrations remain opt-in. Create the resources in each UI,
+then set the corresponding environment variables:
 
-- **GlitchTip**: create a project in the GlitchTip UI and set
-  `GLITCHTIP_DSN` to the project DSN.
-- **Umami**: create a website in the Umami UI and set
-  `UMAMI_ENABLED=true`, `UMAMI_SCRIPT_URL=http://localhost:3003/script.js`, and
-  `UMAMI_WEBSITE_ID=<id>`.
-- **OpenObserve**: set `OPENOBSERVE_ENABLED=true` and
-  `OPENOBSERVE_AUTH_HEADER="Basic cm9vdEBraW5zdGFjay5sb2NhbDpLaW5TdGFjayEyMDI2"` for
-  the local OpenObserve login.
+- `GLITCHTIP_DSN` from a GlitchTip project.
+- `UMAMI_ENABLED=true`, `UMAMI_SCRIPT_URL=http://localhost:3003/script.js`, and
+  `UMAMI_WEBSITE_ID` from an Umami website.
+- `OPENOBSERVE_ENABLED=true` and the local `OPENOBSERVE_AUTH_HEADER` documented
+  in `.env.example`.
 
-See [`docs/OBSERVABILITY.md`](./docs/OBSERVABILITY.md) for the full integration
-details.
+## Super admin
+
+Set `ACCESS_KEY` and `SECRET_KEY` in `.env`. Both are required together, and
+`SECRET_KEY` must contain at least 32 characters. These credentials are checked
+before the database, do not create an account, and grant an ephemeral session
+that bypasses RBAC.
+
+Use the break-glass session to create the first roles and users from the
+**Users** and **Access** pages. The session has no database profile, so account
+pages such as profile and passkeys are not available to it.
+
+## Routes
+
+| Route | Access |
+|---|---|
+| `/login`, `/2fa`, `/logout`, `/login/forgot`, `/login/reset/:token` | public |
+| `/dashboard` | authenticated |
+| `/profile`, `/api-tokens`, `/passkeys`, `/notifications` | authenticated |
+| `/users` | `users.view` / `users.manage` |
+| `/access` | `access.manage` |
+| `/audit` | `audit.view` |
+| `/media` | `media.view` / `media.manage` |
+| `/help`, `/403`, `/error`, `/offline`, `/maintenance` | public |
+
+## Configuration
+
+Configuration is read from environment variables and validated at startup.
+`.env.example` documents every setting. Production requires HTTPS `APP_URL`,
+secure cookies, CSP, and non-placeholder secrets.
+
+## Documentation
+
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Modules](./docs/MODULES.md)
+- [Operations](./docs/OPERATIONS.md)
+- [Observability](./docs/OBSERVABILITY.md)
+- [Internationalization](./docs/INTERNATIONALIZATION.md)
+- [Renovate](./docs/RENOVATE.md)
+- [Security policy](./SECURITY.md)
+
+## License
+
+[MIT](./LICENSE)
