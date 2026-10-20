@@ -71,6 +71,10 @@ coverage:
 # Full gate before committing: types, tests, lint, format, feature slices.
 verify: type-check test-go test-frontend lint-go lint-check format-check check-feature-slices
 
+# Structural drift report. Informational only; never fails.
+shape:
+    ./scripts/shape.sh
+
 # Dependency vulnerability scans.
 audit:
     bun audit
