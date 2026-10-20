@@ -15,6 +15,9 @@ export interface TableViewItem {
   visible: boolean;
 }
 
+// `any` is intentional: this helper is row-agnostic and TanStack's column type
+// is invariant, so a generic parameter here would reject every concrete column
+// definition used by the pages.
 export interface TableView {
   key: string;
   columns: TableColumn<any>[];
