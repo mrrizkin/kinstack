@@ -8,6 +8,25 @@ on:
 jobs:
   go:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: kinstack
+          POSTGRES_USER: kinstack
+          POSTGRES_PASSWORD: kinstack
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U kinstack -d kinstack"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Database-backed tests (identity bindings, batched authorization
+      # queries, audit pruning) run against the migrated service above.
+      DATABASE_URL: postgres://kinstack:kinstack@localhost:5433/kinstack?sslmode=disable
+      APP_ENV: test
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -19,6 +38,7 @@ jobs:
       - run: go tool staticcheck ./...
       - name: gofmt
         run: ./scripts/check-gofmt.sh
+      - run: go run ./cmd/migrate up
       - run: go test -race ./...
 
       - run: ./scripts/check-feature-slices.sh
