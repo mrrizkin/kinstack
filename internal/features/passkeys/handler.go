@@ -175,14 +175,10 @@ func (h *Handler) beginPasskeyRegistration(c fiber.Ctx) error {
 	for _, record := range records {
 		credentials = append(credentials, record.Credential)
 	}
-	options, ceremony, err := h.webAuthn.BeginMediatedRegistration(
+	options, ceremony, err := passkeyRegistrationOptions(
+		h.webAuthn,
 		&passkeyUser{user: user, credentials: credentials},
-		protocol.MediationDefault,
-		webauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
-			ResidentKey:      protocol.ResidentKeyRequirementPreferred,
-			UserVerification: protocol.VerificationRequired,
-		}),
-		webauthn.WithExclusions(webauthn.Credentials(credentials).CredentialDescriptors()),
+		credentials,
 	)
 	if err != nil {
 		return h.internalServerError(c, "unable to create passkey challenge", err)
@@ -261,11 +257,37 @@ func (h *Handler) finishPasskeyRegistration(c fiber.Ctx) error {
 	return c.JSON(passkeySummary(record))
 }
 
-func (h *Handler) beginPasskeyLogin(c fiber.Ctx) error {
-	options, ceremony, err := h.webAuthn.BeginDiscoverableMediatedLogin(
+// passkeyRegistrationOptions builds the creation options. User verification is
+// required because a passkey stands in for both authentication factors.
+func passkeyRegistrationOptions(
+	webAuthn *webauthn.WebAuthn,
+	user webauthn.User,
+	credentials []webauthn.Credential,
+) (*protocol.CredentialCreation, *webauthn.SessionData, error) {
+	return webAuthn.BeginMediatedRegistration(
+		user,
+		protocol.MediationDefault,
+		webauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
+			ResidentKey:      protocol.ResidentKeyRequirementPreferred,
+			UserVerification: protocol.VerificationRequired,
+		}),
+		webauthn.WithExclusions(webauthn.Credentials(credentials).CredentialDescriptors()),
+	)
+}
+
+// passkeyLoginOptions builds the assertion options with the same user
+// verification requirement enforced again on the assertion flags.
+func passkeyLoginOptions(
+	webAuthn *webauthn.WebAuthn,
+) (*protocol.CredentialAssertion, *webauthn.SessionData, error) {
+	return webAuthn.BeginDiscoverableMediatedLogin(
 		protocol.MediationDefault,
 		webauthn.WithUserVerification(protocol.VerificationRequired),
 	)
+}
+
+func (h *Handler) beginPasskeyLogin(c fiber.Ctx) error {
+	options, ceremony, err := passkeyLoginOptions(h.webAuthn)
 	if err != nil {
 		return h.internalServerError(c, "unable to create passkey challenge", err)
 	}
