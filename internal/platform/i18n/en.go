@@ -171,6 +171,8 @@ var catalogs = map[Locale]map[string]string{
 		"authz.reason.unknown_permission_code":  "Unknown permission code.",
 		"authz.reason.invalid_override":         "Invalid custom permission.",
 		"authz.reason.user_not_found":           "User not found.",
+		"authz.reason.privilege_escalation":     "You cannot grant access beyond what your own role holds.",
+		"authz.reason.self_change":              "You cannot change your own role or permissions.",
 
 		"twofactor.not_found":       "User not found.",
 		"twofactor.invalid_input":   "Invalid verification data.",

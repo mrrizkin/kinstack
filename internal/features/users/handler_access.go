@@ -12,7 +12,7 @@ func (h *Handler) createRole(c fiber.Ctx) error {
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
-	if _, err := h.service.CreateRole(c.Context(), request); err != nil {
+	if _, err := h.service.CreateRole(h.context(c), request); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(h.inertia, c, h.accessPath(), i18n.T("users.role_created"))
@@ -23,14 +23,14 @@ func (h *Handler) updateRole(c fiber.Ctx) error {
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
-	if _, err := h.service.UpdateRole(c.Context(), c.Params("code"), request); err != nil {
+	if _, err := h.service.UpdateRole(h.context(c), c.Params("code"), request); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(h.inertia, c, h.accessPath(), i18n.T("users.role_updated_flash"))
 }
 
 func (h *Handler) deleteRole(c fiber.Ctx) error {
-	if err := h.service.DeleteRole(c.Context(), c.Params("code")); err != nil {
+	if err := h.service.DeleteRole(h.context(c), c.Params("code")); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(h.inertia, c, h.accessPath(), i18n.T("users.role_deleted"))
@@ -42,7 +42,7 @@ func (h *Handler) setRolePermissions(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
 	if err := h.service.SetRolePermissions(
-		c.Context(),
+		h.context(c),
 		c.Params("code"),
 		request.Permissions,
 	); err != nil {
@@ -56,7 +56,7 @@ func (h *Handler) assignRole(c fiber.Ctx) error {
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
-	if err := h.service.AssignRole(c.Context(), c.Params("publicID"), request.Role); err != nil {
+	if err := h.service.AssignRole(h.context(c), c.Params("publicID"), request.Role); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(
@@ -72,7 +72,7 @@ func (h *Handler) setOverride(c fiber.Ctx) error {
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
-	if err := h.service.SetOverride(c.Context(), c.Params("publicID"), request); err != nil {
+	if err := h.service.SetOverride(h.context(c), c.Params("publicID"), request); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(h.inertia, c, h.accessPath(), i18n.T("users.custom_permissions_saved"))
@@ -84,7 +84,7 @@ func (h *Handler) deleteOverride(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
 	if err := h.service.DeleteOverride(
-		c.Context(),
+		h.context(c),
 		c.Params("publicID"),
 		request.Permission,
 	); err != nil {

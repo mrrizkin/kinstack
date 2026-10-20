@@ -225,7 +225,18 @@ export function useAccessForms(props: AccessProps) {
   }
 
   function roleMenuItems(role: Role): DropdownMenuItem[] {
-    const actions: DropdownMenuItem[] = [
+    if (role.is_system) {
+      // Built-in roles are immutable: their metadata and permission set are
+      // owned by migrations, so the UI only reports that they cannot change.
+      return [
+        {
+          label: "Built-in roles are read-only",
+          icon: "i-bi-lock",
+          disabled: true,
+        },
+      ];
+    }
+    return [
       {
         label: "Edit",
         icon: "i-bi-pencil-square",
@@ -236,16 +247,13 @@ export function useAccessForms(props: AccessProps) {
         icon: "i-bi-sliders",
         onSelect: () => openRolePermissions(role),
       },
-    ];
-    if (!role.is_system) {
-      actions.push({
+      {
         label: "Delete",
         icon: "i-bi-trash",
         color: "error",
         onSelect: () => requestDeleteRole(role),
-      });
-    }
-    return actions;
+      },
+    ];
   }
 
   function accessUserMenuItems(user: UserAccess): DropdownMenuItem[] {

@@ -1,8 +1,9 @@
 -- +goose Up
 -- Seed one system role operators can assign to their first real admin account.
--- It is a row like any other: the access UI can rename it or change its
--- permissions. Feature slices grant their new permissions to this role in their
--- own seed migration.
+-- System roles are immutable: the access UI cannot rename them, re-rank them,
+-- delete them, or replace their permissions. Feature slices grant their new
+-- permissions to this role in their own seed migration; changing the built-in
+-- set therefore requires a migration, not a runtime edit.
 INSERT INTO roles (code, name, description, rank, is_system) VALUES
     ('administrator', 'Administrator', 'Full system administration access', 100, true);
 

@@ -21,4 +21,11 @@ var (
 	ErrLastAdministrator = errors.New(i18n.T("users.last_administrator"))
 	// ErrAuthorizationUnavailable identifies missing authorization wiring.
 	ErrAuthorizationUnavailable = errors.New(i18n.T("users.authorization_unavail"))
+	// ErrForbidden identifies a role or account change the actor may not make
+	// because it would exceed their own authority.
+	ErrForbidden = errors.New(i18n.T("authz.reason.privilege_escalation"))
+	// ErrSelfChange identifies an attempt to change the actor's own authority.
+	ErrSelfChange = errors.New(i18n.T("authz.reason.self_change"))
+	// ErrSystemRole identifies a protected built-in role.
+	ErrSystemRole = errors.New(i18n.T("authz.reason.system_role"))
 )

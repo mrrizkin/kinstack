@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"errors"
 
 	"kinstack/internal/pkg/assert"
@@ -44,6 +45,15 @@ func NewHandler(d HandlerDependency) *Handler {
 		logger:  d.Logger,
 		inertia: d.Inertia,
 	}
+}
+
+// context attaches the acting principal so authorization mutations can enforce
+// delegation rules (rank and permission subset) inside the platform service.
+func (h *Handler) context(c fiber.Ctx) context.Context {
+	if session := h.actor.ActorFromContext(c); session != nil {
+		return authz.WithPrincipal(c.Context(), authz.PrincipalFromActor(session))
+	}
+	return c.Context()
 }
 
 func (h *Handler) usersPath() string {
@@ -119,6 +129,12 @@ func (h *Handler) writeError(c fiber.Ctx, err error) error {
 		return h.validationFields(c, map[string]string{"role": err.Error()})
 	case errors.Is(err, ErrLastAdministrator):
 		return h.validationFields(c, map[string]string{"is_active": err.Error()})
+	case errors.Is(err, ErrForbidden),
+		errors.Is(err, ErrSelfChange),
+		errors.Is(err, authz.ErrPrivilegeEscalation),
+		errors.Is(err, authz.ErrSelfChange),
+		errors.Is(err, authz.ErrManagementSession):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, ErrInvalidInput),
 		errors.Is(err, ErrAuthorizationUnavailable),
 		errors.Is(err, authz.ErrRoleCodeTaken),

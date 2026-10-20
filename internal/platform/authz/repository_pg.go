@@ -40,9 +40,10 @@ RETURNING ` + roleColumns
 UPDATE roles
 SET name = $2, description = $3, rank = $4, updated_at = now()
 WHERE code = $1
+  AND is_system = false
 RETURNING ` + roleColumns
 
-	deleteRoleQuery = `DELETE FROM roles WHERE code = $1`
+	deleteRoleQuery = `DELETE FROM roles WHERE code = $1 AND is_system = false`
 
 	rolePermissionsQuery = `
 SELECT permission_code
@@ -51,11 +52,16 @@ WHERE role_code = $1
 ORDER BY permission_code ASC`
 
 	replaceRolePermissionsQuery = `
-WITH deleted AS (
-    DELETE FROM role_permissions WHERE role_code = $1
+WITH target AS (
+    SELECT code FROM roles WHERE code = $1 AND is_system = false
+),
+deleted AS (
+    DELETE FROM role_permissions
+    WHERE role_code IN (SELECT code FROM target)
 )
 INSERT INTO role_permissions (role_code, permission_code)
-SELECT $1, unnest($2::text[])`
+SELECT target.code, unnest($2::text[])
+FROM target`
 
 	userOverridesQuery = `
 SELECT permission_code, effect, reason, expires_at
@@ -88,6 +94,12 @@ WHERE EXISTS (
 )
 RETURNING user_public_id`
 
+	userRoleQuery = `
+SELECT role_code
+FROM user_roles
+WHERE user_public_id = $1
+LIMIT 1`
+
 	countRoleAssignmentsQuery = `
 SELECT count(DISTINCT ur.user_public_id)
 FROM user_roles ur
@@ -112,6 +124,7 @@ type SQLRepository struct {
 	upsertOverrideStmt   *sqlx.Stmt
 	deleteOverrideStmt   *sqlx.Stmt
 	assignRoleStmt       *sqlx.Stmt
+	userRoleStmt         *sqlx.Stmt
 	countAssignmentsStmt *sqlx.Stmt
 }
 
@@ -145,6 +158,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.upsertOverrideStmt, "authz_upsert_user_override", upsertUserOverrideQuery},
 		{&repository.deleteOverrideStmt, "authz_delete_user_override", deleteUserOverrideQuery},
 		{&repository.assignRoleStmt, "authz_assign_user_role", assignUserRoleQuery},
+		{&repository.userRoleStmt, "authz_user_role", userRoleQuery},
 		{&repository.countAssignmentsStmt, "authz_count_role_assignments", countRoleAssignmentsQuery},
 	}
 	for _, statement := range statements {
@@ -302,6 +316,18 @@ func (r *SQLRepository) DeleteUserOverride(ctx context.Context, publicID string,
 		return fmt.Errorf("delete user override: %w", err)
 	}
 	return nil
+}
+
+// UserRole returns the role assigned to one user, or "" when unassigned.
+func (r *SQLRepository) UserRole(ctx context.Context, publicID string) (string, error) {
+	var role string
+	if err := r.userRoleStmt.GetContext(ctx, &role, publicID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("find user role: %w", err)
+	}
+	return role, nil
 }
 
 // AssignUserRole changes a user's role.

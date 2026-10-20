@@ -221,6 +221,13 @@ func (r *MemoryRepository) DeleteUserOverride(_ context.Context, publicID string
 	return nil
 }
 
+// UserRole returns the role assigned to one user, or "" when unassigned.
+func (r *MemoryRepository) UserRole(_ context.Context, publicID string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.userRoles[publicID], nil
+}
+
 // AssignUserRole changes a user's role.
 func (r *MemoryRepository) AssignUserRole(_ context.Context, publicID, role string) error {
 	r.mu.Lock()

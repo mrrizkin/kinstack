@@ -2,6 +2,7 @@ package authz
 
 import (
 	"context"
+	"errors"
 	"os"
 	"regexp"
 	"testing"
@@ -23,6 +24,11 @@ func newTestService(t *testing.T) (*Service, *MemoryRepository) {
 	repository.SeedUser("administrator-1", adminRole)
 	repository.SeedUser("staff-1", "staff")
 	return New(ServiceDependency{Repository: repository}), repository
+}
+
+// adminContext asserts the seeded administrator as the acting principal.
+func adminContext() context.Context {
+	return WithPrincipal(context.Background(), Principal{PublicID: "administrator-1", Role: adminRole})
 }
 
 func TestRoleWithAllPermissions(t *testing.T) {
@@ -99,7 +105,7 @@ func TestAllowOverrideGrantsPermission(t *testing.T) {
 	principal := Principal{PublicID: "staff-1", Role: "staff"}
 
 	if _, err := service.SetOverride(
-		context.Background(),
+		adminContext(),
 		"staff-1",
 		PermissionAccessManage,
 		EffectAllow,
@@ -121,7 +127,7 @@ func TestDenyOverrideWinsOverRole(t *testing.T) {
 	principal := Principal{PublicID: "staff-1", Role: "staff"}
 
 	if _, err := service.SetOverride(
-		context.Background(),
+		adminContext(),
 		"staff-1",
 		PermissionUsersView,
 		EffectDeny,
@@ -148,7 +154,7 @@ func TestExpiredOverrideIsIgnored(t *testing.T) {
 
 	expired := now.Add(-time.Hour)
 	if _, err := service.SetOverride(
-		context.Background(),
+		superuserContext(),
 		"staff-1",
 		PermissionAccessManage,
 		EffectAllow,
@@ -259,7 +265,7 @@ func TestUnknownPermissionIsDenied(t *testing.T) {
 
 func TestRoleMutationValidation(t *testing.T) {
 	service, _ := newTestService(t)
-	ctx := context.Background()
+	ctx := superuserContext()
 
 	if _, err := service.CreateRole(ctx, "Auditor", "Auditor", "", 20); err != nil {
 		t.Fatalf("create role: %v", err)
@@ -274,12 +280,11 @@ func TestRoleMutationValidation(t *testing.T) {
 	); err == nil {
 		t.Fatalf("expected unknown permission to fail")
 	}
-	renamed, err := service.UpdateRole(ctx, "staff", "Kasir Depan", "Kasir shift depan", 15)
-	if err != nil {
-		t.Fatalf("system role name should be editable: %v", err)
-	}
-	if renamed.Name != "Kasir Depan" {
-		t.Fatalf("expected renamed role, got %q", renamed.Name)
+	if _, err := service.UpdateRole(ctx, "staff", "Kasir Depan", "Kasir shift depan", 15); !errors.Is(
+		err,
+		ErrSystemRole,
+	) {
+		t.Fatalf("system role metadata must be immutable, got %v", err)
 	}
 	if err := service.DeleteRole(ctx, "staff"); err != ErrSystemRole {
 		t.Fatalf("expected system role delete protection, got %v", err)

@@ -119,6 +119,9 @@ func (s *Service) Create(ctx context.Context, request CreateUserRequest) (UserDT
 	if err := s.ensureRole(ctx, role); err != nil {
 		return UserDTO{}, err
 	}
+	if err := s.authorizeRoleGrant(ctx, role); err != nil {
+		return UserDTO{}, err
+	}
 
 	hash, err := platformpassword.Hash(request.Password)
 	if err != nil {
@@ -161,6 +164,9 @@ func (s *Service) Invite(ctx context.Context, request InviteUserRequest) (UserDT
 		displayName = email
 	}
 	if err := s.ensureRole(ctx, role); err != nil {
+		return UserDTO{}, err
+	}
+	if err := s.authorizeRoleGrant(ctx, role); err != nil {
 		return UserDTO{}, err
 	}
 	passwordHash, err := invitationPasswordHash()
@@ -266,6 +272,21 @@ func (s *Service) Update(ctx context.Context,
 	if err := s.ensureRole(ctx, role); err != nil {
 		return UserDTO{}, err
 	}
+	existing, err := s.repository.FindUserByPublicID(ctx, publicID)
+	if errors.Is(err, ErrNotFound) {
+		return UserDTO{}, ErrNotFound
+	}
+	if err != nil {
+		return UserDTO{}, err
+	}
+	if existing.Role != role {
+		if err := s.authorizeRoleGrant(ctx, role); err != nil {
+			return UserDTO{}, err
+		}
+		if err := s.authorizeUserChange(ctx, publicID); err != nil {
+			return UserDTO{}, err
+		}
+	}
 	result, err := s.repository.UpdateUser(ctx, UpdateUserInput{
 		PublicID:    publicID,
 		Email:       email,
@@ -348,4 +369,45 @@ func (s *Service) SetActive(
 		return UserDTO{}, err
 	}
 	return userToDTO(result), nil
+}
+
+// authorizeRoleGrant enforces the delegation rules for assigning roleCode. The
+// authorization service reads the acting principal from the request context, so
+// handlers attach it once per request.
+func (s *Service) authorizeRoleGrant(ctx context.Context, roleCode string) error {
+	if s.authorization == nil {
+		return nil
+	}
+	if err := s.authorization.AuthorizeRoleGrant(ctx, roleCode); err != nil {
+		return mapAuthorizationError(err)
+	}
+	return nil
+}
+
+// authorizeUserChange protects accounts that outrank the actor and blocks
+// changing the actor's own authority.
+func (s *Service) authorizeUserChange(ctx context.Context, publicID string) error {
+	if s.authorization == nil {
+		return nil
+	}
+	if err := s.authorization.AuthorizeUserChange(ctx, publicID); err != nil {
+		return mapAuthorizationError(err)
+	}
+	return nil
+}
+
+// mapAuthorizationError projects platform authority errors onto the users
+// feature vocabulary so HTTP handlers can answer 403 with a stable message.
+func mapAuthorizationError(err error) error {
+	switch {
+	case errors.Is(err, authz.ErrSelfChange):
+		return ErrSelfChange
+	case errors.Is(err, authz.ErrPrivilegeEscalation),
+		errors.Is(err, authz.ErrManagementSession):
+		return ErrForbidden
+	case errors.Is(err, authz.ErrSystemRole):
+		return ErrSystemRole
+	default:
+		return err
+	}
 }

@@ -314,6 +314,9 @@ func (s *Service) CreateRole(
 	if rank < 0 || rank > 1000 {
 		return Role{}, ErrInvalidRole
 	}
+	if err := s.AuthorizeNewRole(ctx, rank); err != nil {
+		return Role{}, err
+	}
 	role, err := s.repository.CreateRole(ctx, CreateRoleInput{
 		Code:        code,
 		Name:        name,
@@ -326,7 +329,8 @@ func (s *Service) CreateRole(
 	return role, nil
 }
 
-// UpdateRole edits a custom role's metadata. Built-in roles are protected.
+// UpdateRole edits a custom role's metadata. Built-in roles are immutable and
+// the actor may not raise a role above their own rank.
 func (s *Service) UpdateRole(
 	ctx context.Context,
 	code string,
@@ -335,6 +339,9 @@ func (s *Service) UpdateRole(
 	rank int,
 ) (Role, error) {
 	if _, err := s.repository.FindRole(ctx, code); err != nil {
+		return Role{}, err
+	}
+	if err := s.AuthorizeRoleEdit(ctx, code, rank); err != nil {
 		return Role{}, err
 	}
 	name = strings.TrimSpace(name)
@@ -361,8 +368,8 @@ func (s *Service) DeleteRole(ctx context.Context, code string) error {
 	if err != nil {
 		return err
 	}
-	if existing.IsSystem {
-		return ErrSystemRole
+	if err := s.AuthorizeRoleEdit(ctx, code, existing.Rank); err != nil {
+		return err
 	}
 	assigned, err := s.repository.CountRoleAssignments(ctx, code)
 	if err != nil {
@@ -384,11 +391,18 @@ func (s *Service) ReplaceRolePermissions(
 	code string,
 	codes []Permission,
 ) error {
-	if _, err := s.repository.FindRole(ctx, code); err != nil {
+	role, err := s.repository.FindRole(ctx, code)
+	if err != nil {
 		return err
 	}
 	validated, err := validatePermissions(codes)
 	if err != nil {
+		return err
+	}
+	if err := s.AuthorizeRoleEdit(ctx, code, role.Rank); err != nil {
+		return err
+	}
+	if err := s.AuthorizePermissions(ctx, validated); err != nil {
 		return err
 	}
 	if err := s.repository.ReplaceRolePermissions(ctx, code, validated); err != nil {
@@ -427,6 +441,12 @@ func (s *Service) SetOverride(
 	if !effect.Valid() || len(reason) > maxReasonLength {
 		return Override{}, ErrInvalidOverride
 	}
+	if err := s.AuthorizePermissions(ctx, []Permission{permission}); err != nil {
+		return Override{}, err
+	}
+	if err := s.AuthorizeUserChange(ctx, publicID); err != nil {
+		return Override{}, err
+	}
 	override, err := s.repository.SetUserOverride(ctx, SetOverrideInput{
 		UserPublicID: publicID,
 		Permission:   permission,
@@ -450,6 +470,12 @@ func (s *Service) DeleteOverride(
 	if publicID == "" || !IsKnown(permission) {
 		return ErrUnknownPermission
 	}
+	if err := s.AuthorizePermissions(ctx, []Permission{permission}); err != nil {
+		return err
+	}
+	if err := s.AuthorizeUserChange(ctx, publicID); err != nil {
+		return err
+	}
 	if err := s.repository.DeleteUserOverride(ctx, publicID, permission); err != nil {
 		return err
 	}
@@ -465,6 +491,12 @@ func (s *Service) AssignRole(ctx context.Context, publicID string, role string) 
 		return ErrInvalidRole
 	}
 	if _, err := s.repository.FindRole(ctx, role); err != nil {
+		return err
+	}
+	if err := s.AuthorizeRoleGrant(ctx, role); err != nil {
+		return err
+	}
+	if err := s.AuthorizeUserChange(ctx, publicID); err != nil {
 		return err
 	}
 	if err := s.repository.AssignUserRole(ctx, publicID, role); err != nil {

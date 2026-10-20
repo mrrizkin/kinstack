@@ -63,6 +63,27 @@ Permission codes are defined in `internal/platform/authz/catalog.go`.
 Every guarded route has an entry in `routePolicy` in
 `internal/bootstrap/web_routes.go`. A missing entry fails during startup.
 
+### Delegation rules
+
+Role and permission management is delegated, not all-or-nothing. An actor may
+ever grant more than they hold:
+
+- Authority changes require an interactive browser session; API tokens are
+  rejected even with `access.manage`.
+- The actor must hold `access.manage`.
+- The target role's rank must not exceed the actor's role rank, and a role may
+  not be re-ranked above it. `user_roles` rank is enforced in the platform
+  service, not just displayed in the UI.
+- Every permission of the target role must already be effective for the actor,
+  so `users.manage` alone cannot hand out `access.manage`.
+- Actor accounts cannot change their own role or overrides, and cannot modify an
+  account that outranks them.
+- Built-in (`is_system`) roles are immutable at the service and SQL layers;
+  change their permission set with a migration.
+
+Handlers attach the acting principal with `authz.WithPrincipal`; services read
+it with `authz.PrincipalFromContext` and fail closed when it is missing.
+
 ## UI
 
 - Dashboard pages use the existing dashboard shell.

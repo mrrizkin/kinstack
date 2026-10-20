@@ -89,6 +89,7 @@ type Repository interface {
 	DeleteUserOverride(context.Context, string, Permission) error
 
 	AssignUserRole(context.Context, string, string) error
+	UserRole(context.Context, string) (string, error)
 }
 
 // Errors returned by the authz repository and service.

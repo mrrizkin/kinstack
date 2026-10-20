@@ -12,7 +12,7 @@ func (h *Handler) create(c fiber.Ctx) error {
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
-	if _, err := h.service.Create(c.Context(), request); err != nil {
+	if _, err := h.service.Create(h.context(c), request); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(h.inertia, c, h.usersPath(), i18n.T("users.created"))
@@ -23,7 +23,7 @@ func (h *Handler) invite(c fiber.Ctx) error {
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
-	if _, err := h.service.Invite(c.Context(), request); err != nil {
+	if _, err := h.service.Invite(h.context(c), request); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(h.inertia, c, h.usersPath(), i18n.T("auth.invitation_sent"))
@@ -34,7 +34,7 @@ func (h *Handler) update(c fiber.Ctx) error {
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
-	if _, err := h.service.Update(c.Context(), c.Params("publicID"), request); err != nil {
+	if _, err := h.service.Update(h.context(c), c.Params("publicID"), request); err != nil {
 		return h.writeError(c, err)
 	}
 	return platforminertia.RedirectWithFlash(h.inertia, c, h.usersPath(), i18n.T("users.updated"))
@@ -46,7 +46,7 @@ func (h *Handler) resetPassword(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
 	if err := h.service.ResetPassword(
-		c.Context(),
+		h.context(c),
 		c.Params("publicID"),
 		request.Password,
 	); err != nil {
@@ -66,7 +66,7 @@ func (h *Handler) setActive(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
 	if _, err := h.service.SetActive(
-		c.Context(),
+		h.context(c),
 		c.Params("publicID"),
 		request.IsActive,
 	); err != nil {

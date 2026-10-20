@@ -48,6 +48,15 @@ func newSeededAuthorization() *authz.Service {
 	return authz.New(authz.ServiceDependency{Repository: repository})
 }
 
+// testContext asserts the seeded administrator as the acting principal so
+// authorization mutations can enforce delegation rules.
+func testContext() context.Context {
+	return authz.WithPrincipal(context.Background(), authz.Principal{
+		PublicID: "admin-1",
+		Role:     testAdminRole,
+	})
+}
+
 func newTestService() *Service {
 	return NewService(ServiceDependency{
 		Repository:    newSeededRepository(),
@@ -57,7 +66,7 @@ func newTestService() *Service {
 
 func TestCreateValidatesUsername(t *testing.T) {
 	service := newTestService()
-	_, err := service.Create(context.Background(), CreateUserRequest{
+	_, err := service.Create(testContext(), CreateUserRequest{
 		Username:    "a",
 		DisplayName: "Staf",
 		Password:    "rahasia123",
@@ -70,7 +79,7 @@ func TestCreateValidatesUsername(t *testing.T) {
 
 func TestCreateValidatesRole(t *testing.T) {
 	service := newTestService()
-	_, err := service.Create(context.Background(), CreateUserRequest{
+	_, err := service.Create(testContext(), CreateUserRequest{
 		Username:    "staf1",
 		DisplayName: "Staf",
 		Password:    "rahasia123",
@@ -83,7 +92,7 @@ func TestCreateValidatesRole(t *testing.T) {
 
 func TestCreatePersistsRole(t *testing.T) {
 	service := newTestService()
-	created, err := service.Create(context.Background(), CreateUserRequest{
+	created, err := service.Create(testContext(), CreateUserRequest{
 		Username:    "staf1",
 		DisplayName: "Staf Satu",
 		Password:    "rahasia123",
@@ -99,7 +108,7 @@ func TestCreatePersistsRole(t *testing.T) {
 
 func TestCreateRejectsDuplicateUsername(t *testing.T) {
 	service := newTestService()
-	_, err := service.Create(context.Background(), CreateUserRequest{
+	_, err := service.Create(testContext(), CreateUserRequest{
 		Username:    "admin",
 		DisplayName: "Admin Lain",
 		Password:    "rahasia123",
@@ -112,7 +121,7 @@ func TestCreateRejectsDuplicateUsername(t *testing.T) {
 
 func TestSetActiveProtectsLastAdministrator(t *testing.T) {
 	service := newTestService()
-	_, err := service.SetActive(context.Background(), "admin-1", false)
+	_, err := service.SetActive(testContext(), "admin-1", false)
 	if !errors.Is(err, ErrLastAdministrator) {
 		t.Fatalf("expected last administrator protection, got %v", err)
 	}
@@ -120,7 +129,7 @@ func TestSetActiveProtectsLastAdministrator(t *testing.T) {
 
 func TestSetActiveAllowsSecondAdministratorToBeDisabled(t *testing.T) {
 	service := newTestService()
-	second, err := service.Create(context.Background(), CreateUserRequest{
+	second, err := service.Create(testContext(), CreateUserRequest{
 		Username:    "admin2",
 		DisplayName: "Admin Dua",
 		Password:    "rahasia123",
@@ -129,14 +138,14 @@ func TestSetActiveAllowsSecondAdministratorToBeDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create administrator: %v", err)
 	}
-	if _, err := service.SetActive(context.Background(), second.PublicID, false); err != nil {
+	if _, err := service.SetActive(testContext(), second.PublicID, false); err != nil {
 		t.Fatalf("disable second administrator: %v", err)
 	}
 }
 
 func TestSetActiveAllowsDisablingNonAdministrator(t *testing.T) {
 	service := newTestService()
-	staff, err := service.Create(context.Background(), CreateUserRequest{
+	staff, err := service.Create(testContext(), CreateUserRequest{
 		Username:    "staf1",
 		DisplayName: "Staf Satu",
 		Password:    "rahasia123",
@@ -145,14 +154,14 @@ func TestSetActiveAllowsDisablingNonAdministrator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create staff: %v", err)
 	}
-	if _, err := service.SetActive(context.Background(), staff.PublicID, false); err != nil {
+	if _, err := service.SetActive(testContext(), staff.PublicID, false); err != nil {
 		t.Fatalf("disable staff: %v", err)
 	}
 }
 
 func TestResetPasswordRequiresMinimumLength(t *testing.T) {
 	service := newTestService()
-	if err := service.ResetPassword(context.Background(), "admin-1", "short"); !errors.Is(
+	if err := service.ResetPassword(testContext(), "admin-1", "short"); !errors.Is(
 		err,
 		ErrInvalidInput,
 	) {
@@ -179,7 +188,7 @@ func TestInviteCreatesInvitedAccountAndSendsLink(t *testing.T) {
 		Inviter:       inviter,
 	})
 
-	invited, err := service.Invite(context.Background(), InviteUserRequest{
+	invited, err := service.Invite(testContext(), InviteUserRequest{
 		Email:       "Staf.Baru@Contoh.com",
 		DisplayName: "Staf Baru",
 		Role:        testStaffRole,
@@ -200,7 +209,7 @@ func TestInviteCreatesInvitedAccountAndSendsLink(t *testing.T) {
 
 func TestInviteRejectsUnknownRole(t *testing.T) {
 	service := newTestService()
-	_, err := service.Invite(context.Background(), InviteUserRequest{
+	_, err := service.Invite(testContext(), InviteUserRequest{
 		Email: "staf@contoh.com",
 		Role:  "role-yang-tidak-ada",
 	})
@@ -263,7 +272,7 @@ func TestListPaginatesAndCounts(t *testing.T) {
 		Authorization: newSeededAuthorization(),
 	})
 
-	list, err := service.List(context.Background(), pagination.Query{Page: 2, PerPage: 2})
+	list, err := service.List(testContext(), pagination.Query{Page: 2, PerPage: 2})
 	if err != nil {
 		t.Fatalf("list users: %v", err)
 	}
@@ -274,7 +283,7 @@ func TestListPaginatesAndCounts(t *testing.T) {
 		t.Fatalf("unexpected page: %+v", list.Page)
 	}
 
-	counts, err := service.Count(context.Background())
+	counts, err := service.Count(testContext())
 	if err != nil {
 		t.Fatalf("count users: %v", err)
 	}
@@ -299,7 +308,7 @@ func TestAdminResetPasswordRevokesCredentials(t *testing.T) {
 		Authorization: newSeededAuthorization(),
 		Revoker:       revoker,
 	})
-	if err := service.ResetPassword(context.Background(), "admin-1", "password-baru-1"); err != nil {
+	if err := service.ResetPassword(testContext(), "admin-1", "password-baru-1"); err != nil {
 		t.Fatalf("reset password: %v", err)
 	}
 	if len(revoker.revoked) != 1 || revoker.revoked[0] != "admin-1" {
