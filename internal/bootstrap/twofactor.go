@@ -52,6 +52,8 @@ func BackfillTwoFactorSecrets() error {
 
 	db, err := database.OpenWithOptions(cfg.DB.URL, database.Options{
 		StatementTimeout: cfg.DB.StatementTimeout,
+		MaxOpenConns:     cfg.DB.MaxOpenConns,
+		MaxIdleConns:     cfg.DB.MaxIdleConns,
 	})
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)

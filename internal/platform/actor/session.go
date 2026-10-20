@@ -97,6 +97,21 @@ func (a *Actor) ActorFromContext(c fiber.Ctx) *SessionActor {
 	return value
 }
 
+// validatedLocalKey marks a request whose session actor was already resolved
+// against the actor repository, so downstream guards skip a second round trip.
+const validatedLocalKey = "actor_validated"
+
+// MarkValidated records that the current request already validated its actor.
+func (a *Actor) MarkValidated(c fiber.Ctx) {
+	c.Locals(validatedLocalKey, true)
+}
+
+// Validated reports whether the current request already validated its actor.
+func (a *Actor) Validated(c fiber.Ctx) bool {
+	value, ok := c.Locals(validatedLocalKey).(bool)
+	return ok && value
+}
+
 // ValidateSession verifies that the session actor still resolves to an active
 // account. Ephemeral break-glass superuser sessions have no account and are
 // trusted as long as the session itself is intact.
@@ -111,17 +126,22 @@ func (a *Actor) ValidateSession(ctx context.Context, value *SessionActor) error 
 }
 
 // RequireKnownActor protects routes and rejects sessions whose actor no longer
-// resolves to an active account.
+// resolves to an active account. When the request middleware already validated
+// the actor it reuses that result instead of querying the database again.
 func (a *Actor) RequireKnownActor() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		value := a.ActorFromContext(c)
 		if value == nil {
 			return a.RequireAuth(c)
 		}
+		if a.Validated(c) {
+			return c.Next()
+		}
 		if a.ValidateSession(c.Context(), value) != nil {
 			_ = a.ClearActor(c)
 			return fiber.ErrUnauthorized
 		}
+		a.MarkValidated(c)
 		return c.Next()
 	}
 }
@@ -133,10 +153,14 @@ func (a *Actor) Current(c fiber.Ctx) (*SessionActor, error) {
 	if value == nil {
 		return nil, fiber.ErrUnauthorized
 	}
+	if a.Validated(c) {
+		return value, nil
+	}
 	if err := a.ValidateSession(c.Context(), value); err != nil {
 		_ = a.ClearActor(c)
 		return nil, fiber.ErrUnauthorized
 	}
+	a.MarkValidated(c)
 	return value, nil
 }
 

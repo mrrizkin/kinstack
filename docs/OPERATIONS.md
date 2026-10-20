@@ -61,7 +61,7 @@ sign in again. This is accepted behavior.
 | HTTP 5xx | > 1% for 5 minutes | Check request logs, database, and storage |
 | Latency | p95 > 1s for 10 minutes | Check database pool, slow queries, documents, and storage |
 | Readiness | 3 consecutive failures | Check PostgreSQL and Valkey |
-| Database pool | active connections = 10 | Look for slow queries or raise the pool |
+| Database pool | active connections = `DB_MAX_CONNS` | Look for slow queries or raise the pool |
 | Login lockout | spike in locked accounts or 429 | Check brute-force sources |
 | Media storage | storage unavailable errors | Check object storage and credentials |
 | TLS certificate | < 14 days | Renew at the reverse proxy |
@@ -147,7 +147,9 @@ expand → migrate → contract pattern.
 
 ## Capacity
 
-- PostgreSQL pool: 10 open, 5 idle.
+- PostgreSQL pool: `DB_MAX_CONNS` open (default 10), `DB_MAX_IDLE_CONNS` idle
+  (default 5). Size the sum of all replicas below the server
+  `max_connections` budget.
 - Email delivery and PDF rendering run synchronously in the request path.
 - Audit records use the configured PostgreSQL retention policy.
 - Media uploads are validated by magic bytes and image dimensions before storage.

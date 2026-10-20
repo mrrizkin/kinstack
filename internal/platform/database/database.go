@@ -29,6 +29,8 @@ type DB struct {
 // Options tunes the shared pool. Zero values keep the defaults.
 type Options struct {
 	StatementTimeout time.Duration
+	MaxOpenConns     int
+	MaxIdleConns     int
 }
 
 // Open connects with the default pool settings. Migration commands use this
@@ -60,11 +62,20 @@ func OpenWithOptions(dsn string, opts Options) (*DB, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("connect to postgres: %w", err)
 	}
-	db.SetMaxOpenConns(maxOpenConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
+	db.SetMaxOpenConns(poolSize(opts.MaxOpenConns, maxOpenConnections))
+	db.SetMaxIdleConns(poolSize(opts.MaxIdleConns, maxIdleConnections))
 	db.SetConnMaxLifetime(maxConnLifetime)
 	db.SetConnMaxIdleTime(maxConnIdleTime)
 	return &DB{DB: db}, nil
+}
+
+// poolSize applies an explicit pool setting, falling back to the default when
+// the caller did not configure one.
+func poolSize(value, fallback int) int {
+	if value > 0 {
+		return value
+	}
+	return fallback
 }
 
 func (db *DB) Close() error {

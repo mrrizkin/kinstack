@@ -41,9 +41,14 @@ func registerContextMiddleware(d GlobalMiddlewareDependency) {
 			"oauth":      d.Config.Auth.OAuthEnabled(),
 		})
 		actor := d.Actor.ActorFromContext(c)
-		if actor != nil && d.Actor.ValidateSession(c.Context(), actor) != nil {
-			_ = d.Actor.ClearActor(c)
-			actor = nil
+		if actor != nil {
+			if d.Actor.ValidateSession(c.Context(), actor) != nil {
+				_ = d.Actor.ClearActor(c)
+				actor = nil
+			} else {
+				// Route guards reuse this result instead of repeating the lookup.
+				d.Actor.MarkValidated(c)
+			}
 		}
 		d.Inertia.ShareWith(c, "actor", actor)
 		d.Inertia.ShareWith(c, "authz_permissions", effectivePermissions(c, d.Authz, actor))
