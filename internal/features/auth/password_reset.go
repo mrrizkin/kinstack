@@ -82,9 +82,9 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken string, newPasswor
 	}
 	switch {
 	case len(newPassword) < minPasswordLength:
-		return fmt.Errorf("%w: password baru minimal %d karakter", ErrInvalidInput, minPasswordLength)
+		return fmt.Errorf("%w: new password must be at least %d characters", ErrInvalidInput, minPasswordLength)
 	case len(newPassword) > maxPasswordLength:
-		return fmt.Errorf("%w: password baru maksimal %d karakter", ErrInvalidInput, maxPasswordLength)
+		return fmt.Errorf("%w: new password must be at most %d characters", ErrInvalidInput, maxPasswordLength)
 	}
 
 	publicID, err := s.repository.ConsumePasswordResetToken(ctx, hashMagicToken(rawToken))

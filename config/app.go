@@ -75,35 +75,35 @@ func (c AppConfig) Validate() error {
 		return fmt.Errorf("auth rate limit settings must be positive")
 	}
 	if c.AuthLockoutMax < 0 || (c.AuthLockoutMax > 0 && c.AuthLockoutWindow <= 0) {
-		return fmt.Errorf("AUTH_LOCKOUT_MAX dan AUTH_LOCKOUT_WINDOW tidak valid")
+		return fmt.Errorf("AUTH_LOCKOUT_MAX and AUTH_LOCKOUT_WINDOW are invalid")
 	}
 	if c.APIRateLimitMax < 1 || c.APIRateLimitWindow <= 0 {
-		return fmt.Errorf("API_RATE_LIMIT_MAX dan API_RATE_LIMIT_WINDOW harus positif")
+		return fmt.Errorf("API_RATE_LIMIT_MAX and API_RATE_LIMIT_WINDOW must be positive")
 	}
 	if c.HTTPBodyLimit < 1 {
-		return fmt.Errorf("APP_BODY_LIMIT_MB harus positif")
+		return fmt.Errorf("APP_BODY_LIMIT_MB must be positive")
 	}
 	if c.HTTPReadTimeout <= 0 || c.HTTPWriteTimeout <= 0 || c.HTTPIdleTimeout <= 0 {
-		return fmt.Errorf("HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT, dan HTTP_IDLE_TIMEOUT harus positif")
+		return fmt.Errorf("HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT, and HTTP_IDLE_TIMEOUT must be positive")
 	}
 	if err := validateURL("APP_URL", c.URL, false); err != nil {
 		return err
 	}
 	if (c.AccessKey == "") != (c.SecretKey == "") {
-		return fmt.Errorf("ACCESS_KEY dan SECRET_KEY harus diisi bersamaan")
+		return fmt.Errorf("ACCESS_KEY and SECRET_KEY must be set together")
 	}
 	if c.SecretKey != "" && len([]byte(c.SecretKey)) < minSecretKeyLength {
-		return fmt.Errorf("SECRET_KEY minimal %d karakter", minSecretKeyLength)
+		return fmt.Errorf("SECRET_KEY must be at least %d characters", minSecretKeyLength)
 	}
 	if c.Env == "production" {
 		if err := validateURL("APP_URL", c.URL, true); err != nil {
 			return err
 		}
 		if c.AccessKey == "" {
-			return fmt.Errorf("ACCESS_KEY dan SECRET_KEY wajib diisi di production")
+			return fmt.Errorf("ACCESS_KEY and SECRET_KEY are required in production")
 		}
 		if placeholderSecret(c.SecretKey) {
-			return fmt.Errorf("SECRET_KEY harus nilai rahasia yang tidak placeholder di production")
+			return fmt.Errorf("SECRET_KEY must be a non-placeholder secret in production")
 		}
 	}
 	return nil

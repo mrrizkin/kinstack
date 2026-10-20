@@ -30,7 +30,7 @@ func (c *DocumentConfig) Load() {
 // section.
 func (c DocumentConfig) Validate() error {
 	if c.Timeout <= 0 {
-		return fmt.Errorf("DOCUMENT_TIMEOUT harus bernilai positif")
+		return fmt.Errorf("DOCUMENT_TIMEOUT must be positive")
 	}
 	if c.GotenbergURL == "" {
 		return nil

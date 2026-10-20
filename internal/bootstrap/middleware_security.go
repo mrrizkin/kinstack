@@ -72,7 +72,7 @@ func registerSecurityMiddleware(d GlobalMiddlewareDependency) {
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error": fiber.Map{
 					"code":    "rate_limited",
-					"message": "terlalu banyak permintaan API",
+					"message": "too many API requests",
 				},
 			})
 		},

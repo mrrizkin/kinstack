@@ -133,13 +133,13 @@ func (c AuthConfig) Validate() error {
 	}
 	if c.OAuthEnabled() && len([]byte(c.StateSecret)) < 32 {
 		return fmt.Errorf(
-			"AUTH_STATE_SECRET minimal 32 byte wajib diisi saat provider OAuth diaktifkan",
+			"AUTH_STATE_SECRET must be at least 32 bytes when an OAuth provider is enabled",
 		)
 	}
 	if c.TwoFactorKey != "" && (len([]byte(c.TwoFactorKey)) < 32 ||
 		placeholderSecret(c.TwoFactorKey)) {
 		return fmt.Errorf(
-			"AUTH_2FA_KEY minimal 32 byte dan bukan nilai contoh bila diisi",
+			"AUTH_2FA_KEY must be at least 32 bytes and not a placeholder value when set",
 		)
 	}
 	return nil
@@ -152,7 +152,7 @@ func (c OIDCProviderConfig) validate() error {
 	if c.ClientID == "" || c.ClientSecret == "" || c.AuthURL == "" ||
 		c.TokenURL == "" || c.UserInfoURL == "" {
 		return fmt.Errorf(
-			"AUTH_OIDC_ENABLED aktif tetapi tidak lengkap: isi AUTH_OIDC_CLIENT_ID, " +
+			"AUTH_OIDC_ENABLED is on but incomplete: set AUTH_OIDC_CLIENT_ID, " +
 				"AUTH_OIDC_CLIENT_SECRET, AUTH_OIDC_AUTH_URL, AUTH_OIDC_TOKEN_URL, " +
 				"AUTH_OIDC_USERINFO_URL",
 		)
@@ -160,7 +160,7 @@ func (c OIDCProviderConfig) validate() error {
 	for _, raw := range []string{c.AuthURL, c.TokenURL, c.UserInfoURL} {
 		parsed, err := url.Parse(raw)
 		if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
-			return fmt.Errorf("AUTH_OIDC_* URLs harus berupa URL https yang valid")
+			return fmt.Errorf("AUTH_OIDC_* URLs must be valid https URLs")
 		}
 	}
 	return nil
@@ -172,7 +172,7 @@ func (c SocialProviderConfig) validate(name string) error {
 	}
 	if c.ClientID == "" || c.ClientSecret == "" {
 		return fmt.Errorf(
-			"AUTH_%s_ENABLED aktif tetapi AUTH_%s_CLIENT_ID / AUTH_%s_CLIENT_SECRET kosong",
+			"AUTH_%s_ENABLED is on but AUTH_%s_CLIENT_ID / AUTH_%s_CLIENT_SECRET are empty",
 			strings.ToUpper(name), strings.ToUpper(name), strings.ToUpper(name),
 		)
 	}
@@ -186,13 +186,13 @@ func (c SAMLProviderConfig) validate() error {
 	switch {
 	case c.EntityID == "", c.IDPMetadataURL == "", c.Certificate == "", c.PrivateKey == "":
 		return fmt.Errorf(
-			"AUTH_SAML_ENABLED aktif tetapi tidak lengkap: isi AUTH_SAML_ENTITY_ID, " +
+			"AUTH_SAML_ENABLED is on but incomplete: set AUTH_SAML_ENTITY_ID, " +
 				"AUTH_SAML_IDP_METADATA_URL, AUTH_SAML_CERT, AUTH_SAML_KEY",
 		)
 	}
 	parsed, err := url.Parse(c.IDPMetadataURL)
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
-		return fmt.Errorf("AUTH_SAML_IDP_METADATA_URL harus berupa URL https yang valid")
+		return fmt.Errorf("AUTH_SAML_IDP_METADATA_URL must be a valid https URL")
 	}
 	return nil
 }
