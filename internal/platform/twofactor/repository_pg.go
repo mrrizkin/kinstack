@@ -15,7 +15,11 @@ import (
 
 const (
 	findStatusQuery = `
-SELECT two_factor_enabled, two_factor_secret
+SELECT two_factor_enabled,
+       two_factor_secret,
+       two_factor_secret_enc,
+       two_factor_key_version,
+       two_factor_last_step
 FROM users
 WHERE public_id = $1
   AND deleted_at IS NULL
@@ -24,8 +28,20 @@ LIMIT 1`
 	setSecretQuery = `
 UPDATE users
 SET two_factor_secret = $2,
+    two_factor_secret_enc = $3,
+    two_factor_key_version = $4,
     two_factor_enabled = false,
     two_factor_confirmed_at = NULL,
+    two_factor_last_step = 0,
+    updated_at = now()
+WHERE public_id = $1
+  AND deleted_at IS NULL`
+
+	sealSecretQuery = `
+UPDATE users
+SET two_factor_secret_enc = $2,
+    two_factor_key_version = $3,
+    two_factor_secret = '',
     updated_at = now()
 WHERE public_id = $1
   AND deleted_at IS NULL`
@@ -34,6 +50,7 @@ WHERE public_id = $1
 UPDATE users
 SET two_factor_enabled = true,
     two_factor_confirmed_at = now(),
+    two_factor_last_step = $2,
     updated_at = now()
 WHERE public_id = $1
   AND deleted_at IS NULL`
@@ -42,9 +59,20 @@ WHERE public_id = $1
 UPDATE users
 SET two_factor_enabled = false,
     two_factor_secret = '',
+    two_factor_secret_enc = ''::bytea,
+    two_factor_key_version = 0,
+    two_factor_last_step = 0,
     two_factor_confirmed_at = NULL,
     updated_at = now()
 WHERE public_id = $1
+  AND deleted_at IS NULL`
+
+	consumeStepQuery = `
+UPDATE users
+SET two_factor_last_step = $2,
+    updated_at = now()
+WHERE public_id = $1
+  AND two_factor_last_step < $2
   AND deleted_at IS NULL`
 
 	deleteRecoveryCodesQuery = `
@@ -61,34 +89,51 @@ CROSS JOIN unnest($2::text[]) AS h
 WHERE u.public_id = $1
   AND u.deleted_at IS NULL`
 
-	findRecoveryCodeQuery = `
-SELECT c.id
+	unusedRecoveryCodesQuery = `
+SELECT c.id, c.code_hash
 FROM user_recovery_codes c
 JOIN users u ON u.id = c.user_id
 WHERE u.public_id = $1
   AND u.deleted_at IS NULL
-  AND c.code_hash = $2
   AND c.used_at IS NULL
-LIMIT 1`
+ORDER BY c.id`
 
 	markRecoveryCodeUsedQuery = `
 UPDATE user_recovery_codes
 SET used_at = now()
 WHERE id = $1
   AND used_at IS NULL`
+
+	replaceRecoveryCodeHashQuery = `
+UPDATE user_recovery_codes
+SET code_hash = $2
+WHERE id = $1`
+
+	legacySecretsQuery = `
+SELECT public_id, two_factor_secret
+FROM users
+WHERE two_factor_secret <> ''
+  AND two_factor_secret_enc = ''::bytea
+  AND deleted_at IS NULL
+ORDER BY id
+LIMIT $1`
 )
 
 // SQLRepository is the PostgreSQL two-factor repository.
 type SQLRepository struct {
-	owner       *platformdatabase.StatementOwner
-	findStatus  *sqlx.Stmt
-	setSecret   *sqlx.Stmt
-	enable      *sqlx.Stmt
-	disable     *sqlx.Stmt
-	deleteCodes *sqlx.Stmt
-	insertCodes *sqlx.Stmt
-	findCode    *sqlx.Stmt
-	useCode     *sqlx.Stmt
+	owner        *platformdatabase.StatementOwner
+	findStatus   *sqlx.Stmt
+	setSecret    *sqlx.Stmt
+	sealSecret   *sqlx.Stmt
+	enable       *sqlx.Stmt
+	disable      *sqlx.Stmt
+	consumeStep  *sqlx.Stmt
+	deleteCodes  *sqlx.Stmt
+	insertCodes  *sqlx.Stmt
+	listCodes    *sqlx.Stmt
+	useCode      *sqlx.Stmt
+	replaceCode  *sqlx.Stmt
+	legacySecret *sqlx.Stmt
 }
 
 var _ Repository = (*SQLRepository)(nil)
@@ -111,12 +156,16 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	}{
 		{&repository.findStatus, "two_factor_find_status", findStatusQuery},
 		{&repository.setSecret, "two_factor_set_secret", setSecretQuery},
+		{&repository.sealSecret, "two_factor_seal_secret", sealSecretQuery},
 		{&repository.enable, "two_factor_enable", enableQuery},
 		{&repository.disable, "two_factor_disable", disableQuery},
+		{&repository.consumeStep, "two_factor_consume_step", consumeStepQuery},
 		{&repository.deleteCodes, "two_factor_delete_codes", deleteRecoveryCodesQuery},
 		{&repository.insertCodes, "two_factor_insert_codes", insertRecoveryCodesQuery},
-		{&repository.findCode, "two_factor_find_code", findRecoveryCodeQuery},
+		{&repository.listCodes, "two_factor_list_codes", unusedRecoveryCodesQuery},
 		{&repository.useCode, "two_factor_use_code", markRecoveryCodeUsedQuery},
+		{&repository.replaceCode, "two_factor_replace_code", replaceRecoveryCodeHashQuery},
+		{&repository.legacySecret, "two_factor_legacy_secrets", legacySecretsQuery},
 	}
 	for _, statement := range statements {
 		stmt, err := owner.Prepare(statement.name, statement.query)
@@ -149,18 +198,56 @@ func (r *SQLRepository) FindStatus(ctx context.Context, userPublicID string) (St
 }
 
 // SetSecret stores a pending secret without enabling two-factor auth.
-func (r *SQLRepository) SetSecret(ctx context.Context, userPublicID, secret string) error {
-	return r.execAffectingOne(ctx, r.setSecret, "set two-factor secret", userPublicID, secret)
+func (r *SQLRepository) SetSecret(ctx context.Context, userPublicID string, secret Secret) error {
+	sealed := secret.Sealed
+	if sealed == nil {
+		sealed = []byte{}
+	}
+	return r.execAffectingOne(
+		ctx,
+		r.setSecret,
+		"set two-factor secret",
+		userPublicID,
+		secret.Plain,
+		sealed,
+		secret.KeyVersion,
+	)
+}
+
+// SealSecret writes the encrypted secret and clears the plaintext copy.
+func (r *SQLRepository) SealSecret(
+	ctx context.Context,
+	userPublicID string,
+	sealed []byte,
+	version int,
+) error {
+	if sealed == nil {
+		sealed = []byte{}
+	}
+	return r.execAffectingOne(
+		ctx,
+		r.sealSecret,
+		"seal two-factor secret",
+		userPublicID,
+		sealed,
+		version,
+	)
 }
 
 // Enable activates two-factor auth for one account.
-func (r *SQLRepository) Enable(ctx context.Context, userPublicID string) error {
-	return r.execAffectingOne(ctx, r.enable, "enable two-factor", userPublicID)
+func (r *SQLRepository) Enable(ctx context.Context, userPublicID string, lastStep int64) error {
+	return r.execAffectingOne(ctx, r.enable, "enable two-factor", userPublicID, lastStep)
 }
 
 // Disable clears the secret and deactivates two-factor auth.
 func (r *SQLRepository) Disable(ctx context.Context, userPublicID string) error {
 	return r.execAffectingOne(ctx, r.disable, "disable two-factor", userPublicID)
+}
+
+// ConsumeStep records an accepted TOTP step; zero rows means the code was
+// already used for that step (or an earlier one).
+func (r *SQLRepository) ConsumeStep(ctx context.Context, userPublicID string, step int64) error {
+	return r.execAffectingOne(ctx, r.consumeStep, "consume two-factor step", userPublicID, step)
 }
 
 // ReplaceRecoveryCodes deletes the existing codes and stores the new hashes.
@@ -181,25 +268,38 @@ func (r *SQLRepository) ReplaceRecoveryCodes(
 	return nil
 }
 
-// FindRecoveryCode returns the id of an unused recovery code.
-func (r *SQLRepository) FindRecoveryCode(
+// UnusedRecoveryCodes lists the still usable hashes for one account.
+func (r *SQLRepository) UnusedRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
-	hash string,
-) (int64, error) {
-	var id int64
-	if err := r.findCode.GetContext(ctx, &id, userPublicID, hash); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ErrNotFound
-		}
-		return 0, fmt.Errorf("find recovery code: %w", err)
+) ([]RecoveryCode, error) {
+	codes := make([]RecoveryCode, 0, RecoveryCodeCount)
+	if err := r.listCodes.SelectContext(ctx, &codes, userPublicID); err != nil {
+		return nil, fmt.Errorf("list recovery codes: %w", err)
 	}
-	return id, nil
+	return codes, nil
 }
 
 // MarkRecoveryCodeUsed consumes a recovery code so it cannot be replayed.
 func (r *SQLRepository) MarkRecoveryCodeUsed(ctx context.Context, id int64) error {
 	return r.execAffectingOne(ctx, r.useCode, "mark recovery code used", id)
+}
+
+// ReplaceRecoveryCodeHash upgrades the stored hash of one unused code.
+func (r *SQLRepository) ReplaceRecoveryCodeHash(ctx context.Context, id int64, hash string) error {
+	return r.execAffectingOne(ctx, r.replaceCode, "replace recovery code hash", id, hash)
+}
+
+// LegacySecrets lists plaintext secrets that still need sealing.
+func (r *SQLRepository) LegacySecrets(ctx context.Context, limit int) ([]LegacySecret, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	secrets := make([]LegacySecret, 0, limit)
+	if err := r.legacySecret.SelectContext(ctx, &secrets, limit); err != nil {
+		return nil, fmt.Errorf("list legacy two-factor secrets: %w", err)
+	}
+	return secrets, nil
 }
 
 func (r *SQLRepository) execAffectingOne(

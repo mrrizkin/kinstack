@@ -11,9 +11,18 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
-		healthcheck()
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "healthcheck":
+			healthcheck()
+			return
+		case "backfill-2fa":
+			if err := bootstrap.BackfillTwoFactorSecrets(); err != nil {
+				fmt.Fprintln(os.Stderr, "backfill-2fa failed:", err)
+				os.Exit(1)
+			}
+			return
+		}
 	}
 	assert.NoError(bootstrap.Run())
 }

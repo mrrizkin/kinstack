@@ -400,3 +400,30 @@ func TestLoginInactiveAccountStillCountsAFailure(t *testing.T) {
 		t.Fatalf("expected the pair to lock, got %v", err)
 	}
 }
+
+func TestSecondFactorLockoutIsIndependentFromPasswordLockout(t *testing.T) {
+	service := newLockedOutService(t, 3)
+	ctx := context.Background()
+
+	for range 3 {
+		service.RecordSecondFactorFailure(ctx, "user-1", "10.0.0.1")
+	}
+	if service.SecondFactorAllowed(ctx, "user-1", "10.0.0.1") {
+		t.Fatal("expected the second-factor challenge to be locked for this client")
+	}
+	if !service.SecondFactorAllowed(ctx, "user-1", "10.0.0.2") {
+		t.Fatal("expected another client to keep its own budget")
+	}
+	// A 2FA lockout must not block the password step itself.
+	lockoutAllowed := service.lockout.AllowedPair(ctx, "user-1", "10.0.0.1")
+	if !lockoutAllowed {
+		t.Fatal("expected the password lockout to stay independent")
+	}
+
+	service.ClearSecondFactorFailures(ctx, "user-1", "10.0.0.1")
+	service.SecondFactorAllowed(ctx, "user-1", "10.0.0.1")
+	service.RecordSecondFactorFailure(ctx, "user-1", "10.0.0.1")
+	if !service.SecondFactorAllowed(ctx, "user-1", "10.0.0.1") {
+		t.Fatal("expected a cleared counter to start over")
+	}
+}

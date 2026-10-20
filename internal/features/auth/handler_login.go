@@ -92,6 +92,12 @@ func (h *Handler) verifyTwoFactor(c fiber.Ctx) error {
 	if h.twoFactor == nil {
 		return fiber.ErrServiceUnavailable
 	}
+	client := c.IP()
+	if !h.service.SecondFactorAllowed(c.Context(), publicID, client) {
+		return c.Status(fiber.StatusTooManyRequests).Render("auth/TwoFactorView", fiber.Map{
+			"errors": fiber.Map{"code": i18n.T("auth.account_locked")},
+		})
+	}
 	var request TwoFactorRequest
 	if err := c.Bind().Body(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -104,10 +110,12 @@ func (h *Handler) verifyTwoFactor(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	if !verified {
+		h.service.RecordSecondFactorFailure(c.Context(), publicID, client)
 		return c.Status(fiber.StatusUnprocessableEntity).Render("auth/TwoFactorView", fiber.Map{
 			"errors": fiber.Map{"code": i18n.T("auth.invalid_code")},
 		})
 	}
+	h.service.ClearSecondFactorFailures(c.Context(), publicID, client)
 	session, err := h.service.Session(c.Context(), publicID)
 	if err != nil {
 		h.logger.Errorw("load two-factor session", "request_id", c.RequestID(), "error", err)

@@ -68,13 +68,20 @@ func GenerateCode(secret string, at time.Time) (string, error) {
 // Validate reports whether code matches the current step or one step on either
 // side, absorbing small clock differences between server and phone.
 func Validate(secret, code string, at time.Time) bool {
+	_, ok := ValidateStep(secret, code, at)
+	return ok
+}
+
+// ValidateStep returns the time step a code matched, so callers can reject a
+// code that was already used for that step.
+func ValidateStep(secret, code string, at time.Time) (int64, bool) {
 	code = strings.TrimSpace(code)
 	if len(code) != Digits {
-		return false
+		return 0, false
 	}
 	key, err := decodeSecret(secret)
 	if err != nil {
-		return false
+		return 0, false
 	}
 	counter := uint64(at.UTC().Unix() / Period)
 	for _, delta := range []int64{-1, 0, 1} {
@@ -84,10 +91,10 @@ func Validate(secret, code string, at time.Time) bool {
 		}
 		expected := codeForCounter(key, uint64(adjusted))
 		if subtle.ConstantTimeCompare([]byte(expected), []byte(code)) == 1 {
-			return true
+			return adjusted, true
 		}
 	}
-	return false
+	return 0, false
 }
 
 func decodeSecret(secret string) ([]byte, error) {

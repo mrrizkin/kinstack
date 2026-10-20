@@ -60,6 +60,39 @@ func NewService(dependency ServiceDependency) *Service {
 	}
 }
 
+// SecondFactorAllowed reports whether the account may still attempt a second
+// factor from this client. It uses a separate key namespace from password
+// attempts so a 2FA lockout never blocks a fresh sign-in.
+func (s *Service) SecondFactorAllowed(ctx context.Context, userPublicID, client string) bool {
+	if s.lockout == nil {
+		return true
+	}
+	return s.lockout.AllowedPair(ctx, secondFactorAccount(userPublicID), client)
+}
+
+// RecordSecondFactorFailure counts one rejected second-factor attempt. A 2FA
+// code is short, so the account-wide counter also applies to slow distributed
+// guessing.
+func (s *Service) RecordSecondFactorFailure(ctx context.Context, userPublicID, client string) {
+	if s.lockout == nil {
+		return
+	}
+	s.lockout.Failure(ctx, secondFactorAccount(userPublicID), client, true)
+}
+
+// ClearSecondFactorFailures resets the counter after a successful challenge.
+func (s *Service) ClearSecondFactorFailures(ctx context.Context, userPublicID, client string) {
+	if s.lockout == nil {
+		return
+	}
+	s.lockout.Success(ctx, secondFactorAccount(userPublicID), client)
+}
+
+// secondFactorAccount namespaces lockout keys for the second-factor challenge.
+func secondFactorAccount(userPublicID string) string {
+	return "2fa:" + strings.TrimSpace(userPublicID)
+}
+
 // Login verifies credentials and returns the authenticated session actor. Every
 // credential failure returns the same error so callers cannot enumerate users.
 //

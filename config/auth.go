@@ -53,6 +53,9 @@ type SAMLProviderConfig struct {
 // inspects the raw settings to decide availability.
 type AuthConfig struct {
 	StateSecret string
+	// TwoFactorKey is the envelope key material for TOTP secrets. When empty the
+	// application secret key is used instead.
+	TwoFactorKey string
 
 	MagicLink     MethodToggle
 	PasswordReset MethodToggle
@@ -70,6 +73,7 @@ type AuthConfig struct {
 // Load reads authentication flags and provider settings from the environment.
 func (c *AuthConfig) Load() {
 	c.StateSecret = os.Getenv("AUTH_STATE_SECRET")
+	c.TwoFactorKey = strings.TrimSpace(os.Getenv("AUTH_2FA_KEY"))
 
 	c.MagicLink.load("AUTH_MAGIC_LINK_ENABLED", true)
 	c.PasswordReset.load("AUTH_PASSWORD_RESET_ENABLED", true)
@@ -130,6 +134,12 @@ func (c AuthConfig) Validate() error {
 	if c.OAuthEnabled() && len([]byte(c.StateSecret)) < 32 {
 		return fmt.Errorf(
 			"AUTH_STATE_SECRET minimal 32 byte wajib diisi saat provider OAuth diaktifkan",
+		)
+	}
+	if c.TwoFactorKey != "" && (len([]byte(c.TwoFactorKey)) < 32 ||
+		placeholderSecret(c.TwoFactorKey)) {
+		return fmt.Errorf(
+			"AUTH_2FA_KEY minimal 32 byte dan bukan nilai contoh bila diisi",
 		)
 	}
 	return nil

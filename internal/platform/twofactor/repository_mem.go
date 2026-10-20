@@ -13,10 +13,13 @@ type MemoryRepository struct {
 }
 
 type memoryUser struct {
-	enabled bool
-	secret  string
-	codes   map[string]int64
-	nextID  int64
+	enabled    bool
+	secret     string
+	sealed     []byte
+	keyVersion int
+	lastStep   int64
+	codes      map[string]int64
+	nextID     int64
 }
 
 var _ Repository = (*MemoryRepository)(nil)
@@ -42,11 +45,17 @@ func (r *MemoryRepository) FindStatus(ctx context.Context, userPublicID string) 
 	if !ok {
 		return StatusResult{}, ErrNotFound
 	}
-	return StatusResult{Enabled: user.enabled, Secret: user.secret}, nil
+	return StatusResult{
+		Enabled:    user.enabled,
+		Secret:     user.secret,
+		Sealed:     append([]byte(nil), user.sealed...),
+		KeyVersion: user.keyVersion,
+		LastStep:   user.lastStep,
+	}, nil
 }
 
 // SetSecret stores a pending secret.
-func (r *MemoryRepository) SetSecret(ctx context.Context, userPublicID, secret string) error {
+func (r *MemoryRepository) SetSecret(ctx context.Context, userPublicID string, secret Secret) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -56,13 +65,38 @@ func (r *MemoryRepository) SetSecret(ctx context.Context, userPublicID, secret s
 	if !ok {
 		return ErrNotFound
 	}
-	user.secret = secret
+	user.secret = secret.Plain
+	user.sealed = append([]byte(nil), secret.Sealed...)
+	user.keyVersion = secret.KeyVersion
+	user.lastStep = 0
 	user.enabled = false
 	return nil
 }
 
-// Enable activates two-factor auth.
-func (r *MemoryRepository) Enable(ctx context.Context, userPublicID string) error {
+// SealSecret stores an encrypted copy and drops the plaintext.
+func (r *MemoryRepository) SealSecret(
+	ctx context.Context,
+	userPublicID string,
+	sealed []byte,
+	version int,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	user, ok := r.users[userPublicID]
+	if !ok {
+		return ErrNotFound
+	}
+	user.sealed = append([]byte(nil), sealed...)
+	user.keyVersion = version
+	user.secret = ""
+	return nil
+}
+
+// Enable activates two-factor auth and records the accepted TOTP step.
+func (r *MemoryRepository) Enable(ctx context.Context, userPublicID string, lastStep int64) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -73,6 +107,7 @@ func (r *MemoryRepository) Enable(ctx context.Context, userPublicID string) erro
 		return ErrNotFound
 	}
 	user.enabled = true
+	user.lastStep = lastStep
 	return nil
 }
 
@@ -89,6 +124,27 @@ func (r *MemoryRepository) Disable(ctx context.Context, userPublicID string) err
 	}
 	user.enabled = false
 	user.secret = ""
+	user.sealed = nil
+	user.keyVersion = 0
+	user.lastStep = 0
+	return nil
+}
+
+// ConsumeStep records the accepted TOTP step, failing on replay.
+func (r *MemoryRepository) ConsumeStep(ctx context.Context, userPublicID string, step int64) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	user, ok := r.users[userPublicID]
+	if !ok {
+		return ErrNotFound
+	}
+	if step <= user.lastStep {
+		return ErrNotFound
+	}
+	user.lastStep = step
 	return nil
 }
 
@@ -115,26 +171,25 @@ func (r *MemoryRepository) ReplaceRecoveryCodes(
 	return nil
 }
 
-// FindRecoveryCode returns the id of an unused recovery code.
-func (r *MemoryRepository) FindRecoveryCode(
+// UnusedRecoveryCodes lists the stored hashes for one account.
+func (r *MemoryRepository) UnusedRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
-	hash string,
-) (int64, error) {
+) ([]RecoveryCode, error) {
 	if err := ctx.Err(); err != nil {
-		return 0, err
+		return nil, err
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	user, ok := r.users[userPublicID]
 	if !ok {
-		return 0, ErrNotFound
+		return nil, ErrNotFound
 	}
-	id, ok := user.codes[hash]
-	if !ok {
-		return 0, ErrNotFound
+	codes := make([]RecoveryCode, 0, len(user.codes))
+	for hash, id := range user.codes {
+		codes = append(codes, RecoveryCode{ID: id, Hash: hash})
 	}
-	return id, nil
+	return codes, nil
 }
 
 // MarkRecoveryCodeUsed consumes a recovery code.
@@ -153,4 +208,47 @@ func (r *MemoryRepository) MarkRecoveryCodeUsed(ctx context.Context, id int64) e
 		}
 	}
 	return ErrNotFound
+}
+
+// ReplaceRecoveryCodeHash upgrades one stored hash in place.
+func (r *MemoryRepository) ReplaceRecoveryCodeHash(
+	ctx context.Context,
+	id int64,
+	hash string,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, user := range r.users {
+		for oldHash, codeID := range user.codes {
+			if codeID == id {
+				delete(user.codes, oldHash)
+				user.codes[hash] = codeID
+				return nil
+			}
+		}
+	}
+	return ErrNotFound
+}
+
+// LegacySecrets lists accounts whose secret is still stored in plaintext.
+func (r *MemoryRepository) LegacySecrets(ctx context.Context, limit int) ([]LegacySecret, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	secrets := make([]LegacySecret, 0, len(r.users))
+	for publicID, user := range r.users {
+		if user.secret == "" || len(user.sealed) > 0 {
+			continue
+		}
+		secrets = append(secrets, LegacySecret{PublicID: publicID, Secret: user.secret})
+		if limit > 0 && len(secrets) >= limit {
+			break
+		}
+	}
+	return secrets, nil
 }

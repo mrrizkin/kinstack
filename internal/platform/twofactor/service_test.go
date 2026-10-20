@@ -66,9 +66,21 @@ func TestEnrollmentConfirmAndVerify(t *testing.T) {
 	}
 
 	ok, err := service.Verify(ctx, publicID, code)
-	if err != nil || !ok {
-		t.Fatalf("expected TOTP verification to succeed, ok=%v err=%v", ok, err)
+	if err != nil || ok {
+		t.Fatalf("expected a replayed TOTP code to be rejected, ok=%v err=%v", ok, err)
 	}
+
+	// The next time step issues a fresh code that still verifies.
+	service.now = func() time.Time { return testNow.Add(totp.Period * time.Second) }
+	next, err := totp.GenerateCode(enrollment.Secret, service.now())
+	if err != nil {
+		t.Fatalf("generate next code: %v", err)
+	}
+	ok, err = service.Verify(ctx, publicID, next)
+	if err != nil || !ok {
+		t.Fatalf("expected the next TOTP code to verify, ok=%v err=%v", ok, err)
+	}
+
 	ok, err = service.Verify(ctx, publicID, "123456")
 	if err != nil {
 		t.Fatalf("verify wrong code: %v", err)

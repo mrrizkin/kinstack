@@ -48,3 +48,32 @@ func TestProvisioningURI(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateStepReportsMatchedStep(t *testing.T) {
+	secret, err := GenerateSecret()
+	if err != nil {
+		t.Fatalf("generate secret: %v", err)
+	}
+	at := time.Unix(1_700_000_000, 0).UTC()
+	code, err := GenerateCode(secret, at)
+	if err != nil {
+		t.Fatalf("generate code: %v", err)
+	}
+
+	step, ok := ValidateStep(secret, code, at)
+	if !ok {
+		t.Fatal("expected the current code to validate")
+	}
+	if want := at.Unix() / Period; step != want {
+		t.Fatalf("expected step %d, got %d", want, step)
+	}
+
+	skewed, ok := ValidateStep(secret, code, at.Add(Period*time.Second))
+	if !ok || skewed != step {
+		t.Fatalf("expected the same step for one step of skew, step=%d ok=%v", skewed, ok)
+	}
+
+	if _, ok := ValidateStep(secret, "000000", at); ok && code != "000000" {
+		t.Fatal("expected a wrong code to be rejected")
+	}
+}

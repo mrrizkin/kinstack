@@ -122,8 +122,28 @@ expand → migrate → contract pattern.
 - `ACCESS_KEY`/`SECRET_KEY`: rotate periodically and after any suspected leak.
   Use at least 32 random characters.
 - `AUTH_STATE_SECRET`: rotate during a maintenance window.
+- `AUTH_2FA_KEY`: envelope key for TOTP secrets at rest. When unset the
+  application derives it from `SECRET_KEY`, so rotating `SECRET_KEY` also
+  invalidates stored TOTP secrets (users must re-enroll). Set a dedicated
+  32+ byte `AUTH_2FA_KEY` to rotate the two independently, and keep it with the
+  other production secrets.
+- After rotating the two-factor key, run `kinstack backfill-2fa` only if rows
+  still hold plaintext secrets; sealed rows cannot be re-encrypted by that
+  command and require re-enrollment.
 - SMTP, object storage, and database credentials: keep them in a secret manager.
 - After rotation, test login, email, and media.
+
+## Two-factor storage
+
+- TOTP secrets are sealed with AES-256-GCM under a key derived from
+  `AUTH_2FA_KEY` (or `SECRET_KEY` when unset) and never logged.
+- Rows created before the sealed format are migrated lazily on the next
+  successful verification. To migrate everything at once, run
+  `kinstack backfill-2fa` (idempotent, batched by 100).
+- Recovery codes are stored as Argon2id hashes; legacy SHA-256 hashes keep
+  working once and are upgraded on use.
+- A TOTP code is accepted once per timestep; replaying a code inside its
+  validity window is rejected.
 
 ## Capacity
 

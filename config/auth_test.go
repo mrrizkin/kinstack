@@ -100,3 +100,28 @@ func TestAuthConfigLoadReadsFlags(t *testing.T) {
 		t.Fatalf("loaded auth config should be valid: %v", err)
 	}
 }
+
+func TestAuthConfigTwoFactorKey(t *testing.T) {
+	cases := []struct {
+		name    string
+		key     string
+		wantErr bool
+	}{
+		{name: "empty falls back to app secret", key: ""},
+		{name: "strong key accepted", key: "K7p2Qz9mX4vL8sN3wR6tY1uB5cD0eF7h"},
+		{name: "short key rejected", key: "too-short", wantErr: true},
+		{name: "example key rejected", key: "change-me-in-production-please-32b", wantErr: true},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := AuthConfig{TwoFactorKey: testCase.key}
+			err := cfg.Validate()
+			if testCase.wantErr && err == nil {
+				t.Fatal("expected a validation error")
+			}
+			if !testCase.wantErr && err != nil {
+				t.Fatalf("expected a valid config, got %v", err)
+			}
+		})
+	}
+}

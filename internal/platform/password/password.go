@@ -12,11 +12,24 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-const (
-	argon2Memory      uint32 = 64 * 1024
-	argon2Iterations  uint32 = 3
-	argon2Parallelism uint8  = 2
-)
+// Cost holds the Argon2id work factors used to hash one secret.
+type Cost struct {
+	Memory      uint32
+	Iterations  uint32
+	Parallelism uint8
+}
+
+// DefaultCost is the work factor used for account passwords.
+var DefaultCost = Cost{Memory: 64 * 1024, Iterations: 3, Parallelism: 2}
+
+// OneTimeCost is a lighter work factor for short-lived one-time secrets such
+// as recovery codes, where verification may have to try several stored hashes
+// per attempt.
+var OneTimeCost = Cost{Memory: 32 * 1024, Iterations: 2, Parallelism: 1}
+
+func (c Cost) valid() bool {
+	return c.Memory > 0 && c.Iterations > 0 && c.Parallelism > 0
+}
 
 var ErrInvalidPasswordHash = errors.New("invalid argon2id password hash")
 
@@ -25,40 +38,49 @@ var dummyHash = func() string {
 	key := argon2.IDKey(
 		[]byte("kinstack-invalid-credential"),
 		salt,
-		argon2Iterations,
-		argon2Memory,
-		argon2Parallelism,
+		DefaultCost.Iterations,
+		DefaultCost.Memory,
+		DefaultCost.Parallelism,
 		32,
 	)
 	return fmt.Sprintf(
 		"$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
-		argon2Memory,
-		argon2Iterations,
-		argon2Parallelism,
+		DefaultCost.Memory,
+		DefaultCost.Iterations,
+		DefaultCost.Parallelism,
 		base64.RawStdEncoding.EncodeToString(salt),
 		base64.RawStdEncoding.EncodeToString(key),
 	)
 }()
 
-// Hash generates an Argon2id password hash.
+// Hash generates an Argon2id password hash with the default cost.
 func Hash(password string) (string, error) {
+	return HashWithCost(password, DefaultCost)
+}
+
+// HashWithCost generates an Argon2id hash with explicit work factors. The
+// encoded hash carries its own parameters, so Compare verifies any cost.
+func HashWithCost(secret string, cost Cost) (string, error) {
+	if !cost.valid() {
+		return "", errors.New("invalid argon2id cost")
+	}
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
 	}
 	key := argon2.IDKey(
-		[]byte(password),
+		[]byte(secret),
 		salt,
-		argon2Iterations,
-		argon2Memory,
-		argon2Parallelism,
+		cost.Iterations,
+		cost.Memory,
+		cost.Parallelism,
 		32,
 	)
 	return fmt.Sprintf(
 		"$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
-		argon2Memory,
-		argon2Iterations,
-		argon2Parallelism,
+		cost.Memory,
+		cost.Iterations,
+		cost.Parallelism,
 		base64.RawStdEncoding.EncodeToString(salt),
 		base64.RawStdEncoding.EncodeToString(key),
 	), nil

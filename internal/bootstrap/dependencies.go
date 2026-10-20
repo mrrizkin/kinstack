@@ -128,6 +128,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 	deps.TwoFactor = twofactor.New(twofactor.Dependency{
 		Repository: twoFactorRepository,
 		Issuer:     d.Config.App.Name,
+		Box:        twoFactorBox(d.Config),
 	})
 
 	// Generic OIDC stays disabled unless explicitly enabled; otherwise the auth
