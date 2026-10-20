@@ -1,0 +1,27 @@
+# Build output
+/build/
+/public/build/
+/public/hot
+/assets/emails/dist/
+
+# Dependencies
+node_modules/
+
+# Environment and local state
+.env
+.env.*
+!.env.example
+
+# Logs and local runtime state
+*.log
+*.db
+/tmp/
+/storage/
+
+# Tooling metadata
+.playwright-cli/
+.serena/
+*.tsbuildinfo
+auto-imports.d.ts
+components.d.ts
+.DS_Store

@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.x"
+      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go tool staticcheck ./...
+      - run: go test ./...
+
+      - run: ./scripts/check-feature-slices.sh
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun audit
+      # vite build generates auto-imports.d.ts + components.d.ts (gitignored)
+      # which vue-tsc needs before it can resolve auto-imported components.
+      - run: bun x vite build
+      - run: bun x vue-tsc --build
+      - run: bun test resources/js
+      - run: bun x oxlint resources
+      - run: bun x oxfmt --check resources/
+
+  smoke-csp:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: kinstack
+          POSTGRES_USER: kinstack
+          POSTGRES_PASSWORD: kinstack
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U kinstack -d kinstack"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      valkey:
+        image: valkey/valkey:9.1.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.x"
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun x vite build
+      - name: Migrate database
+        env:
+          DATABASE_URL: postgres://kinstack:kinstack@localhost:5433/kinstack?sslmode=disable
+        run: go run ./cmd/migrate up
+      - name: CSP smoke
+        env:
+          APP_ENV: development
+          APP_URL: http://localhost:3120
+          DATABASE_URL: postgres://kinstack:kinstack@localhost:5433/kinstack?sslmode=disable
+          VALKEY_HOST: localhost
+          VALKEY_PORT: 6379
+          VALKEY_PASSWORD: ""
+          MEDIA_ENABLED: "false"
+        run: ./scripts/smoke-csp.sh

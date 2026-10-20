@@ -1,0 +1,36 @@
+# Version control and local tooling
+.git
+.gitignore
+.vscode
+.idea
+.github
+.serena
+.playwright-cli
+
+# Documentation (not needed to build the image)
+docs
+*.md
+
+# Generated type declarations
+*.tsbuildinfo
+auto-imports.d.ts
+components.d.ts
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local build and runtime output
+build
+public/hot
+storage
+
+# Dependencies and generated frontend output
+node_modules
+public/build
+
+# Local logs and test artifacts
+*.log
+coverage
+.tmp

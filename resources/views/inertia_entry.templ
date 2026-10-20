@@ -1,0 +1,40 @@
+package views
+
+// InertiaEntry is the document shell rendered for every Inertia page.
+templ InertiaEntry(viteTags, inertiaHead, inertia, nonce string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta
+				name="description"
+				content="KinStack: internal operations management."
+				data-inertia="description"/>
+			<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+			<script nonce={ nonce }>
+				// Applies the persisted color mode before first paint to avoid a flash.
+				(function () {
+					try {
+						var stored = (localStorage.getItem("vueuse-color-scheme") || "auto").replace(/"/g, "");
+						var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+						if (stored === "dark" || (stored !== "light" && stored !== "dark" && prefersDark)) {
+							document.documentElement.classList.add("dark");
+							document.documentElement.dataset.theme = "dark";
+						} else {
+							document.documentElement.classList.remove("dark");
+							document.documentElement.dataset.theme = "light";
+						}
+					} catch (error) {
+						/* storage unavailable: stay on the light theme */
+					}
+				})();
+			</script>
+			@templ.Raw(viteTags)
+			@templ.Raw(inertiaHead)
+		</head>
+		<body>
+			<div id="app-shell">@templ.Raw(inertia)</div>
+		</body>
+	</html>
+}

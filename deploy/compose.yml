@@ -1,0 +1,259 @@
+services:
+  app:
+    image: ghcr.io/mrrizkin/kinstack:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Containerfile
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?VALKEY_PASSWORD must be set}
+      GOTENBERG_URL: ${GOTENBERG_URL:-http://gotenberg:3000}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@kinstack.local}
+      MEDIA_ENABLED: ${MEDIA_ENABLED:-false}
+      RUSTFS_ENDPOINT: http://rustfs:9000
+      RUSTFS_PUBLIC_URL: ${RUSTFS_PUBLIC_URL:-http://localhost:9000}
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?RUSTFS_ACCESS_KEY must be set}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?RUSTFS_SECRET_KEY must be set}
+      RUSTFS_BUCKET: ${RUSTFS_BUCKET:-kinstack}
+      RUSTFS_REGION: ${RUSTFS_REGION:-us-east-1}
+      RUSTFS_USE_SSL: "false"
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "/app/kinstack", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      gotenberg:
+        condition: service_started
+      mailpit:
+        condition: service_started
+      rustfs:
+        condition: service_started
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/mrrizkin/kinstack:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: Containerfile
+    env_file:
+      - ../.env
+    command: ["/app/migrate", "up"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    ports:
+      - "5433:5432"
+    volumes:
+      - kinstack-postgres:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?VALKEY_PASSWORD must be set}
+    command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD:?VALKEY_PASSWORD must be set}"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - kinstack-valkey:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli --no-auth-warning -a \"$$VALKEY_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Renders HTML documents as PDFs. Browser printing stays outside the server;
+  # only server-side documents go through Gotenberg.
+  gotenberg:
+    image: gotenberg/gotenberg:8.38.1
+    command:
+      - "gotenberg"
+      - "--api-timeout=30s"
+      - "--chromium-auto-start=true"
+      - "--libreoffice-auto-start=false"
+    ports:
+      - "3010:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--silent", "--show-error", "--fail", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Captures outbound email in development. SMTP on 1025, web UI on 8025.
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+  # S3-compatible object storage for the media slice. API on 9000, console on 9001.
+  rustfs:
+    image: rustfs/rustfs:1.0.3
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?RUSTFS_ACCESS_KEY must be set}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?RUSTFS_SECRET_KEY must be set}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_OBS_LOGGER_LEVEL: error
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - kinstack-rustfs:/data
+    restart: unless-stopped
+
+  # --- Optional observability stack ----------------------------------------
+  # Started by `just infra-up`. These services are local developer tooling;
+  # the application integrations stay opt-in through env vars.
+
+  # Sentry-compatible error tracking. UI on http://localhost:8000.
+  glitchtip:
+    image: glitchtip/glitchtip:6.1
+    profiles: ["observability"]
+    environment:
+      DATABASE_URL: postgres://glitchtip:glitchtip@glitchtip-postgres:5432/glitchtip
+      VALKEY_URL: redis://:${VALKEY_PASSWORD:?VALKEY_PASSWORD must be set}@valkey:6379/2
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-local-glitchtip-secret-change-me}
+      EMAIL_URL: smtp://mailpit:1025
+      GLITCHTIP_DOMAIN: http://localhost:8000
+      DEFAULT_FROM_EMAIL: no-reply@kinstack.local
+      ENABLE_ADMIN: "False"
+      ENABLE_OPENAPI: "False"
+      SERVER_ROLE: all_in_one
+    ports:
+      - "8000:8000"
+    volumes:
+      - kinstack-glitchtip-uploads:/code/uploads
+    depends_on:
+      glitchtip-postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  glitchtip-postgres:
+    image: postgres:18.6-alpine
+    profiles: ["observability"]
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: glitchtip
+    volumes:
+      - kinstack-glitchtip-postgres:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Privacy-friendly analytics. UI on http://localhost:3003.
+  umami:
+    image: ghcr.io/umami-software/umami:3.4.0
+    profiles: ["observability"]
+    init: true
+    environment:
+      DATABASE_URL: postgresql://umami:umami@umami-postgres:5432/umami
+      DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_APP_SECRET:-local-umami-secret-change-me}
+      TWO_FACTOR_ENCRYPTION_KEY: ${UMAMI_TWO_FACTOR_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+    ports:
+      - "3003:3000"
+    depends_on:
+      umami-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/heartbeat || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  umami-postgres:
+    image: postgres:18.6-alpine
+    profiles: ["observability"]
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: umami
+    volumes:
+      - kinstack-umami-postgres:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Logs, metrics, and traces via OTLP/HTTP. UI on http://localhost:5080.
+  openobserve:
+    image: openobserve/openobserve:v1.1.2
+    profiles: ["observability"]
+    environment:
+      ZO_ROOT_USER_EMAIL: ${OPENOBSERVE_ROOT_EMAIL:-root@kinstack.local}
+      ZO_ROOT_USER_PASSWORD: ${OPENOBSERVE_ROOT_PASSWORD:-KinStack!2026}
+      ZO_DATA_DIR: /data
+      ZO_TELEMETRY: "false"
+    ports:
+      - "5080:5080"
+    volumes:
+      - kinstack-openobserve:/data
+    restart: unless-stopped
+
+
+volumes:
+  kinstack-postgres:
+    name: kinstack-postgres
+  kinstack-valkey:
+    name: kinstack-valkey
+  kinstack-rustfs:
+    name: kinstack-rustfs
+  kinstack-glitchtip-postgres:
+    name: kinstack-glitchtip-postgres
+  kinstack-glitchtip-uploads:
+    name: kinstack-glitchtip-uploads
+  kinstack-umami-postgres:
+    name: kinstack-umami-postgres
+  kinstack-openobserve:
+    name: kinstack-openobserve

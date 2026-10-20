@@ -1,0 +1,39 @@
+# Air configuration for the KinStack Go application.
+root = "."
+tmp_dir = "./tmp"
+
+env_files = [".env"]
+
+[build]
+entrypoint = "./tmp/kinstack"
+cmd = "go tool templ generate && go build -trimpath -o ./tmp/kinstack ./cmd/kinstack"
+delay = 1000
+include_file = [".env"]
+include_dir = ["cmd/kinstack", "config", "internal", "resources/views"]
+include_ext = ["go", "templ"]
+exclude_dir = ["node_modules", "tmp", "public", "resources/js", "resources/css", ".git", "build"]
+exclude_file = []
+exclude_regex = ["_test\\.go$"]
+exclude_unchanged = false
+follow_symlink = false
+full_bin = ""
+log = "tmp/air-build-errors.log"
+send_interrupt = false
+stop_on_error = true
+
+[color]
+app = "blue"
+build = "yellow"
+main = "magenta"
+runner = "green"
+watcher = "cyan"
+
+[log]
+main_only = false
+time = true
+
+[misc]
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = true

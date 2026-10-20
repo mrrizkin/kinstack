@@ -1,0 +1,53 @@
+package notifications
+
+import (
+	"kinstack/internal/pkg/assert"
+	applog "kinstack/internal/pkg/log"
+	"kinstack/internal/platform/actor"
+
+	"codeberg.org/mrrizkin/fibertia"
+	"github.com/gofiber/fiber/v3"
+)
+
+// Dependency contains the boundaries used by the notifications feature.
+type Dependency struct {
+	Repository Repository
+	Actor      *actor.Actor
+	Logger     applog.Log
+	Inertia    *fibertia.Fibertia
+}
+
+// Feature owns the notification service and HTTP entry point.
+type Feature struct {
+	service *Service
+	handler *Handler
+}
+
+// New constructs the notifications feature from explicit dependencies.
+func New(d Dependency) *Feature {
+	assert.Assert(d.Repository != nil, "notification repository is required")
+	assert.Assert(d.Actor != nil, "notification actor is required")
+	assert.Assert(d.Logger != nil, "notification logger is required")
+	assert.Assert(d.Inertia != nil, "notification inertia adapter is required")
+
+	service := NewService(ServiceDependency{Repository: d.Repository})
+	handler := NewHandler(HandlerDependency{
+		Service: service,
+		Actor:   d.Actor,
+		Logger:  d.Logger,
+		Inertia: d.Inertia,
+	})
+	return &Feature{service: service, handler: handler}
+}
+
+// Mount registers notification routes on the guarded workspace.
+func (f *Feature) Mount(router fiber.Router) {
+	assert.Assert(f != nil && f.handler != nil, "notifications feature must be initialized")
+	f.handler.Mount(router)
+}
+
+// Service exposes the feature service so other slices can emit notifications.
+func (f *Feature) Service() *Service {
+	assert.Assert(f != nil && f.service != nil, "notifications feature must be initialized")
+	return f.service
+}
