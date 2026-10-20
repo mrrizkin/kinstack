@@ -193,6 +193,26 @@ func (r *MemoryRepository) UserOverrides(_ context.Context, publicID string) ([]
 	return overrides, nil
 }
 
+// UserOverridesMany returns overrides grouped by user in one pass.
+func (r *MemoryRepository) UserOverridesMany(
+	_ context.Context,
+	publicIDs []string,
+) (map[string][]Override, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	result := make(map[string][]Override, len(publicIDs))
+	for _, publicID := range publicIDs {
+		set := r.overrides[publicID]
+		overrides := make([]Override, 0, len(set))
+		for _, override := range set {
+			overrides = append(overrides, override)
+		}
+		sort.Slice(overrides, func(i, j int) bool { return overrides[i].Permission < overrides[j].Permission })
+		result[publicID] = overrides
+	}
+	return result, nil
+}
+
 // SetUserOverride upserts a user's override.
 func (r *MemoryRepository) SetUserOverride(_ context.Context, input SetOverrideInput) (Override, error) {
 	r.mu.Lock()

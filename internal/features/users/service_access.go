@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/authz"
 )
 
@@ -26,8 +27,11 @@ func (s *Service) RoleOptions(ctx context.Context) ([]RoleDTO, error) {
 }
 
 // AccessView builds the access management payload: roles with their permission
-// sets, the permission catalog, and users with their overrides.
-func (s *Service) AccessView(ctx context.Context) (AccessPageProps, error) {
+// sets, the permission catalog, and one page of users with their overrides.
+func (s *Service) AccessView(
+	ctx context.Context,
+	query pagination.Query,
+) (AccessPageProps, error) {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
 		return AccessPageProps{}, err
@@ -58,17 +62,25 @@ func (s *Service) AccessView(ctx context.Context) (AccessPageProps, error) {
 		})
 	}
 
-	users, err := s.repository.ListAllUsers(ctx)
+	users, err := s.repository.ListUsers(ctx, query)
+	if err != nil {
+		return AccessPageProps{}, err
+	}
+	counts, err := s.repository.CountUsers(ctx)
+	if err != nil {
+		return AccessPageProps{}, err
+	}
+	publicIDs := make([]string, 0, len(users))
+	for _, user := range users {
+		publicIDs = append(publicIDs, user.PublicID)
+	}
+	overridesByUser, err := authorization.UserOverridesMany(ctx, publicIDs)
 	if err != nil {
 		return AccessPageProps{}, err
 	}
 	userDTOs := make([]UserAccessDTO, 0, len(users))
 	now := time.Now()
 	for _, user := range users {
-		overrides, err := authorization.UserOverrides(ctx, user.PublicID)
-		if err != nil {
-			return AccessPageProps{}, err
-		}
 		userDTOs = append(userDTOs, UserAccessDTO{
 			PublicID:    user.PublicID,
 			Username:    user.Username,
@@ -76,7 +88,7 @@ func (s *Service) AccessView(ctx context.Context) (AccessPageProps, error) {
 			Role:        user.Role,
 			RoleName:    roleNames[user.Role],
 			IsActive:    user.IsActive,
-			Overrides:   overridesToDTO(overrides, now),
+			Overrides:   overridesToDTO(overridesByUser[user.PublicID], now),
 		})
 	}
 
@@ -85,6 +97,7 @@ func (s *Service) AccessView(ctx context.Context) (AccessPageProps, error) {
 		Permissions: permissionDTOs,
 		Categories:  authz.CategoryOrder(),
 		Users:       userDTOs,
+		Page:        pagination.NewPage(query, counts.Total),
 	}, nil
 }
 

@@ -35,3 +35,24 @@ func TestIndexRejectsInvalidPagination(t *testing.T) {
 		})
 	}
 }
+
+// The access page paginates its user table, so it must reject the same invalid
+// page requests before touching the service.
+func TestAccessRejectsInvalidPagination(t *testing.T) {
+	handler := &Handler{}
+	app := fiber.New()
+	app.Get("/access", handler.access)
+
+	for _, target := range []string{"/access?page=0", "/access?per_page=101", "/access?per_page=abc"} {
+		t.Run(target, func(t *testing.T) {
+			response, err := app.Test(httptest.NewRequest(http.MethodGet, target, nil))
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			defer response.Body.Close()
+			if response.StatusCode != fiber.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, want %d", response.StatusCode, fiber.StatusUnprocessableEntity)
+			}
+		})
+	}
+}

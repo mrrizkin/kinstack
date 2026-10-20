@@ -3,6 +3,7 @@ package media
 import (
 	"errors"
 	"io"
+	"strings"
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
@@ -66,24 +67,55 @@ func (h *Handler) file(c fiber.Ctx) error {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNotFound):
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": ErrNotFound.Error()})
 		case errors.Is(err, ErrInvalidInput):
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": ErrInvalidInput.Error()})
 		case errors.Is(err, ErrStorage):
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+			// The wrapped storage error carries bucket and object details; keep
+			// them in the log and return the shared, generic message.
+			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": ErrStorage.Error()})
 		default:
 			return h.internalServerError(c, "open media", err)
 		}
 	}
 	defer func() { _ = body.Close() }()
 
-	data, err := io.ReadAll(body)
+	data, err := io.ReadAll(io.LimitReader(body, asset.SizeBytes+1))
 	if err != nil {
 		return h.internalServerError(c, "read media", err)
 	}
+	if int64(len(data)) != asset.SizeBytes {
+		// The stored object no longer matches its recorded size. Serve what was
+		// read but leave a trail: a truncated download is a storage incident.
+		h.logger.Warnw(
+			"media object size mismatch",
+			"request_id", c.RequestID(),
+			"public_id", asset.PublicID,
+			"recorded_size", asset.SizeBytes,
+			"read_size", len(data),
+		)
+	}
 	c.Set(fiber.HeaderContentType, asset.ContentType)
-	c.Set(fiber.HeaderContentDisposition, "inline; filename=\""+asset.Filename+"\"")
+	// Filenames are user supplied; quote and strip control characters so they
+	// cannot break out of the Content-Disposition header.
+	c.Set(fiber.HeaderContentDisposition, "inline; filename=\""+headerSafeFilename(asset.Filename)+"\"")
 	return c.Send(data)
+}
+
+// headerSafeFilename keeps a stored filename printable inside a quoted header
+// parameter.
+func headerSafeFilename(filename string) string {
+	safe := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || r == '"' || r == '\\' {
+			return '_'
+		}
+		return r
+	}, filename)
+	if safe == "" {
+		return "download"
+	}
+	return safe
 }
 
 func (h *Handler) upload(c fiber.Ctx) error {
@@ -133,13 +165,14 @@ func (h *Handler) uploadValidationError(c fiber.Ctx, message string) error {
 func (h *Handler) delete(c fiber.Ctx) error {
 	if err := h.service.Delete(c.Context(), h.actorPublicID(c), c.Params("publicID")); err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": ErrNotFound.Error()})
 		}
 		if errors.Is(err, ErrInvalidInput) {
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": ErrInvalidInput.Error()})
 		}
 		if errors.Is(err, ErrStorage) {
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": ErrStorage.Error()})
 		}
 		return h.internalServerError(c, "delete media", err)
 	}

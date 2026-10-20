@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"kinstack/internal/pkg/assert"
 	platformdatabase "kinstack/internal/platform/database"
@@ -69,6 +70,12 @@ FROM user_permissions
 WHERE user_public_id = $1
 ORDER BY permission_code ASC`
 
+	userOverridesManyQuery = `
+SELECT user_public_id, permission_code, effect, reason, expires_at
+FROM user_permissions
+WHERE user_public_id = ANY($1)
+ORDER BY user_public_id ASC, permission_code ASC`
+
 	upsertUserOverrideQuery = `
 INSERT INTO user_permissions (user_public_id, permission_code, effect, reason, expires_at)
 VALUES ($1, $2, $3, $4, $5)
@@ -121,6 +128,7 @@ type SQLRepository struct {
 	rolePermissionsStmt  *sqlx.Stmt
 	replacePermsStmt     *sqlx.Stmt
 	overridesStmt        *sqlx.Stmt
+	overridesManyStmt    *sqlx.Stmt
 	upsertOverrideStmt   *sqlx.Stmt
 	deleteOverrideStmt   *sqlx.Stmt
 	assignRoleStmt       *sqlx.Stmt
@@ -155,6 +163,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.rolePermissionsStmt, "authz_role_permissions", rolePermissionsQuery},
 		{&repository.replacePermsStmt, "authz_replace_role_permissions", replaceRolePermissionsQuery},
 		{&repository.overridesStmt, "authz_user_overrides", userOverridesQuery},
+		{&repository.overridesManyStmt, "authz_user_overrides_many", userOverridesManyQuery},
 		{&repository.upsertOverrideStmt, "authz_upsert_user_override", upsertUserOverrideQuery},
 		{&repository.deleteOverrideStmt, "authz_delete_user_override", deleteUserOverrideQuery},
 		{&repository.assignRoleStmt, "authz_assign_user_role", assignUserRoleQuery},
@@ -287,6 +296,40 @@ func (r *SQLRepository) UserOverrides(ctx context.Context, publicID string) ([]O
 		return nil, fmt.Errorf("user overrides: %w", err)
 	}
 	return overrides, nil
+}
+
+// userOverrideRow is the flat projection used by the batched override query.
+type userOverrideRow struct {
+	UserPublicID string     `db:"user_public_id"`
+	Permission   Permission `db:"permission_code"`
+	Effect       Effect     `db:"effect"`
+	Reason       string     `db:"reason"`
+	ExpiresAt    *time.Time `db:"expires_at"`
+}
+
+// UserOverridesMany returns overrides for every requested user in one query.
+// Users without overrides are simply absent from the result map.
+func (r *SQLRepository) UserOverridesMany(
+	ctx context.Context,
+	publicIDs []string,
+) (map[string][]Override, error) {
+	result := make(map[string][]Override, len(publicIDs))
+	if len(publicIDs) == 0 {
+		return result, nil
+	}
+	rows := make([]userOverrideRow, 0)
+	if err := r.overridesManyStmt.SelectContext(ctx, &rows, pq.Array(publicIDs)); err != nil {
+		return nil, fmt.Errorf("user overrides batch: %w", err)
+	}
+	for _, row := range rows {
+		result[row.UserPublicID] = append(result[row.UserPublicID], Override{
+			Permission: row.Permission,
+			Effect:     row.Effect,
+			Reason:     row.Reason,
+			ExpiresAt:  row.ExpiresAt,
+		})
+	}
+	return result, nil
 }
 
 // SetUserOverride upserts a per-user permission override.

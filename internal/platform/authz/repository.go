@@ -85,6 +85,9 @@ type Repository interface {
 	CountRoleAssignments(context.Context, string) (int, error)
 
 	UserOverrides(context.Context, string) ([]Override, error)
+	// UserOverridesMany loads overrides for several users in one query so list
+	// views do not issue a query per row.
+	UserOverridesMany(context.Context, []string) (map[string][]Override, error)
 	SetUserOverride(context.Context, SetOverrideInput) (Override, error)
 	DeleteUserOverride(context.Context, string, Permission) error
 

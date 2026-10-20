@@ -28,7 +28,7 @@ func newSeededRepository() *MemoryRepository {
 	return repository
 }
 
-func newSeededAuthorization() *authz.Service {
+func newSeededAuthorizationRepository() *authz.MemoryRepository {
 	repository := authz.NewMemoryRepository()
 	repository.SeedRole(authz.Role{
 		Code:     testAdminRole,
@@ -45,7 +45,11 @@ func newSeededAuthorization() *authz.Service {
 	)
 	repository.SeedRolePermissions(testStaffRole, authz.PermissionUsersView)
 	repository.SeedUser("admin-1", testAdminRole)
-	return authz.New(authz.ServiceDependency{Repository: repository})
+	return repository
+}
+
+func newSeededAuthorization() *authz.Service {
+	return authz.New(authz.ServiceDependency{Repository: newSeededAuthorizationRepository()})
 }
 
 // testContext asserts the seeded administrator as the acting principal so
@@ -313,5 +317,67 @@ func TestAdminResetPasswordRevokesCredentials(t *testing.T) {
 	}
 	if len(revoker.revoked) != 1 || revoker.revoked[0] != "admin-1" {
 		t.Fatalf("expected credentials to be revoked, got %#v", revoker.revoked)
+	}
+}
+
+func TestAccessViewPaginatesUsersAndBatchesOverrides(t *testing.T) {
+	repository := newSeededRepository()
+	base := time.Now().UTC().Add(-time.Hour)
+	for index := 0; index < 4; index++ {
+		id := "staff-" + string(rune('a'+index))
+		repository.Seed(UserResult{
+			PublicID:    id,
+			Username:    "staff" + string(rune('a'+index)),
+			DisplayName: "Staf",
+			Role:        testStaffRole,
+			IsActive:    true,
+			CreatedAt:   base.Add(time.Duration(index) * time.Minute),
+		})
+	}
+	authorizationRepository := newSeededAuthorizationRepository()
+	authorizationRepository.SeedUser("staff-a", testStaffRole)
+	if _, err := authorizationRepository.SetUserOverride(context.Background(), authz.SetOverrideInput{
+		UserPublicID: "staff-a",
+		Permission:   authz.PermissionUsersView,
+		Effect:       authz.EffectAllow,
+		Reason:       "onboarding",
+	}); err != nil {
+		t.Fatalf("seed override: %v", err)
+	}
+	service := NewService(ServiceDependency{
+		Repository:    repository,
+		Authorization: authz.New(authz.ServiceDependency{Repository: authorizationRepository}),
+	})
+
+	props, err := service.AccessView(testContext(), pagination.Query{Page: 1, PerPage: 2})
+	if err != nil {
+		t.Fatalf("access view: %v", err)
+	}
+	if len(props.Users) != 2 {
+		t.Fatalf("expected 2 users on the page, got %d", len(props.Users))
+	}
+	if props.Page.Total != 5 || props.Page.TotalPages != 3 || props.Page.From != 1 || props.Page.To != 2 {
+		t.Fatalf("unexpected page: %+v", props.Page)
+	}
+	if len(props.Roles) != 2 || len(props.Permissions) == 0 {
+		t.Fatalf("access view must include roles and permissions: %d roles, %d permissions",
+			len(props.Roles), len(props.Permissions))
+	}
+
+	found := false
+	for _, user := range props.Users {
+		if user.PublicID != "staff-a" {
+			if len(user.Overrides) != 0 {
+				t.Fatalf("user %s must not carry another user's overrides", user.PublicID)
+			}
+			continue
+		}
+		found = true
+		if len(user.Overrides) != 1 || user.Overrides[0].Permission != string(authz.PermissionUsersView) {
+			t.Fatalf("expected the staff-a override, got %+v", user.Overrides)
+		}
+	}
+	if !found {
+		t.Fatal("expected staff-a on the first page")
 	}
 }

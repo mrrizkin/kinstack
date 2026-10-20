@@ -108,7 +108,13 @@ func (h *Handler) index(c fiber.Ctx) error {
 }
 
 func (h *Handler) access(c fiber.Ctx) error {
-	props, err := h.service.AccessView(c.Context())
+	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"))
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": i18n.T("common.invalid_payload"),
+		})
+	}
+	props, err := h.service.AccessView(c.Context(), query)
 	if err != nil {
 		h.logger.Errorw("access view", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
@@ -118,6 +124,7 @@ func (h *Handler) access(c fiber.Ctx) error {
 		"permissions": props.Permissions,
 		"categories":  props.Categories,
 		"users":       props.Users,
+		"page":        props.Page,
 	})
 }
 

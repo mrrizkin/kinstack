@@ -1,6 +1,11 @@
 package system
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"strings"
+
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
 
@@ -36,20 +41,79 @@ func (h *Handler) Mount(router fiber.Router) {
 	router.Post("/csp-report", h.cspReport)
 }
 
-const maxCSPReportBytes = 8 * 1024
+const (
+	// maxCSPReportBytes bounds how much of a browser report is read. Anything
+	// larger is discarded; the endpoint never buffers an unbounded body.
+	maxCSPReportBytes = 8 * 1024
+	// maxCSPLogValue bounds each structured field written to the log so a
+	// hostile document cannot flood or forge log lines.
+	maxCSPLogValue = 200
+)
 
+// cspReportPayload is the subset of the CSP report contract that is safe to
+// log. Unknown fields are ignored.
+type cspReportPayload struct {
+	Report struct {
+		Directive   string `json:"effective-directive"`
+		Violated    string `json:"violated-directive"`
+		Disposition string `json:"disposition"`
+		BlockedURI  string `json:"blocked-uri"`
+		DocumentURI string `json:"document-uri"`
+	} `json:"csp-report"`
+}
+
+// cspReport records a browser violation report. Browsers post these without
+// authentication, so the handler reads a bounded body, extracts a few fields,
+// and logs them as escaped structured values instead of the raw payload.
 func (h *Handler) cspReport(c fiber.Ctx) error {
-	body := c.Body()
-	if len(body) > maxCSPReportBytes {
+	reader := io.Reader(bytes.NewReader(c.Body()))
+	if stream := c.Request().BodyStream(); stream != nil {
+		reader = stream
+	}
+	body, err := io.ReadAll(io.LimitReader(reader, maxCSPReportBytes+1))
+	if err != nil {
+		body = nil
+	}
+	truncated := len(body) > maxCSPReportBytes
+	if truncated {
 		body = body[:maxCSPReportBytes]
 	}
+
+	payload := cspReportPayload{}
+	_ = json.Unmarshal(body, &payload)
+	directive := payload.Report.Directive
+	if directive == "" {
+		directive = payload.Report.Violated
+	}
+
 	h.logger.Warnw(
 		"csp violation report",
 		"request_id", c.RequestID(),
-		"content_type", c.Get(fiber.HeaderContentType),
-		"report", string(body),
+		"content_type", sanitizeCSPValue(c.Get(fiber.HeaderContentType)),
+		"report_bytes", len(body),
+		"report_truncated", truncated,
+		"directive", sanitizeCSPValue(directive),
+		"disposition", sanitizeCSPValue(payload.Report.Disposition),
+		"blocked_uri", sanitizeCSPValue(payload.Report.BlockedURI),
+		"document_uri", sanitizeCSPValue(payload.Report.DocumentURI),
 	)
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// sanitizeCSPValue removes control characters (including newlines) and caps the
+// length so attacker-controlled text cannot forge or bloat log entries.
+func sanitizeCSPValue(value string) string {
+	cleaned := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, value)
+	cleaned = strings.Join(strings.Fields(cleaned), " ")
+	if len(cleaned) > maxCSPLogValue {
+		cleaned = cleaned[:maxCSPLogValue]
+	}
+	return cleaned
 }
 
 func (h *Handler) notFound(c fiber.Ctx) error {

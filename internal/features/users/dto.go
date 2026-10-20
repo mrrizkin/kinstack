@@ -1,5 +1,7 @@
 package users
 
+import "kinstack/internal/pkg/pagination"
+
 // UserDTO is the public contract for one user account.
 type UserDTO struct {
 	PublicID    string `json:"public_id"`
@@ -98,6 +100,7 @@ type AccessPageProps struct {
 	Permissions []PermissionDTO `json:"permissions"`
 	Categories  []string        `json:"categories"`
 	Users       []UserAccessDTO `json:"users"`
+	Page        pagination.Page `json:"page"`
 }
 
 // CreateRoleRequest is the payload accepted when creating a role.

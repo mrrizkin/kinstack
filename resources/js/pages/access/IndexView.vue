@@ -4,6 +4,7 @@ import { computed } from "vue";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppPageHeader from "@/components/AppPageHeader.vue";
+import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { useTableView } from "@/lib/table-view";
@@ -23,6 +24,7 @@ const props = defineProps<{
   permissions: Permission[];
   categories: string[];
   users: UserAccess[];
+  page: PageInfo;
 }>();
 
 const {
@@ -143,6 +145,7 @@ const overrideOpen = computed({
             :menu-items="accessUserMenuItems"
             :assign-role="assignRole"
             :assigning-role-id="assigningRoleId" />
+          <AppPagination v-if="item.value === 'users'" :page="page" url="/access" />
         </template>
       </UTabs>
     </template>

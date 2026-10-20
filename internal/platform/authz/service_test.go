@@ -308,3 +308,41 @@ func TestMigrationSeedUsesKnownPermissions(t *testing.T) {
 		}
 	}
 }
+
+func TestUserOverridesManyGroupsByUser(t *testing.T) {
+	service, repository := newTestService(t)
+	if _, err := repository.SetUserOverride(context.Background(), SetOverrideInput{
+		UserPublicID: "staff-1",
+		Permission:   PermissionUsersManage,
+		Effect:       EffectAllow,
+		Reason:       "temporary cover",
+	}); err != nil {
+		t.Fatalf("seed override: %v", err)
+	}
+
+	grouped, err := service.UserOverridesMany(
+		context.Background(),
+		[]string{"staff-1", "administrator-1"},
+	)
+	if err != nil {
+		t.Fatalf("batch overrides: %v", err)
+	}
+	if got := grouped["staff-1"]; len(got) != 1 || got[0].Permission != PermissionUsersManage {
+		t.Fatalf("unexpected staff overrides: %+v", got)
+	}
+	empty, ok := grouped["administrator-1"]
+	if !ok {
+		t.Fatal("every requested user must be present in the result map")
+	}
+	if empty == nil || len(empty) != 0 {
+		t.Fatalf("expected an empty slice for a user without overrides, got %#v", empty)
+	}
+
+	none, err := service.UserOverridesMany(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("empty batch: %v", err)
+	}
+	if len(none) != 0 {
+		t.Fatalf("expected an empty result, got %#v", none)
+	}
+}

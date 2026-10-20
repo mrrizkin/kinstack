@@ -424,6 +424,30 @@ func (s *Service) UserOverrides(ctx context.Context, publicID string) ([]Overrid
 	return overrides, nil
 }
 
+// UserOverridesMany returns overrides for several users in one query. Users
+// without overrides map to an empty slice.
+func (s *Service) UserOverridesMany(
+	ctx context.Context,
+	publicIDs []string,
+) (map[string][]Override, error) {
+	grouped, err := s.repository.UserOverridesMany(ctx, publicIDs)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][]Override, len(publicIDs))
+	for _, publicID := range publicIDs {
+		overrides := grouped[publicID]
+		if overrides == nil {
+			overrides = []Override{}
+		}
+		sort.SliceStable(overrides, func(i, j int) bool {
+			return overrides[i].Permission < overrides[j].Permission
+		})
+		result[publicID] = overrides
+	}
+	return result, nil
+}
+
 // SetOverride validates and upserts a per-user permission override.
 func (s *Service) SetOverride(
 	ctx context.Context,
