@@ -131,7 +131,7 @@ func (p *Provider) Complete(request *http.Request, requestID string) (platformoa
 }
 
 func identityFromAssertion(assertion *saml.Assertion) platformoauth.Identity {
-	identity := platformoauth.Identity{}
+	identity := platformoauth.Identity{Provider: "saml"}
 	if assertion.Subject != nil && assertion.Subject.NameID != nil {
 		identity.Subject = strings.TrimSpace(assertion.Subject.NameID.Value)
 	}

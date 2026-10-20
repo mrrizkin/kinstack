@@ -90,6 +90,14 @@ mutations invalidate the affected users immediately on the serving replica;
 other replicas converge within the TTL, which is the accepted revocation
 window.
 
+### Single sign-on
+
+OAuth and SAML identities are bound to an account by `(provider, subject)`,
+stored in `user_identities`. The first sign-in links a subject to the account
+that owns the verified email; after that the binding is authoritative and the
+provider's email may change. The same subject can never be rebound to a second
+account, and the base never provisions accounts from an external provider.
+
 ## UI
 
 - Dashboard pages use the existing dashboard shell.

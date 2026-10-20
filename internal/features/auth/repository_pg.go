@@ -62,6 +62,31 @@ WHERE lower(u.email) = lower($1)
   AND u.deleted_at IS NULL
 LIMIT 1`
 
+	findIdentityQuery = `
+SELECT u.public_id, u.username, u.email, u.display_name, COALESCE(u.password_hash, '') AS password_hash,
+       COALESCE((
+           SELECT ur.role_code
+           FROM user_roles ur
+           JOIN roles r ON r.code = ur.role_code
+           WHERE ur.user_public_id = u.public_id
+           ORDER BY r.rank DESC, ur.role_code ASC
+           LIMIT 1
+       ), '') AS role,
+       u.is_active
+FROM user_identities i
+JOIN users u ON u.id = i.user_id
+WHERE i.provider = $1
+  AND i.subject = $2
+  AND u.deleted_at IS NULL
+LIMIT 1`
+
+	upsertIdentityQuery = `
+INSERT INTO user_identities (user_id, provider, subject, email)
+SELECT id, $2, $3, $4 FROM users WHERE public_id = $1 AND deleted_at IS NULL
+ON CONFLICT (provider, subject)
+DO UPDATE SET email = EXCLUDED.email, updated_at = now()
+WHERE user_identities.user_id = EXCLUDED.user_id`
+
 	touchLastLoginQuery = `
 UPDATE users
 SET last_login_at = now()
@@ -104,16 +129,18 @@ WHERE public_id = $1
 // SQLRepository is the PostgreSQL credential repository. Prepared statements
 // are owned for the repository lifetime.
 type SQLRepository struct {
-	owner            *platformdatabase.StatementOwner
-	findStmt         *sqlx.Stmt
-	findIDStmt       *sqlx.Stmt
-	findEmailStmt    *sqlx.Stmt
-	touchStmt        *sqlx.Stmt
-	createTokenStmt  *sqlx.Stmt
-	consumeTokenStmt *sqlx.Stmt
-	createResetStmt  *sqlx.Stmt
-	consumeResetStmt *sqlx.Stmt
-	updatePassStmt   *sqlx.Stmt
+	owner              *platformdatabase.StatementOwner
+	findStmt           *sqlx.Stmt
+	findIDStmt         *sqlx.Stmt
+	findEmailStmt      *sqlx.Stmt
+	findIdentityStmt   *sqlx.Stmt
+	upsertIdentityStmt *sqlx.Stmt
+	touchStmt          *sqlx.Stmt
+	createTokenStmt    *sqlx.Stmt
+	consumeTokenStmt   *sqlx.Stmt
+	createResetStmt    *sqlx.Stmt
+	consumeResetStmt   *sqlx.Stmt
+	updatePassStmt     *sqlx.Stmt
 }
 
 var _ Repository = (*SQLRepository)(nil)
@@ -137,6 +164,8 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.findStmt, "auth_find_user_by_username", findUserByUsernameQuery},
 		{&repository.findIDStmt, "auth_find_user_by_public_id", findUserByPublicIDQuery},
 		{&repository.findEmailStmt, "auth_find_user_by_email", findUserByEmailQuery},
+		{&repository.findIdentityStmt, "auth_find_identity_user", findIdentityQuery},
+		{&repository.upsertIdentityStmt, "auth_upsert_identity", upsertIdentityQuery},
 		{&repository.touchStmt, "auth_touch_last_login", touchLastLoginQuery},
 		{&repository.createTokenStmt, "auth_create_magic_link_token", createMagicLinkTokenQuery},
 		{&repository.consumeTokenStmt, "auth_consume_magic_link_token", consumeMagicLinkTokenQuery},
@@ -208,6 +237,46 @@ func (r *SQLRepository) FindUserByEmail(
 		return FindUserByUsernameResult{}, fmt.Errorf("find user by email: %w", err)
 	}
 	return result, nil
+}
+
+// FindIdentityUser resolves an account by its external provider subject.
+func (r *SQLRepository) FindIdentityUser(
+	ctx context.Context,
+	provider string,
+	subject string,
+) (FindUserByUsernameResult, error) {
+	var result FindUserByUsernameResult
+	err := r.findIdentityStmt.GetContext(ctx, &result, provider, subject)
+	if errors.Is(err, sql.ErrNoRows) {
+		return FindUserByUsernameResult{}, ErrNotFound
+	}
+	if err != nil {
+		return FindUserByUsernameResult{}, fmt.Errorf("find identity user: %w", err)
+	}
+	return result, nil
+}
+
+// UpsertIdentity binds an external subject to a local account. The unique key
+// is (provider, subject), so the same subject always resolves to one account.
+func (r *SQLRepository) UpsertIdentity(
+	ctx context.Context,
+	userPublicID string,
+	provider string,
+	subject string,
+	email string,
+) error {
+	result, err := r.upsertIdentityStmt.ExecContext(ctx, userPublicID, provider, subject, email)
+	if err != nil {
+		return fmt.Errorf("upsert identity: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("upsert identity rows: %w", err)
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // CreateMagicLinkToken stores one single-use passwordless sign-in token.

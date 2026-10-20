@@ -36,6 +36,12 @@ type Repository interface {
 	FindUserByPublicID(context.Context, string) (FindUserByUsernameResult, error)
 	FindUserByEmail(context.Context, string) (FindUserByUsernameResult, error)
 	TouchLastLogin(context.Context, string) error
+	// FindIdentityUser resolves the account bound to an external provider
+	// subject. Bindings are created on first successful sign-in.
+	FindIdentityUser(context.Context, string, string) (FindUserByUsernameResult, error)
+	// UpsertIdentity records (or refreshes) the binding between an external
+	// provider subject and a local account.
+	UpsertIdentity(context.Context, string, string, string, string) error
 	CreateMagicLinkToken(context.Context, MagicLinkToken) error
 	ConsumeMagicLinkToken(context.Context, string) (string, error)
 	CreatePasswordResetToken(context.Context, PasswordResetToken) error

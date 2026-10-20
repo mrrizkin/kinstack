@@ -55,6 +55,7 @@ func (p *fakeSSOProvider) Complete(
 	store.Delete(request.State)
 	p.completed = request
 	return platformoauth.Identity{
+		Provider:      "fake",
 		Subject:       "subject-1",
 		Email:         "admin@example.com",
 		EmailVerified: true,

@@ -100,6 +100,7 @@ func (g *GothProvider) Complete(
 	}
 	email := strings.TrimSpace(user.Email)
 	return Identity{
+		Provider:      g.Provider.Name(),
 		Subject:       strings.TrimSpace(user.UserID),
 		Email:         email,
 		EmailVerified: email != "",

@@ -34,6 +34,9 @@ var (
 
 // Identity is the verified external subject returned by a provider.
 type Identity struct {
+	// Provider names the identity source (for example "google" or "saml"). It is
+	// part of the local identity binding together with Subject.
+	Provider      string
 	Subject       string
 	Email         string
 	EmailVerified bool

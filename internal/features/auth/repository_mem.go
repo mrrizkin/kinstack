@@ -16,7 +16,13 @@ type MemoryRepository struct {
 	users       map[string]FindUserByUsernameResult
 	tokens      map[string]memoryMagicToken
 	resetTokens map[string]memoryMagicToken
+	identities  map[string]memoryIdentity
 	touch       []string
+}
+
+type memoryIdentity struct {
+	userPublicID string
+	email        string
 }
 
 type memoryMagicToken struct {
@@ -33,6 +39,7 @@ func NewMemoryRepository() *MemoryRepository {
 		users:       make(map[string]FindUserByUsernameResult),
 		tokens:      make(map[string]memoryMagicToken),
 		resetTokens: make(map[string]memoryMagicToken),
+		identities:  make(map[string]memoryIdentity),
 	}
 }
 
@@ -49,6 +56,44 @@ func (r *MemoryRepository) Touched() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return append([]string(nil), r.touch...)
+}
+
+// FindIdentityUser resolves the account bound to a provider subject.
+func (r *MemoryRepository) FindIdentityUser(
+	_ context.Context,
+	provider string,
+	subject string,
+) (FindUserByUsernameResult, error) {
+	r.mu.RLock()
+	identity, ok := r.identities[identityKey(provider, subject)]
+	r.mu.RUnlock()
+	if !ok {
+		return FindUserByUsernameResult{}, ErrNotFound
+	}
+	return r.FindUserByPublicID(context.Background(), identity.userPublicID)
+}
+
+// UpsertIdentity binds a provider subject to an account.
+func (r *MemoryRepository) UpsertIdentity(
+	_ context.Context,
+	userPublicID string,
+	provider string,
+	subject string,
+	email string,
+) error {
+	key := identityKey(provider, subject)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	owner, exists := r.identities[key]
+	if exists && owner.userPublicID != userPublicID {
+		return ErrIdentityConflict
+	}
+	r.identities[key] = memoryIdentity{userPublicID: userPublicID, email: email}
+	return nil
+}
+
+func identityKey(provider, subject string) string {
+	return strings.ToLower(strings.TrimSpace(provider)) + "\x00" + strings.TrimSpace(subject)
 }
 
 func (r *MemoryRepository) FindUserByUsername(
