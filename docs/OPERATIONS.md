@@ -68,6 +68,12 @@ sign in again. This is accepted behavior.
 
 ## Deployment
 
+Images derive the Inertia asset version from the `VERSION` build arg, which
+compose fills from `IMAGE_TAG`. Leave both empty only for local experiments:
+the build then falls back to a timestamp so browsers still reload after a
+rebuild.
+
+
 1. Run `just verify` on the release commit.
 2. Build the image.
 3. Run migrations before or alongside the release.

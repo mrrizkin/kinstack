@@ -5,7 +5,7 @@ services:
       context: ..
       dockerfile: Containerfile
       args:
-        VERSION: ${IMAGE_TAG:-dev}
+        VERSION: ${IMAGE_TAG:-}
     env_file:
       - ../.env
     environment:
@@ -58,7 +58,7 @@ services:
       context: ..
       dockerfile: Containerfile
       args:
-        VERSION: ${IMAGE_TAG:-dev}
+        VERSION: ${IMAGE_TAG:-}
     env_file:
       - ../.env
     command: ["/app/migrate", "up"]
