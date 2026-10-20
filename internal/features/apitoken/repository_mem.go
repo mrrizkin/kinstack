@@ -84,6 +84,23 @@ func (r *MemoryRepository) Revoke(_ context.Context, userPublicID, publicID stri
 	return nil
 }
 
+// RevokeAll revokes every active token of one user.
+func (r *MemoryRepository) RevokeAll(_ context.Context, userPublicID string) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := r.now()
+	revoked := 0
+	for publicID, result := range r.tokens {
+		if result.UserPublicID != userPublicID || result.RevokedAt != nil {
+			continue
+		}
+		result.RevokedAt = &now
+		r.tokens[publicID] = result
+		revoked++
+	}
+	return revoked, nil
+}
+
 // TouchLastUsed records the last successful use of a token.
 func (r *MemoryRepository) TouchLastUsed(_ context.Context, publicID string) error {
 	r.mu.Lock()

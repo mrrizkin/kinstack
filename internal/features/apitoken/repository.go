@@ -38,5 +38,6 @@ type Repository interface {
 	ListByUser(context.Context, string) ([]TokenResult, error)
 	FindByPublicID(context.Context, string) (TokenResult, error)
 	Revoke(context.Context, string, string) error
+	RevokeAll(context.Context, string) (int, error)
 	TouchLastUsed(context.Context, string) error
 }

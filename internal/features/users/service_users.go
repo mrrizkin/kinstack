@@ -292,6 +292,11 @@ func (s *Service) ResetPassword(ctx context.Context, publicID, rawPassword strin
 	if len(rawPassword) < minPasswordLength {
 		return ErrInvalidInput
 	}
+	if s.revoker != nil {
+		if err := s.revoker.RevokeAll(ctx, publicID); err != nil {
+			return err
+		}
+	}
 	hash, err := platformpassword.Hash(rawPassword)
 	if err != nil {
 		return err

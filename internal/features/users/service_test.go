@@ -282,3 +282,27 @@ func TestListPaginatesAndCounts(t *testing.T) {
 		t.Fatalf("unexpected counts: %+v", counts)
 	}
 }
+
+type recordingRevoker struct {
+	revoked []string
+}
+
+func (r *recordingRevoker) RevokeAll(_ context.Context, userPublicID string) error {
+	r.revoked = append(r.revoked, userPublicID)
+	return nil
+}
+
+func TestAdminResetPasswordRevokesCredentials(t *testing.T) {
+	revoker := &recordingRevoker{}
+	service := NewService(ServiceDependency{
+		Repository:    newSeededRepository(),
+		Authorization: newSeededAuthorization(),
+		Revoker:       revoker,
+	})
+	if err := service.ResetPassword(context.Background(), "admin-1", "password-baru-1"); err != nil {
+		t.Fatalf("reset password: %v", err)
+	}
+	if len(revoker.revoked) != 1 || revoker.revoked[0] != "admin-1" {
+		t.Fatalf("expected credentials to be revoked, got %#v", revoker.revoked)
+	}
+}

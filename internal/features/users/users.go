@@ -17,6 +17,7 @@ type Dependency struct {
 	Repository    Repository
 	Authorization *authz.Service
 	Inviter       Inviter
+	Revoker       CredentialRevoker
 	Actor         *actor.Actor
 	Logger        applog.Log
 	Inertia       *fibertia.Fibertia
@@ -39,6 +40,7 @@ func New(d Dependency) *Feature {
 		Repository:    d.Repository,
 		Authorization: d.Authorization,
 		Inviter:       d.Inviter,
+		Revoker:       d.Revoker,
 	})
 	handler := NewHandler(HandlerDependency{
 		Service: service,

@@ -26,4 +26,5 @@ type Repository interface {
 	Revoke(context.Context, string) error
 	RevokeBySessionID(context.Context, string) error
 	RevokeAllExcept(context.Context, string, string) ([]string, error)
+	RevokeAll(context.Context, string) ([]string, error)
 }

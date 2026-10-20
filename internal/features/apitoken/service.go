@@ -137,6 +137,17 @@ func (s *Service) Revoke(ctx context.Context, userPublicID, tokenPublicID string
 	return s.repository.Revoke(ctx, strings.TrimSpace(userPublicID), strings.TrimSpace(tokenPublicID))
 }
 
+// RevokeAll revokes every personal API token of one user. Used after a
+// password reset so a leaked token cannot keep acting on the account.
+func (s *Service) RevokeAll(ctx context.Context, userPublicID string) error {
+	userPublicID = strings.TrimSpace(userPublicID)
+	if userPublicID == "" {
+		return nil
+	}
+	_, err := s.repository.RevokeAll(ctx, userPublicID)
+	return err
+}
+
 // Authenticate resolves a raw bearer token to its owning user public ID and
 // scope allowlist. The token must exist, be unrevoked, unexpired, and match its
 // stored hash. An empty scope list means the token grants nothing.

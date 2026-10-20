@@ -149,6 +149,26 @@ func (r *MemoryRepository) RevokeBySessionID(ctx context.Context, sessionID stri
 	return nil
 }
 
+// RevokeAll revokes every active session of one user.
+func (r *MemoryRepository) RevokeAll(ctx context.Context, userPublicID string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := time.Now().UTC()
+	sessionIDs := make([]string, 0)
+	for publicID, record := range r.records {
+		if record.UserPublicID != userPublicID || record.RevokedAt != nil {
+			continue
+		}
+		record.RevokedAt = &now
+		r.records[publicID] = record
+		sessionIDs = append(sessionIDs, record.SessionID)
+	}
+	return sessionIDs, nil
+}
+
 // RevokeAllExcept revokes every session except the kept transport ID.
 func (r *MemoryRepository) RevokeAllExcept(
 	ctx context.Context,

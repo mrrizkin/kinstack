@@ -148,3 +148,34 @@ func TestAuthenticateRejectsExpiredToken(t *testing.T) {
 		t.Fatalf("expected invalid token, got %v", err)
 	}
 }
+
+func TestRevokeAllRevokesEveryToken(t *testing.T) {
+	service, repository := newTestService()
+	ctx := context.Background()
+	first, err := service.Create(ctx, "user-1", "first", 0, nil)
+	if err != nil {
+		t.Fatalf("create first token: %v", err)
+	}
+	second, err := service.Create(ctx, "user-1", "second", 0, nil)
+	if err != nil {
+		t.Fatalf("create second token: %v", err)
+	}
+	other, err := service.Create(ctx, "user-2", "other", 0, nil)
+	if err != nil {
+		t.Fatalf("create other token: %v", err)
+	}
+	if err := service.RevokeAll(ctx, "user-1"); err != nil {
+		t.Fatalf("revoke all: %v", err)
+	}
+	for _, token := range []string{first.Token, second.Token} {
+		if _, _, err := service.Authenticate(ctx, token); !errors.Is(err, ErrInvalidToken) {
+			t.Fatalf("expected revoked token to fail, got %v", err)
+		}
+	}
+	if _, _, err := service.Authenticate(ctx, other.Token); err != nil {
+		t.Fatalf("another user's token must survive: %v", err)
+	}
+	if repository == nil {
+		t.Fatal("expected a repository")
+	}
+}

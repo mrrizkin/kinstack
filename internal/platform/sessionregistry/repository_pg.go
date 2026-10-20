@@ -82,6 +82,15 @@ WHERE user_id = (
   AND session_id <> $2
   AND revoked_at IS NULL
 RETURNING session_id`
+
+	revokeAllSessionsQuery = `
+UPDATE user_sessions
+SET revoked_at = now()
+WHERE user_id = (
+    SELECT id FROM users WHERE public_id = $1 AND deleted_at IS NULL
+  )
+  AND revoked_at IS NULL
+RETURNING session_id`
 )
 
 // SQLRepository is the PostgreSQL session registry.
@@ -94,6 +103,7 @@ type SQLRepository struct {
 	revoke     *sqlx.Stmt
 	revokeByID *sqlx.Stmt
 	revokeRest *sqlx.Stmt
+	revokeAll  *sqlx.Stmt
 }
 
 var _ Repository = (*SQLRepository)(nil)
@@ -121,6 +131,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.revoke, "session_registry_revoke", revokeSessionQuery},
 		{&repository.revokeByID, "session_registry_revoke_by_id", revokeSessionBySessionIDQuery},
 		{&repository.revokeRest, "session_registry_revoke_rest", revokeOtherSessionsQuery},
+		{&repository.revokeAll, "session_registry_revoke_all", revokeAllSessionsQuery},
 	}
 	for _, statement := range statements {
 		stmt, err := owner.Prepare(statement.name, statement.query)
@@ -215,6 +226,16 @@ func (r *SQLRepository) RevokeBySessionID(ctx context.Context, sessionID string)
 		return fmt.Errorf("revoke session by id: %w", err)
 	}
 	return nil
+}
+
+// RevokeAll revokes every active session of one user and returns the transport
+// identifiers to destroy.
+func (r *SQLRepository) RevokeAll(ctx context.Context, userPublicID string) ([]string, error) {
+	sessionIDs := make([]string, 0)
+	if err := r.revokeAll.SelectContext(ctx, &sessionIDs, userPublicID); err != nil {
+		return nil, fmt.Errorf("revoke all sessions: %w", err)
+	}
+	return sessionIDs, nil
 }
 
 // RevokeAllExcept revokes every active session except the current one and

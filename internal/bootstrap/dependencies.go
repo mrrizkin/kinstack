@@ -109,6 +109,8 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		Inertia:    inertiaAdapter,
 	})
 
+	revoker := &credentialRevoker{log: d.Log}
+
 	sessionRegistryRepository := assert.OK(
 		sessionregistry.NewSQLRepository(sessionregistry.RepositoryDependency{DB: d.Database.DB}),
 	)
@@ -117,6 +119,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		Repository: sessionRegistryRepository,
 		Store:      d.SessionStore,
 	})
+	revoker.sessions = deps.SessionRegistry
 
 	twoFactorRepository := assert.OK(
 		twofactor.NewSQLRepository(twofactor.RepositoryDependency{DB: d.Database.DB}),
@@ -156,6 +159,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		LockoutWindow: d.Config.App.AuthLockoutWindow,
 		Sessions:      deps.SessionRegistry,
 		TwoFactor:     deps.TwoFactor,
+		Revoker:       revoker,
 
 		MagicLinkEnabled: d.Config.Auth.MagicLink.Enabled,
 		PasskeyEnabled:   d.Config.Auth.Passkey.Enabled,
@@ -172,6 +176,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		Repository:    usersRepository,
 		Authorization: deps.Authorization,
 		Inviter:       deps.Auth.Service(),
+		Revoker:       revoker,
 		Actor:         d.Actor,
 		Logger:        d.Log,
 		Inertia:       inertiaAdapter,
@@ -207,6 +212,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		Logger:     d.Log,
 	})
 
+	revoker.tokens = deps.APITokens.Service()
 	deps.BearerAuth = bearerAuthenticator(d.Config, deps.APITokens, deps.Auth)
 
 	return deps

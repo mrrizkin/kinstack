@@ -51,6 +51,12 @@ WHERE public_id = $1
   AND user_public_id = $2
   AND revoked_at IS NULL`
 
+	revokeAllTokensQuery = `
+UPDATE api_tokens
+SET revoked_at = now()
+WHERE user_public_id = $1
+  AND revoked_at IS NULL`
+
 	touchTokenQuery = `
 UPDATE api_tokens
 SET last_used_at = now()
@@ -60,12 +66,13 @@ WHERE public_id = $1
 
 // SQLRepository is the PostgreSQL API token repository.
 type SQLRepository struct {
-	owner  *platformdatabase.StatementOwner
-	create *sqlx.Stmt
-	list   *sqlx.Stmt
-	find   *sqlx.Stmt
-	revoke *sqlx.Stmt
-	touch  *sqlx.Stmt
+	owner     *platformdatabase.StatementOwner
+	create    *sqlx.Stmt
+	list      *sqlx.Stmt
+	find      *sqlx.Stmt
+	revoke    *sqlx.Stmt
+	revokeAll *sqlx.Stmt
+	touch     *sqlx.Stmt
 }
 
 var _ Repository = (*SQLRepository)(nil)
@@ -90,6 +97,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.list, "api_token_list", listTokensQuery},
 		{&repository.find, "api_token_find", findTokenQuery},
 		{&repository.revoke, "api_token_revoke", revokeTokenQuery},
+		{&repository.revokeAll, "api_token_revoke_all", revokeAllTokensQuery},
 		{&repository.touch, "api_token_touch", touchTokenQuery},
 	}
 	for _, statement := range statements {
@@ -167,6 +175,19 @@ func (r *SQLRepository) Revoke(ctx context.Context, userPublicID, publicID strin
 		return ErrNotFound
 	}
 	return nil
+}
+
+// RevokeAll revokes every active token of one user after a credential change.
+func (r *SQLRepository) RevokeAll(ctx context.Context, userPublicID string) (int, error) {
+	result, err := r.revokeAll.ExecContext(ctx, userPublicID)
+	if err != nil {
+		return 0, fmt.Errorf("revoke all api tokens: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("revoke all api token rows: %w", err)
+	}
+	return int(affected), nil
 }
 
 // TouchLastUsed records the last successful use of a token.

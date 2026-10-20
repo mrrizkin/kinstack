@@ -33,6 +33,7 @@ type Dependency struct {
 	LockoutWindow time.Duration
 	Sessions      *sessionregistry.Service
 	TwoFactor     *twofactor.Service
+	Revoker       CredentialRevoker
 
 	MagicLinkEnabled bool
 	PasskeyEnabled   bool
@@ -66,6 +67,7 @@ func New(d Dependency) *Feature {
 		EmailFrom:  d.EmailFrom,
 		BaseURL:    d.BaseURL,
 		Lockout:    NewLockout(d.Storage, d.LockoutMax, d.LockoutWindow),
+		Revoker:    d.Revoker,
 	})
 	handler := NewHandler(HandlerDependency{
 		Service:   service,

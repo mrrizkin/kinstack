@@ -156,3 +156,31 @@ func TestRevokeSessionMarksLogout(t *testing.T) {
 		t.Fatalf("expected no active sessions, got %#v", sessions)
 	}
 }
+
+func TestRevokeAllSignsOutEverySession(t *testing.T) {
+	service, _, store := newService(t)
+	ctx := context.Background()
+	for _, id := range []string{"session-a", "session-b"} {
+		if _, err := service.Register(ctx, RegisterInput{
+			UserPublicID: "user-1",
+			SessionID:    id,
+			IP:           "10.0.0.1",
+			UserAgent:    "Firefox",
+		}); err != nil {
+			t.Fatalf("register %s: %v", id, err)
+		}
+	}
+	if err := service.RevokeAll(ctx, "user-1"); err != nil {
+		t.Fatalf("revoke all: %v", err)
+	}
+	sessions, err := service.List(ctx, "user-1")
+	if err != nil {
+		t.Fatalf("list sessions: %v", err)
+	}
+	if len(sessions) != 0 {
+		t.Fatalf("expected no active sessions, got %d", len(sessions))
+	}
+	if len(store.deleted) != 2 {
+		t.Fatalf("expected both transport sessions destroyed, got %#v", store.deleted)
+	}
+}

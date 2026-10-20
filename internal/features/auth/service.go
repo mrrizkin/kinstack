@@ -22,6 +22,14 @@ type ServiceDependency struct {
 	EmailFrom  string
 	BaseURL    string
 	Lockout    *Lockout
+	Revoker    CredentialRevoker
+}
+
+// CredentialRevoker revokes every browser session and personal API token of a
+// user. It is invoked after a password reset so old credentials cannot outlive
+// the new password.
+type CredentialRevoker interface {
+	RevokeAll(ctx context.Context, userPublicID string) error
 }
 
 // Service owns the credential verification contract.
@@ -33,6 +41,7 @@ type Service struct {
 	emailFrom  string
 	baseURL    string
 	lockout    *Lockout
+	revoker    CredentialRevoker
 }
 
 // NewService constructs an auth service around its persistence contract.
@@ -47,6 +56,7 @@ func NewService(dependency ServiceDependency) *Service {
 		emailFrom:  strings.TrimSpace(dependency.EmailFrom),
 		baseURL:    strings.TrimRight(strings.TrimSpace(dependency.BaseURL), "/"),
 		lockout:    dependency.Lockout,
+		revoker:    dependency.Revoker,
 	}
 }
 

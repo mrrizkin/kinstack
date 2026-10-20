@@ -95,6 +95,15 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken string, newPasswor
 		return err
 	}
 
+	// Revoke before storing the new hash: a failure here leaves the old
+	// password valid but no live sessions, which is the safe side of the
+	// trade-off.
+	if s.revoker != nil {
+		if err := s.revoker.RevokeAll(ctx, publicID); err != nil {
+			return fmt.Errorf("revoke credentials: %w", err)
+		}
+	}
+
 	hash, err := platformpassword.Hash(newPassword)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)

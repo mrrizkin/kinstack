@@ -104,6 +104,23 @@ func (s *Service) RevokeOthers(ctx context.Context, userPublicID, keepSessionID 
 	return nil
 }
 
+// RevokeAll signs out every session of one user. It is used after a credential
+// change so a stolen session cannot outlive the password.
+func (s *Service) RevokeAll(ctx context.Context, userPublicID string) error {
+	userPublicID = strings.TrimSpace(userPublicID)
+	if userPublicID == "" {
+		return nil
+	}
+	sessionIDs, err := s.repository.RevokeAll(ctx, userPublicID)
+	if err != nil {
+		return err
+	}
+	for _, sessionID := range sessionIDs {
+		s.destroy(ctx, sessionID)
+	}
+	return nil
+}
+
 // RevokeSession marks one transport session as revoked. Used on logout, where
 // the session store is already destroyed by the actor boundary.
 func (s *Service) RevokeSession(ctx context.Context, sessionID string) error {

@@ -31,11 +31,18 @@ type Inviter interface {
 	SendInvitation(ctx context.Context, address string) error
 }
 
+// CredentialRevoker revokes the browser sessions and personal API tokens of a
+// user after an administrative password reset.
+type CredentialRevoker interface {
+	RevokeAll(ctx context.Context, userPublicID string) error
+}
+
 // ServiceDependency contains the persistence boundary used by the service.
 type ServiceDependency struct {
 	Repository    Repository
 	Authorization *authz.Service
 	Inviter       Inviter
+	Revoker       CredentialRevoker
 }
 
 // Service owns user account business rules.
@@ -43,6 +50,7 @@ type Service struct {
 	repository    Repository
 	authorization *authz.Service
 	inviter       Inviter
+	revoker       CredentialRevoker
 }
 
 // NewService constructs a users service around its persistence contract.
@@ -53,6 +61,7 @@ func NewService(dependency ServiceDependency) *Service {
 		repository:    dependency.Repository,
 		authorization: dependency.Authorization,
 		inviter:       dependency.Inviter,
+		revoker:       dependency.Revoker,
 	}
 }
 
