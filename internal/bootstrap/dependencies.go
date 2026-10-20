@@ -55,98 +55,183 @@ type appDependencies struct {
 
 func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *appDependencies {
 	deps := &appDependencies{Inertia: inertiaAdapter}
-
-	authRepository := assert.OK(auth.NewSQLRepository(auth.RepositoryDependency{DB: d.Database.DB}))
-	deps.track(authRepository)
-	usersRepository := assert.OK(users.NewSQLRepository(users.RepositoryDependency{DB: d.Database.DB}))
-	deps.track(usersRepository)
-	authzRepository := assert.OK(authz.NewSQLRepository(authz.RepositoryDependency{DB: d.Database.DB}))
-	deps.track(authzRepository)
-	profileRepository := assert.OK(profile.NewSQLRepository(profile.RepositoryDependency{DB: d.Database.DB}))
-	deps.track(profileRepository)
-	passkeyRepository := assert.OK(passkeys.NewSQLRepository(passkeys.RepositoryDependency{DB: d.Database.DB}))
-	deps.track(passkeyRepository)
-	apiTokenRepository := assert.OK(apitoken.NewSQLRepository(apitoken.RepositoryDependency{DB: d.Database.DB}))
-	deps.track(apiTokenRepository)
-	auditRepository := assert.OK(
-		auditfeature.NewSQLRepository(auditfeature.RepositoryDependency{DB: d.Database.DB}),
-	)
-	deps.track(auditRepository)
+	repositories := newAppRepositories(deps, d)
 
 	deps.Authorization = authz.New(authz.ServiceDependency{
-		Repository: authzRepository,
+		Repository: repositories.authz,
 		CacheTTL:   authz.DefaultCacheTTL,
 	})
 
-	if d.Config.RustFS.Enabled {
-		storage := objectstorage.New(objectstorage.Dependency{
-			Config: d.Config.RustFS,
-			Logger: d.Log,
-		})
-		assert.NoError(storage.EnsureBucket(context.Background()))
-		mediaRepository := assert.OK(
-			mediafeature.NewSQLRepository(mediafeature.RepositoryDependency{DB: d.Database.DB}),
-		)
-		deps.track(mediaRepository)
-		deps.Media = mediafeature.New(mediafeature.Dependency{
-			Repository: mediaRepository,
-			Storage:    storage,
-			Actor:      d.Actor,
-			Logger:     d.Log,
-			Inertia:    inertiaAdapter,
-		})
-	}
+	revoker := &credentialRevoker{log: d.Log}
+	deps.Media = newMediaFeature(d, deps, inertiaAdapter)
+	deps.Notifications = newNotificationsFeature(d, deps, inertiaAdapter)
+	deps.SessionRegistry = newSessionRegistry(deps, d)
+	revoker.sessions = deps.SessionRegistry
+	deps.TwoFactor = newTwoFactor(deps, d)
 
-	notificationsRepository := assert.OK(
-		notificationsfeature.NewSQLRepository(notificationsfeature.RepositoryDependency{DB: d.Database.DB}),
+	deps.Auth = newAuthFeature(d, authFeatureDependency{
+		repositories: repositories,
+		deps:         deps,
+		revoker:      revoker,
+		saml:         newSAMLProvider(d),
+	})
+	deps.Users = newUsersFeature(d, deps, repositories.users, revoker, inertiaAdapter)
+	deps.Profile = newProfileFeature(d, deps, repositories.profile, inertiaAdapter)
+	deps.System = system.New(system.Dependency{
+		Repository: system.NewStaticRepository(),
+		Logger:     d.Log,
+	})
+	deps.Audit = auditfeature.New(auditfeature.Dependency{
+		Repository: repositories.audit,
+		Logger:     d.Log,
+	})
+	deps.APITokens = apitoken.New(apitoken.Dependency{
+		Repository:    repositories.apiToken,
+		Actor:         d.Actor,
+		Authorization: deps.Authorization,
+		Logger:        d.Log,
+		Inertia:       inertiaAdapter,
+	})
+	deps.Passkeys = passkeys.New(passkeys.Dependency{
+		Repository: repositories.passkey,
+		AppURL:     d.Config.App.URL,
+		Auth:       deps.Auth,
+		Actor:      d.Actor,
+		Logger:     d.Log,
+	})
+
+	revoker.tokens = deps.APITokens.Service()
+	deps.BearerAuth = bearerAuthenticator(d.Config, deps.APITokens, deps.Auth)
+	return deps
+}
+
+// appRepositories groups the SQL repositories owned by the composition root.
+type appRepositories struct {
+	auth     *auth.SQLRepository
+	users    *users.SQLRepository
+	authz    *authz.SQLRepository
+	profile  *profile.SQLRepository
+	passkey  *passkeys.SQLRepository
+	apiToken *apitoken.SQLRepository
+	audit    *auditfeature.SQLRepository
+}
+
+func newAppRepositories(deps *appDependencies, d AppDependency) *appRepositories {
+	repositories := &appRepositories{}
+	repositories.auth = assert.OK(auth.NewSQLRepository(auth.RepositoryDependency{DB: d.Database.DB}))
+	deps.track(repositories.auth)
+	repositories.users = assert.OK(users.NewSQLRepository(users.RepositoryDependency{DB: d.Database.DB}))
+	deps.track(repositories.users)
+	repositories.authz = assert.OK(authz.NewSQLRepository(authz.RepositoryDependency{DB: d.Database.DB}))
+	deps.track(repositories.authz)
+	repositories.profile = assert.OK(
+		profile.NewSQLRepository(profile.RepositoryDependency{DB: d.Database.DB}),
 	)
-	deps.track(notificationsRepository)
-	deps.Notifications = notificationsfeature.New(notificationsfeature.Dependency{
-		Repository: notificationsRepository,
+	deps.track(repositories.profile)
+	repositories.passkey = assert.OK(
+		passkeys.NewSQLRepository(passkeys.RepositoryDependency{DB: d.Database.DB}),
+	)
+	deps.track(repositories.passkey)
+	repositories.apiToken = assert.OK(
+		apitoken.NewSQLRepository(apitoken.RepositoryDependency{DB: d.Database.DB}),
+	)
+	deps.track(repositories.apiToken)
+	repositories.audit = assert.OK(
+		auditfeature.NewSQLRepository(auditfeature.RepositoryDependency{DB: d.Database.DB}),
+	)
+	deps.track(repositories.audit)
+	return repositories
+}
+
+func newMediaFeature(
+	d AppDependency,
+	deps *appDependencies,
+	inertiaAdapter *fibertia.Fibertia,
+) *mediafeature.Feature {
+	if !d.Config.RustFS.Enabled {
+		return nil
+	}
+	storage := objectstorage.New(objectstorage.Dependency{Config: d.Config.RustFS, Logger: d.Log})
+	assert.NoError(storage.EnsureBucket(context.Background()))
+	repository := assert.OK(
+		mediafeature.NewSQLRepository(mediafeature.RepositoryDependency{DB: d.Database.DB}),
+	)
+	deps.track(repository)
+	return mediafeature.New(mediafeature.Dependency{
+		Repository: repository,
+		Storage:    storage,
 		Actor:      d.Actor,
 		Logger:     d.Log,
 		Inertia:    inertiaAdapter,
 	})
+}
 
-	revoker := &credentialRevoker{log: d.Log}
+func newNotificationsFeature(
+	d AppDependency,
+	deps *appDependencies,
+	inertiaAdapter *fibertia.Fibertia,
+) *notificationsfeature.Feature {
+	repository := assert.OK(
+		notificationsfeature.NewSQLRepository(notificationsfeature.RepositoryDependency{DB: d.Database.DB}),
+	)
+	deps.track(repository)
+	return notificationsfeature.New(notificationsfeature.Dependency{
+		Repository: repository,
+		Actor:      d.Actor,
+		Logger:     d.Log,
+		Inertia:    inertiaAdapter,
+	})
+}
 
-	sessionRegistryRepository := assert.OK(
+func newSessionRegistry(deps *appDependencies, d AppDependency) *sessionregistry.Service {
+	repository := assert.OK(
 		sessionregistry.NewSQLRepository(sessionregistry.RepositoryDependency{DB: d.Database.DB}),
 	)
-	deps.track(sessionRegistryRepository)
-	deps.SessionRegistry = sessionregistry.New(sessionregistry.Dependency{
-		Repository: sessionRegistryRepository,
+	deps.track(repository)
+	return sessionregistry.New(sessionregistry.Dependency{
+		Repository: repository,
 		Store:      d.SessionStore,
 	})
-	revoker.sessions = deps.SessionRegistry
+}
 
-	twoFactorRepository := assert.OK(
+func newTwoFactor(deps *appDependencies, d AppDependency) *twofactor.Service {
+	repository := assert.OK(
 		twofactor.NewSQLRepository(twofactor.RepositoryDependency{DB: d.Database.DB}),
 	)
-	deps.track(twoFactorRepository)
-	deps.TwoFactor = twofactor.New(twofactor.Dependency{
-		Repository: twoFactorRepository,
+	deps.track(repository)
+	return twofactor.New(twofactor.Dependency{
+		Repository: repository,
 		Issuer:     d.Config.App.Name,
 		Box:        twoFactorBox(d.Config),
 	})
+}
 
-	// Generic OIDC stays disabled unless explicitly enabled; otherwise the auth
-	// feature keeps its unavailable placeholder.
-	oauthRedirectURL := strings.TrimRight(d.Config.App.URL, "/") + "/login/oauth/callback"
-	samlACSURL := strings.TrimRight(d.Config.App.URL, "/") + "/login/saml/acs"
-	var samlProvider *platformsaml.Provider
-	if d.Config.Auth.SAML.Enabled {
-		samlProvider = assert.OK(platformsaml.New(context.Background(), platformsaml.Config{
-			EntityID:       d.Config.Auth.SAML.EntityID,
-			RootURL:        d.Config.App.URL,
-			IDPMetadataURL: d.Config.Auth.SAML.IDPMetadataURL,
-			Certificate:    d.Config.Auth.SAML.Certificate,
-			PrivateKey:     d.Config.Auth.SAML.PrivateKey,
-		}))
+// newSAMLProvider builds the SAML service provider when the feature is enabled.
+func newSAMLProvider(d AppDependency) *platformsaml.Provider {
+	if !d.Config.Auth.SAML.Enabled {
+		return nil
 	}
+	return assert.OK(platformsaml.New(context.Background(), platformsaml.Config{
+		EntityID:       d.Config.Auth.SAML.EntityID,
+		RootURL:        d.Config.App.URL,
+		IDPMetadataURL: d.Config.Auth.SAML.IDPMetadataURL,
+		Certificate:    d.Config.Auth.SAML.Certificate,
+		PrivateKey:     d.Config.Auth.SAML.PrivateKey,
+	}))
+}
 
-	deps.Auth = auth.New(auth.Dependency{
-		Repository:    authRepository,
+type authFeatureDependency struct {
+	repositories *appRepositories
+	deps         *appDependencies
+	revoker      *credentialRevoker
+	saml         *platformsaml.Provider
+}
+
+func newAuthFeature(d AppDependency, dependency authFeatureDependency) *auth.Feature {
+	deps := dependency.deps
+	oauthRedirectURL := strings.TrimRight(d.Config.App.URL, "/") + "/login/oauth/callback"
+	return auth.New(auth.Dependency{
+		Repository:    dependency.repositories.auth,
 		Actor:         d.Actor,
 		Logger:        d.Log,
 		AccessKey:     d.Config.App.AccessKey,
@@ -159,7 +244,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		LockoutWindow: d.Config.App.AuthLockoutWindow,
 		Sessions:      deps.SessionRegistry,
 		TwoFactor:     deps.TwoFactor,
-		Revoker:       revoker,
+		Revoker:       dependency.revoker,
 
 		MagicLinkEnabled: d.Config.Auth.MagicLink.Enabled,
 		PasskeyEnabled:   d.Config.Auth.Passkey.Enabled,
@@ -169,11 +254,20 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		OAuthStateSecret: d.Config.Auth.StateSecret,
 		OAuthRedirectURL: oauthRedirectURL,
 
-		SAMLProvider: samlProvider,
-		SAMLACSURL:   samlACSURL,
+		SAMLProvider: dependency.saml,
+		SAMLACSURL:   strings.TrimRight(d.Config.App.URL, "/") + "/login/saml/acs",
 	})
-	deps.Users = users.New(users.Dependency{
-		Repository:    usersRepository,
+}
+
+func newUsersFeature(
+	d AppDependency,
+	deps *appDependencies,
+	repository *users.SQLRepository,
+	revoker *credentialRevoker,
+	inertiaAdapter *fibertia.Fibertia,
+) *users.Feature {
+	return users.New(users.Dependency{
+		Repository:    repository,
 		Authorization: deps.Authorization,
 		Inviter:       deps.Auth.Service(),
 		Revoker:       revoker,
@@ -181,41 +275,22 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 		Logger:        d.Log,
 		Inertia:       inertiaAdapter,
 	})
-	deps.Profile = profile.New(profile.Dependency{
-		Repository: profileRepository,
+}
+
+func newProfileFeature(
+	d AppDependency,
+	deps *appDependencies,
+	repository *profile.SQLRepository,
+	inertiaAdapter *fibertia.Fibertia,
+) *profile.Feature {
+	return profile.New(profile.Dependency{
+		Repository: repository,
 		Actor:      d.Actor,
 		Logger:     d.Log,
 		Inertia:    inertiaAdapter,
 		Sessions:   deps.SessionRegistry,
 		TwoFactor:  deps.TwoFactor,
 	})
-	deps.System = system.New(system.Dependency{
-		Repository: system.NewStaticRepository(),
-		Logger:     d.Log,
-	})
-	deps.Audit = auditfeature.New(auditfeature.Dependency{
-		Repository: auditRepository,
-		Logger:     d.Log,
-	})
-	deps.APITokens = apitoken.New(apitoken.Dependency{
-		Repository:    apiTokenRepository,
-		Actor:         d.Actor,
-		Authorization: deps.Authorization,
-		Logger:        d.Log,
-		Inertia:       inertiaAdapter,
-	})
-	deps.Passkeys = passkeys.New(passkeys.Dependency{
-		Repository: passkeyRepository,
-		AppURL:     d.Config.App.URL,
-		Auth:       deps.Auth,
-		Actor:      d.Actor,
-		Logger:     d.Log,
-	})
-
-	revoker.tokens = deps.APITokens.Service()
-	deps.BearerAuth = bearerAuthenticator(d.Config, deps.APITokens, deps.Auth)
-
-	return deps
 }
 
 // bearerAuthenticator validates a bearer token and projects the resolved account
