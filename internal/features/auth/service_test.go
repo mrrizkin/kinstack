@@ -3,12 +3,15 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"kinstack/internal/platform/email"
 	platformpassword "kinstack/internal/platform/password"
+
+	"github.com/gofiber/storage/memory/v2"
 )
 
 const (
@@ -324,5 +327,76 @@ func TestResetPasswordRejectsShortPassword(t *testing.T) {
 		ErrInvalidInput,
 	) {
 		t.Fatalf("expected invalid input, got %v", err)
+	}
+}
+
+func newLockedOutService(t *testing.T, max int) *Service {
+	t.Helper()
+	repository := NewMemoryRepository()
+	seedUser(t, repository, "rahasia123")
+	return NewService(ServiceDependency{
+		Repository: repository,
+		AccessKey:  "superadmin",
+		SecretKey:  "secret-super-admin-panjang",
+		Lockout:    NewLockout(memory.New(), max, time.Minute),
+	})
+}
+
+func TestLoginLockoutIsScopedToTheClient(t *testing.T) {
+	service := newLockedOutService(t, 2)
+	ctx := context.Background()
+
+	for range 2 {
+		if _, err := service.LoginFrom(ctx, "admin", "salah", "10.0.0.1"); !errors.Is(err, ErrInvalidCredentials) {
+			t.Fatalf("expected invalid credentials, got %v", err)
+		}
+	}
+	if _, err := service.LoginFrom(ctx, "admin", "rahasia123", "10.0.0.1"); !errors.Is(err, ErrAccountLocked) {
+		t.Fatalf("expected the attacking client to be locked, got %v", err)
+	}
+	if _, err := service.LoginFrom(ctx, "admin", "rahasia123", "10.0.0.2"); err != nil {
+		t.Fatalf("another client must still sign in: %v", err)
+	}
+}
+
+func TestLoginBreakGlassIgnoresAccountWideLock(c *testing.T) {
+	service := newLockedOutService(c, 1)
+	ctx := context.Background()
+
+	// Trip the account-wide counter from many clients, then confirm the
+	// break-glass account is still reachable from a fresh client.
+	for i := range 10 {
+		if _, err := service.LoginFrom(ctx, "superadmin", "salah", fmt.Sprintf("10.1.0.%d", i)); !errors.Is(err, ErrInvalidCredentials) {
+			c.Fatalf("attempt %d: expected invalid credentials, got %v", i, err)
+		}
+	}
+	if _, err := service.LoginFrom(ctx, "superadmin", "secret-super-admin-panjang", "10.2.0.1"); err != nil {
+		c.Fatalf("break-glass must not be locked account-wide: %v", err)
+	}
+}
+
+func TestLoginInactiveAccountStillCountsAFailure(t *testing.T) {
+	repository := NewMemoryRepository()
+	seedUser(t, repository, "rahasia123")
+	repository.AddUser(FindUserByUsernameResult{
+		PublicID:     "usr_2",
+		Username:     "staf",
+		DisplayName:  "Staf",
+		PasswordHash: repository.users["admin"].PasswordHash,
+		Role:         testStaffRole,
+		IsActive:     false,
+	})
+	guard := NewLockout(memory.New(), 2, time.Minute)
+	service := NewService(ServiceDependency{Repository: repository, Lockout: guard})
+	ctx := context.Background()
+
+	if _, err := service.LoginFrom(ctx, "staf", "rahasia123", "10.0.0.9"); !errors.Is(err, ErrInactiveUser) {
+		t.Fatalf("expected inactive user, got %v", err)
+	}
+	if _, err := service.LoginFrom(ctx, "staf", "rahasia123", "10.0.0.9"); !errors.Is(err, ErrInactiveUser) {
+		t.Fatalf("expected inactive user, got %v", err)
+	}
+	if _, err := service.LoginFrom(ctx, "staf", "rahasia123", "10.0.0.9"); !errors.Is(err, ErrAccountLocked) {
+		t.Fatalf("expected the pair to lock, got %v", err)
 	}
 }

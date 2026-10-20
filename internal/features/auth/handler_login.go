@@ -22,7 +22,12 @@ func (h *Handler) login(c fiber.Ctx) error {
 		})
 	}
 
-	session, err := h.service.Login(c.Context(), request.Username, request.Password)
+	session, err := h.service.LoginFrom(
+		c.Context(),
+		request.Username,
+		request.Password,
+		c.IP(),
+	)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidInput):
@@ -37,8 +42,17 @@ func (h *Handler) login(c fiber.Ctx) error {
 			props["errors"] = fieldErrors
 			return c.Status(fiber.StatusUnprocessableEntity).Render("auth/LoginView", props)
 		case errors.Is(err, ErrInvalidCredentials), errors.Is(err, ErrInactiveUser):
+			// A disabled account must look exactly like a wrong password: the
+			// password was verified, so the only difference is account state.
+			if errors.Is(err, ErrInactiveUser) {
+				h.logger.Infow(
+					"sign-in rejected for inactive account",
+					"request_id", c.RequestID(),
+					"user", strings.TrimSpace(request.Username),
+				)
+			}
 			props := h.loginProps()
-			props["errors"] = fiber.Map{"auth": err.Error()}
+			props["errors"] = fiber.Map{"auth": i18n.T("auth.invalid_credentials")}
 			return c.Status(fiber.StatusUnprocessableEntity).Render("auth/LoginView", props)
 		case errors.Is(err, ErrAccountLocked):
 			props := h.loginProps()

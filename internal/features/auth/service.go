@@ -71,17 +71,37 @@ func (s *Service) Login(
 	username string,
 	rawPassword string,
 ) (SessionResponse, error) {
+	return s.LoginFrom(ctx, username, rawPassword, "")
+}
+
+// LoginFrom is Login with the calling client (usually the remote IP). Failures
+// are throttled per (account, client) pair, so one client cannot lock a known
+// account for everyone else.
+func (s *Service) LoginFrom(
+	ctx context.Context,
+	username string,
+	rawPassword string,
+	client string,
+) (SessionResponse, error) {
 	username = strings.TrimSpace(username)
+	client = strings.TrimSpace(client)
 	if username == "" || rawPassword == "" {
 		return SessionResponse{}, ErrInvalidInput
 	}
-	if s.lockout != nil && !s.lockout.Allowed(ctx, username) {
-		return SessionResponse{}, ErrAccountLocked
+	breakGlass := s.accessKey != "" && strings.EqualFold(username, s.accessKey)
+	if s.lockout != nil {
+		allowed := s.lockout.AllowedPair(ctx, username, client)
+		if allowed && !breakGlass {
+			allowed = !s.lockout.AccountLocked(ctx, username)
+		}
+		if !allowed {
+			return SessionResponse{}, ErrAccountLocked
+		}
 	}
 
 	if s.isSuperAdmin(username, rawPassword) {
 		if s.lockout != nil {
-			s.lockout.Success(ctx, username)
+			s.lockout.Success(ctx, username, client)
 		}
 		return s.superAdminSession(username), nil
 	}
@@ -92,7 +112,7 @@ func (s *Service) Login(
 		// username exists.
 		_ = platformpassword.Compare(platformpassword.DummyHash(), rawPassword)
 		if s.lockout != nil {
-			s.lockout.Failure(ctx, username)
+			s.lockout.Failure(ctx, username, client, true)
 		}
 		return SessionResponse{}, ErrInvalidCredentials
 	}
@@ -101,15 +121,18 @@ func (s *Service) Login(
 	}
 	if err := platformpassword.Compare(result.PasswordHash, rawPassword); err != nil {
 		if s.lockout != nil {
-			s.lockout.Failure(ctx, username)
+			s.lockout.Failure(ctx, username, client, true)
 		}
 		return SessionResponse{}, ErrInvalidCredentials
 	}
 	if !result.IsActive {
+		if s.lockout != nil {
+			s.lockout.Failure(ctx, username, client, true)
+		}
 		return SessionResponse{}, ErrInactiveUser
 	}
 	if s.lockout != nil {
-		s.lockout.Success(ctx, username)
+		s.lockout.Success(ctx, username, client)
 	}
 	if err := s.repository.TouchLastLogin(ctx, result.PublicID); err != nil {
 		return SessionResponse{}, err
