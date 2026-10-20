@@ -9,7 +9,7 @@ import (
 func TestDatabaseConfigValidateProductionTransport(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	cfg := DatabaseConfig{
-		URL: "postgres://app:secret@db/kinstack?sslmode=disable",
+		URL: "postgres://app:" + generatedSecret(t) + "@db/kinstack?sslmode=disable",
 	}
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "sslmode") {
 		t.Fatalf("expected sslmode validation error, got %v", err)

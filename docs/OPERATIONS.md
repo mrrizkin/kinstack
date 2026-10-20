@@ -113,6 +113,12 @@ expand → migrate → contract pattern.
 
 ## Secret rotation
 
+- Generate local secrets with `just setup-secrets` (idempotent; it only
+  replaces empty or example values and keeps `DATABASE_URL` in sync with
+  `POSTGRES_PASSWORD`).
+- The credential defaults in `.env.example` are development-only. Startup
+  validation rejects them when `APP_ENV=production`, so a copied example file
+  cannot go live with published credentials.
 - `ACCESS_KEY`/`SECRET_KEY`: rotate periodically and after any suspected leak.
   Use at least 32 random characters.
 - `AUTH_STATE_SECRET`: rotate during a maintenance window.

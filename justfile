@@ -1,5 +1,10 @@
 setup:
     bun install
+    ./scripts/setup-secrets.sh
+
+# Regenerate empty or example credentials in .env (never rotates real ones).
+setup-secrets:
+    ./scripts/setup-secrets.sh
 
 [parallel]
 dev: dev-app dev-assets
