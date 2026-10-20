@@ -201,10 +201,11 @@ var routePolicy = authz.RoutePolicy{
 
 func healthHandler(cfg config.Config) fiber.Handler {
 	return func(c fiber.Ctx) error {
+		// Liveness only: the environment name is operational detail and is not
+		// published on an unauthenticated endpoint.
 		return c.JSON(fiber.Map{
 			"status": "ok",
 			"app":    cfg.App.Name,
-			"env":    cfg.App.Env,
 		})
 	}
 }

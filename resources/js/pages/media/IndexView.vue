@@ -201,6 +201,7 @@ function isImage(contentType: string) {
                 <UButton
                   :to="asset.url"
                   target="_blank"
+                  rel="noopener noreferrer"
                   size="xs"
                   color="neutral"
                   variant="outline"

@@ -23,18 +23,6 @@ func TestNewNormalizesBounds(t *testing.T) {
 	}
 }
 
-func TestParseIgnoresInvalidValues(t *testing.T) {
-	if got := Parse("", ""); got != New(1, DefaultPerPage) {
-		t.Fatalf("empty parse = %#v", got)
-	}
-	if got := Parse("abc", "xyz"); got != New(1, DefaultPerPage) {
-		t.Fatalf("invalid parse = %#v", got)
-	}
-	if got := Parse("3", "10"); got != New(3, 10) {
-		t.Fatalf("valid parse = %#v", got)
-	}
-}
-
 func TestQueryOffsetAndLimit(t *testing.T) {
 	query := New(3, 25)
 	if query.Offset() != 50 || query.Limit() != 25 {

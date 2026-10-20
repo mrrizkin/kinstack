@@ -4,10 +4,7 @@
 // "menampilkan X–Y dari Z".
 package pagination
 
-import (
-	"strconv"
-	"strings"
-)
+import ()
 
 const (
 	// DefaultPerPage is used when a request omits or sends an invalid page size.
@@ -31,20 +28,6 @@ func New(page, perPage int) Query {
 		perPage = DefaultPerPage
 	}
 	return Query{Page: page, PerPage: perPage}
-}
-
-// Parse normalizes raw query strings into a safe request. Invalid values fall
-// back to the defaults instead of failing the request.
-func Parse(rawPage, rawPerPage string) Query {
-	return New(atoi(rawPage), atoi(rawPerPage))
-}
-
-func atoi(value string) int {
-	parsed, err := strconv.Atoi(strings.TrimSpace(value))
-	if err != nil {
-		return 0
-	}
-	return parsed
 }
 
 // Offset is the number of rows to skip for the current page.

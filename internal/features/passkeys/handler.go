@@ -178,7 +178,10 @@ func (h *Handler) beginPasskeyRegistration(c fiber.Ctx) error {
 	options, ceremony, err := h.webAuthn.BeginMediatedRegistration(
 		&passkeyUser{user: user, credentials: credentials},
 		protocol.MediationDefault,
-		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementPreferred),
+		webauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
+			ResidentKey:      protocol.ResidentKeyRequirementPreferred,
+			UserVerification: protocol.VerificationRequired,
+		}),
 		webauthn.WithExclusions(webauthn.Credentials(credentials).CredentialDescriptors()),
 	)
 	if err != nil {
@@ -237,6 +240,12 @@ func (h *Handler) finishPasskeyRegistration(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "passkey could not be verified")
 	}
+	if !credential.Flags.UserVerified {
+		return fiber.NewError(
+			fiber.StatusUnprocessableEntity,
+			"passkey must verify the user (biometric or PIN) to be used for sign-in",
+		)
+	}
 	record := PasskeyRecord{
 		ID:         append([]byte(nil), credential.ID...),
 		Name:       input.Name,
@@ -253,7 +262,10 @@ func (h *Handler) finishPasskeyRegistration(c fiber.Ctx) error {
 }
 
 func (h *Handler) beginPasskeyLogin(c fiber.Ctx) error {
-	options, ceremony, err := h.webAuthn.BeginDiscoverableMediatedLogin(protocol.MediationDefault)
+	options, ceremony, err := h.webAuthn.BeginDiscoverableMediatedLogin(
+		protocol.MediationDefault,
+		webauthn.WithUserVerification(protocol.VerificationRequired),
+	)
 	if err != nil {
 		return h.internalServerError(c, "unable to create passkey challenge", err)
 	}
@@ -298,6 +310,12 @@ func (h *Handler) finishPasskeyLogin(c fiber.Ctx) error {
 	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnauthorized, "passkey sign-in was not verified")
+	}
+	if !credential.Flags.UserVerified {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"passkey sign-in requires user verification",
+		)
 	}
 	resolved := user.(*passkeyUser)
 	updated := PasskeyRecord{
