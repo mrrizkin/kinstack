@@ -84,6 +84,8 @@ func New(d Dependency) *Feature {
 
 		SAMLProvider: d.SAMLProvider,
 		SAMLACSURL:   d.SAMLACSURL,
+
+		ContinuationStorage: d.Storage,
 	})
 	return &Feature{service: service, handler: handler}
 }

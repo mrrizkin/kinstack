@@ -9,12 +9,9 @@ import (
 	"kinstack/internal/platform/i18n"
 	platformoauth "kinstack/internal/platform/oauth"
 	platformsaml "kinstack/internal/platform/saml"
-	platformsession "kinstack/internal/platform/session"
 
 	"github.com/gofiber/fiber/v3"
 )
-
-const samlRequestIDFlashPrefix = "saml_request_id:"
 
 // samlMetadata serves the service-provider metadata for IdP registration.
 func (h *Handler) samlMetadata(c fiber.Ctx) error {
@@ -30,9 +27,12 @@ func (h *Handler) samlMetadata(c fiber.Ctx) error {
 	return c.Send(metadata)
 }
 
-// samlStart redirects the browser to the IdP with a signed AuthnRequest.
+// samlStart redirects the browser to the IdP with an AuthnRequest. The
+// request ID is kept in shared storage keyed by a random RelayState instead of
+// the session: an HTTP-POST ACS callback is cross-site and carries no
+// SameSite=Lax cookie.
 func (h *Handler) samlStart(c fiber.Ctx) error {
-	if h.samlProvider == nil {
+	if h.samlProvider == nil || h.ssoStorage == nil {
 		return fiber.ErrServiceUnavailable
 	}
 	relayState, err := platformoauth.RandomToken(32)
@@ -43,19 +43,33 @@ func (h *Handler) samlStart(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrServiceUnavailable
 	}
-	if err := platformsession.SetFlash(c, samlRequestIDFlashPrefix+relayState, requestID); err != nil {
+	if err := h.samlRequestIDStore().Save(relayState, requestID); err != nil {
 		return fiber.ErrServiceUnavailable
 	}
 	return c.Redirect().Status(fiber.StatusSeeOther).To(redirectURL)
 }
 
+// samlRequestIDStore holds the AuthnRequest ID of one SAML transaction.
+func (h *Handler) samlRequestIDStore() ssoStore {
+	return newSSOStore(h.ssoStorage, ssoSAMLRequestID)
+}
+
 // samlACS validates the IdP response and continues the normal sign-in flow.
 func (h *Handler) samlACS(c fiber.Ctx) error {
-	if h.samlProvider == nil {
+	if h.samlProvider == nil || h.ssoStorage == nil {
 		return fiber.ErrServiceUnavailable
 	}
 	relayState := strings.TrimSpace(c.FormValue("RelayState"))
-	requestID, _ := platformsession.ConsumeFlash(c, samlRequestIDFlashPrefix+relayState)
+	requestID, ok := h.samlRequestIDStore().Consume(relayState)
+	if relayState == "" || !ok {
+		// Without the transaction record the InResponseTo check cannot run and
+		// the assertion must not be trusted (fail closed).
+		return h.renderOAuthError(
+			c,
+			fiber.StatusUnprocessableEntity,
+			i18n.T("auth.saml_unverified"),
+		)
+	}
 	request, err := h.samlHTTPRequest(c)
 	if err != nil {
 		return h.internalServerError(c, "build saml callback request", err)

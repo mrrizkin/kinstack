@@ -121,7 +121,10 @@ func registerSecurityMiddleware(d GlobalMiddlewareDependency) {
 				return true
 			}
 			// OAuth providers such as Apple post the authorization response back
-			// as a form. The signed state protects the endpoint instead of CSRF.
+			// as a form, and SAML uses HTTP-POST, so neither callback carries a
+			// CSRF token. Both are protected by a single-use transaction record in
+			// shared storage (sealed state for OAuth, random RelayState for SAML)
+			// plus the provider's own response validation.
 			return c.Path() == "/login/oauth/callback" || c.Path() == "/login/saml/acs" || c.Path() == "/csp-report"
 		},
 	}))

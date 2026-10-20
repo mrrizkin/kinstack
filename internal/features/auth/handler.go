@@ -33,6 +33,12 @@ type HandlerDependency struct {
 
 	SAMLProvider *platformsaml.Provider
 	SAMLACSURL   string
+
+	// ContinuationStorage is the shared server-side storage that carries SSO
+	// transaction data across the cross-site callback. It is required whenever
+	// OAuth or SAML is enabled; a browser session cookie cannot be relied on
+	// because POST callbacks do not send SameSite=Lax cookies.
+	ContinuationStorage fiber.Storage
 }
 
 // Handler owns the HTTP boundary for authentication.
@@ -53,6 +59,8 @@ type Handler struct {
 
 	samlProvider *platformsaml.Provider
 	samlACSURL   string
+
+	ssoStorage fiber.Storage
 }
 
 // NewHandler constructs the auth HTTP handler.
@@ -74,6 +82,11 @@ func NewHandler(d HandlerDependency) *Handler {
 
 		samlProvider: d.SAMLProvider,
 		samlACSURL:   d.SAMLACSURL,
+
+		ssoStorage: d.ContinuationStorage,
+	}
+	if len(d.OAuthProviders) > 0 || d.SAMLProvider != nil {
+		assert.Assert(d.ContinuationStorage != nil, "sso continuation storage is required")
 	}
 	if len(d.OAuthProviders) > 0 {
 		assert.Assert(d.OAuthStateSecret != "", "oauth state secret is required")

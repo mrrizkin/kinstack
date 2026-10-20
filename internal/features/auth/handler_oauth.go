@@ -4,41 +4,29 @@ import (
 	"errors"
 	"net/url"
 	"strings"
+	"time"
 
 	"kinstack/internal/platform/i18n"
 	platformoauth "kinstack/internal/platform/oauth"
-	platformsession "kinstack/internal/platform/session"
 
 	"github.com/gofiber/fiber/v3"
 )
 
-const (
-	// oauthVerifierFlashPrefix names the one-time session entry holding a PKCE
-	// verifier between the authorization redirect and the callback.
-	oauthVerifierFlashPrefix = "oauth_verifier:"
-	// oauthContinuationFlashPrefix names session entries holding provider
-	// continuation state (for example a marshaled goth session).
-	oauthContinuationFlashPrefix = "oauth_continuation:"
-)
-
 func (h *Handler) oauthAvailable() bool {
-	return !h.oauthRegistry.Empty() && h.oauthSigner != nil
+	return !h.oauthRegistry.Empty() && h.oauthSigner != nil && h.ssoStorage != nil
 }
 
-// oauthContinuationStore backs provider continuation state with the Fiber
-// session, which is available between the redirect and the callback.
-type oauthContinuationStore struct{ c fiber.Ctx }
-
-func (s oauthContinuationStore) Save(key, value string) error {
-	return platformsession.SetFlash(s.c, oauthContinuationFlashPrefix+key, value)
+// ssoContinuation returns the namespaced store that carries provider
+// continuation blobs (for example a marshaled goth session) across the
+// callback. It lives in shared server-side storage, never in the session
+// cookie, because POST callbacks are cross-site.
+func (h *Handler) ssoContinuation() ssoStore {
+	return newSSOStore(h.ssoStorage, ssoOAuthPrefix)
 }
 
-func (s oauthContinuationStore) Load(key string) (string, bool) {
-	return platformsession.ConsumeFlash(s.c, oauthContinuationFlashPrefix+key)
-}
-
-func (s oauthContinuationStore) Delete(key string) {
-	_ = platformsession.SetFlash(s.c, oauthContinuationFlashPrefix+key, "")
+// pkceVerifierStore holds the PKCE verifier of one authorization request.
+func (h *Handler) pkceVerifierStore() ssoStore {
+	return newSSOStore(h.ssoStorage, ssoVerifierPrefix)
 }
 
 // oauthStart begins the authorization-code flow for one registered provider.
@@ -62,58 +50,70 @@ func (h *Handler) oauthStart(c fiber.Ctx) error {
 	if err != nil {
 		return h.internalServerError(c, "unable to start oauth login", err)
 	}
-	if err := platformsession.SetOAuthState(c, state, nonce, provider.Name()); err != nil {
-		return fiber.ErrServiceUnavailable
+	sealed, err := h.oauthSigner.Seal(platformoauth.StatePayload{
+		Purpose:  platformoauth.PurposeOAuth,
+		State:    state,
+		Provider: provider.Name(),
+		Nonce:    nonce,
+	}, time.Now())
+	if err != nil {
+		return h.internalServerError(c, "unable to seal oauth state", err)
 	}
-	if err := platformsession.SetFlash(c, oauthVerifierFlashPrefix+state, verifier); err != nil {
+	// The verifier is keyed by the sealed state so a callback can only redeem
+	// the request it was issued for, and only once.
+	if err := h.pkceVerifierStore().Save(sealed, verifier); err != nil {
 		return fiber.ErrServiceUnavailable
 	}
 	authURL, err := provider.Start(c.Context(), platformoauth.AuthorizationRequest{
 		RedirectURI:  h.oauthRedirectURL,
-		State:        state,
+		State:        sealed,
 		Nonce:        nonce,
 		CodeVerifier: verifier,
-	}, oauthContinuationStore{c: c})
+	}, h.ssoContinuation())
 	if err != nil {
+		h.pkceVerifierStore().Delete(sealed)
 		return fiber.ErrServiceUnavailable
 	}
 	return c.Redirect().Status(fiber.StatusSeeOther).To(authURL)
 }
 
-// oauthCallback verifies the signed state, redeems the code, and signs the
-// matching existing account in. It accepts POST because Apple posts the
-// authorization response back as a form.
+// oauthCallback opens the sealed state, redeems the code, and signs the
+// matching existing account in. It accepts POST because providers such as Apple
+// post the authorization response back as a form. No session cookie is
+// required: the state is sealed, and transaction data lives in shared storage.
 func (h *Handler) oauthCallback(c fiber.Ctx) error {
 	if !h.oauthAvailable() {
 		return fiber.ErrServiceUnavailable
 	}
-	state := firstNonEmpty(c.Query("state"), c.FormValue("state"))
+	rawState := firstNonEmpty(c.Query("state"), c.FormValue("state"))
 	code := firstNonEmpty(c.Query("code"), c.FormValue("code"))
 	requestedProvider := strings.TrimSpace(c.Query("provider"))
 
-	nonce, providerName, matches := platformsession.ConsumeOAuthState(c, state)
-	if !matches || code == "" {
+	payload, err := h.oauthSigner.Open(rawState, time.Now())
+	if err != nil || payload.Purpose != platformoauth.PurposeOAuth || code == "" {
 		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
 	}
-	if requestedProvider != "" && requestedProvider != providerName {
+	if requestedProvider != "" && requestedProvider != payload.Provider {
 		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
 	}
-	provider, ok := h.oauthRegistry.Get(providerName)
+	provider, ok := h.oauthRegistry.Get(payload.Provider)
 	if !ok {
 		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
 	}
-	verifier, _ := platformsession.ConsumeFlash(c, oauthVerifierFlashPrefix+state)
+	verifier, _ := h.pkceVerifierStore().Consume(rawState)
+	// The provider continuation blob is single use as well.
+	defer h.ssoContinuation().Delete(rawState)
 	identity, err := provider.Complete(c.Context(), platformoauth.ExchangeRequest{
 		Code:        code,
 		Verifier:    verifier,
-		Nonce:       nonce,
-		State:       state,
+		Nonce:       payload.Nonce,
+		State:       rawState,
 		RedirectURI: h.oauthRedirectURL,
 		Query: url.Values{
 			"code":  {code},
-			"state": {state},
+			"state": {rawState},
 		},
-	}, oauthContinuationStore{c: c})
+	}, h.ssoContinuation())
 	if err != nil {
 		if errors.Is(err, platformoauth.ErrUnavailable) {
 			return fiber.ErrServiceUnavailable

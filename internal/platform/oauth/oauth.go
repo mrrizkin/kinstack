@@ -5,6 +5,8 @@ package oauth
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -287,70 +289,98 @@ func CodeChallenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(digest[:])
 }
 
-// StateSigner signs and verifies short-lived OAuth state payloads.
+// StateSigner seals and opens short-lived SSO state payloads. The value is
+// authenticated and encrypted with AES-256-GCM so it can travel through the
+// authorization request (and be posted back by providers that use form_post)
+// without depending on a browser session cookie.
 type StateSigner struct {
-	secret []byte
-	ttl    time.Duration
+	aead cipher.AEAD
+	ttl  time.Duration
 }
+
+// SSO state purposes. They keep an OAuth state from being replayed as a SAML
+// relay state and vice versa.
+const (
+	PurposeOAuth = "oauth"
+	PurposeSAML  = "saml"
+)
+
+// StatePayload is the data carried inside a sealed state value. Keep it small:
+// it travels in a URL or in a form field.
+type StatePayload struct {
+	Purpose  string `json:"purpose"`
+	State    string `json:"state"`
+	Provider string `json:"provider"`
+	Nonce    string `json:"nonce,omitempty"`
+	Expires  int64  `json:"expires"`
+}
+
+const stateSealedVersion = "v1"
 
 // NewStateSigner constructs a signer from a 32+ byte secret and a positive TTL.
 func NewStateSigner(secret string, ttl time.Duration) (*StateSigner, error) {
 	if len([]byte(secret)) < 32 || ttl <= 0 {
 		return nil, ErrInvalidConfig
 	}
-	return &StateSigner{secret: []byte(secret), ttl: ttl}, nil
+	// Derive the AES key from the configured secret with HKDF-style separation
+	// so the state key can never be confused with another use of the secret.
+	derive := hmac.New(sha256.New, []byte(secret))
+	_, _ = derive.Write([]byte("kinstack/sso-state-seal/v1"))
+	block, err := aes.NewCipher(derive.Sum(nil))
+	if err != nil {
+		return nil, ErrInvalidConfig
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, ErrInvalidConfig
+	}
+	return &StateSigner{aead: aead, ttl: ttl}, nil
 }
 
-type statePayload struct {
-	State    string `json:"state"`
-	Provider string `json:"provider"`
-	Nonce    string `json:"nonce"`
-	Expires  int64  `json:"expires"`
-}
-
-// Sign returns the signed state value carrying the nonce and expiry.
-func (s *StateSigner) Sign(state, provider, nonce string, now time.Time) (string, error) {
-	if s == nil || strings.TrimSpace(state) == "" || strings.TrimSpace(provider) == "" ||
-		strings.TrimSpace(nonce) == "" {
+// Seal returns an opaque, authenticated value carrying the payload.
+func (s *StateSigner) Seal(payload StatePayload, now time.Time) (string, error) {
+	if s == nil || s.aead == nil ||
+		strings.TrimSpace(payload.State) == "" ||
+		strings.TrimSpace(payload.Provider) == "" {
 		return "", ErrInvalidState
 	}
-	payload, err := json.Marshal(statePayload{
-		State:    state,
-		Provider: provider,
-		Nonce:    nonce,
-		Expires:  now.Add(s.ttl).Unix(),
-	})
+	if payload.Expires == 0 {
+		payload.Expires = now.Add(s.ttl).Unix()
+	}
+	plain, err := json.Marshal(payload)
 	if err != nil {
 		return "", ErrInvalidState
 	}
-	encoded := base64.RawURLEncoding.EncodeToString(payload)
-	signature := hmac.New(sha256.New, s.secret)
-	_, _ = signature.Write([]byte(encoded))
-	return encoded + "." + base64.RawURLEncoding.EncodeToString(signature.Sum(nil)), nil
+	nonce := make([]byte, s.aead.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", ErrInvalidState
+	}
+	sealed := s.aead.Seal(nonce, nonce, plain, nil)
+	return stateSealedVersion + "." + base64.RawURLEncoding.EncodeToString(sealed), nil
 }
 
-// Verify validates a signed state value and returns its nonce.
-func (s *StateSigner) Verify(value, expectedState, expectedProvider string, now time.Time) (string, error) {
-	parts := strings.Split(value, ".")
-	if s == nil || len(parts) != 2 {
-		return "", ErrInvalidState
+// Open authenticates and decrypts a sealed state value. It rejects values with
+// the wrong version, a broken tag, an unknown shape, or an expired payload.
+func (s *StateSigner) Open(value string, now time.Time) (StatePayload, error) {
+	version, encoded, ok := strings.Cut(strings.TrimSpace(value), ".")
+	if s == nil || s.aead == nil || !ok || version != stateSealedVersion {
+		return StatePayload{}, ErrInvalidState
 	}
-	signature := hmac.New(sha256.New, s.secret)
-	_, _ = signature.Write([]byte(parts[0]))
-	provided, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil || !hmac.Equal(provided, signature.Sum(nil)) {
-		return "", ErrInvalidState
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil || len(raw) <= s.aead.NonceSize() {
+		return StatePayload{}, ErrInvalidState
 	}
-	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	size := s.aead.NonceSize()
+	plain, err := s.aead.Open(nil, raw[:size], raw[size:], nil)
 	if err != nil {
-		return "", ErrInvalidState
+		return StatePayload{}, ErrInvalidState
 	}
-	var payload statePayload
-	if err := json.Unmarshal(payloadBytes, &payload); err != nil ||
-		payload.State != expectedState ||
-		payload.Provider != expectedProvider ||
+	var payload StatePayload
+	if err := json.Unmarshal(plain, &payload); err != nil ||
+		strings.TrimSpace(payload.State) == "" ||
+		strings.TrimSpace(payload.Provider) == "" ||
 		payload.Expires <= now.Unix() {
-		return "", ErrInvalidState
+		return StatePayload{}, ErrInvalidState
 	}
-	return payload.Nonce, nil
+	return payload, nil
 }

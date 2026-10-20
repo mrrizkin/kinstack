@@ -18,9 +18,6 @@ import (
 )
 
 const (
-	oauthStateSessionKey    = "oauth_state"
-	oauthNonceSessionKey    = "oauth_nonce"
-	oauthProviderSessionKey = "oauth_provider"
 	twoFactorSessionKey     = "two_factor_challenge"
 	recoveryCodesSessionKey = "recovery_codes"
 	twoFactorChallengeTTL   = 10 * time.Minute
@@ -107,37 +104,6 @@ func mustSessionMiddleware(store *fibersession.Store, idleTimeout time.Duration)
 		IdleTimeout: idleTimeout,
 	})
 	return handler
-}
-
-// SetOAuthState stores one short-lived provider transaction in the existing
-// server-side session. It makes the signed browser state one-time and binds it
-// to the browser session in addition to the PKCE verifier cookie.
-func SetOAuthState(c fiber.Ctx, state, nonce, provider string) error {
-	middleware := fibersession.FromContext(c)
-	if middleware == nil || state == "" || nonce == "" || provider == "" {
-		return errors.New("session middleware is not available")
-	}
-	middleware.Set(oauthStateSessionKey, state)
-	middleware.Set(oauthNonceSessionKey, nonce)
-	middleware.Set(oauthProviderSessionKey, provider)
-	return nil
-}
-
-func ConsumeOAuthState(c fiber.Ctx, state string) (string, string, bool) {
-	middleware := fibersession.FromContext(c)
-	if middleware == nil {
-		return "", "", false
-	}
-	expected, _ := middleware.Get(oauthStateSessionKey).(string)
-	nonce, _ := middleware.Get(oauthNonceSessionKey).(string)
-	provider, _ := middleware.Get(oauthProviderSessionKey).(string)
-	if expected == "" || nonce == "" || provider == "" || expected != state {
-		return "", "", false
-	}
-	middleware.Delete(oauthStateSessionKey)
-	middleware.Delete(oauthNonceSessionKey)
-	middleware.Delete(oauthProviderSessionKey)
-	return nonce, provider, true
 }
 
 // SetTwoFactorChallenge replaces the current session with a short-lived,

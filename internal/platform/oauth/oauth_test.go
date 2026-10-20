@@ -16,22 +16,85 @@ func TestStateSignerRoundTrip(t *testing.T) {
 		t.Fatalf("new state signer: %v", err)
 	}
 	now := time.Now().UTC()
-	signed, err := signer.Sign("state-value", "sso", "nonce-value", now)
+	sealed, err := signer.Seal(StatePayload{
+		Purpose:  PurposeOAuth,
+		State:    "state-value",
+		Provider: "sso",
+		Nonce:    "nonce-value",
+	}, now)
 	if err != nil {
-		t.Fatalf("sign state: %v", err)
+		t.Fatalf("seal state: %v", err)
 	}
-	nonce, err := signer.Verify(signed, "state-value", "sso", now)
+	payload, err := signer.Open(sealed, now)
 	if err != nil {
-		t.Fatalf("verify state: %v", err)
+		t.Fatalf("open state: %v", err)
 	}
-	if nonce != "nonce-value" {
-		t.Fatalf("unexpected nonce: %q", nonce)
+	if payload.State != "state-value" || payload.Provider != "sso" ||
+		payload.Nonce != "nonce-value" || payload.Purpose != PurposeOAuth {
+		t.Fatalf("unexpected payload: %+v", payload)
 	}
-	if _, err := signer.Verify(signed, "other-state", "sso", now); err == nil {
-		t.Fatal("expected state mismatch to fail")
+	if payload.Expires != now.Add(time.Minute).Unix() {
+		t.Fatalf("unexpected expiry: %d", payload.Expires)
 	}
-	if _, err := signer.Verify(signed, "state-value", "sso", now.Add(2*time.Minute)); err == nil {
+	if _, err := signer.Open(sealed, now.Add(2*time.Minute)); err == nil {
 		t.Fatal("expected expired state to fail")
+	}
+}
+
+func TestStateSignerRejectsTamperedSeal(t *testing.T) {
+	signer, err := NewStateSigner("0123456789abcdef0123456789abcdef", time.Minute)
+	if err != nil {
+		t.Fatalf("new state signer: %v", err)
+	}
+	now := time.Now().UTC()
+	sealed, err := signer.Seal(StatePayload{State: "s", Provider: "p"}, now)
+	if err != nil {
+		t.Fatalf("seal state: %v", err)
+	}
+	// Flip one character of the ciphertext region.
+	tampered := []byte(sealed)
+	position := len(tampered) - 2
+	if tampered[position] == 'A' {
+		tampered[position] = 'B'
+	} else {
+		tampered[position] = 'A'
+	}
+	if _, err := signer.Open(string(tampered), now); err == nil {
+		t.Fatal("expected tampered state to fail")
+	}
+	if _, err := signer.Open("v1.", now); err == nil {
+		t.Fatal("expected empty sealed body to fail")
+	}
+	if _, err := signer.Open("v2.whatever", now); err == nil {
+		t.Fatal("expected unknown version to fail")
+	}
+}
+
+func TestStateSignerRequiresMatchingKey(t *testing.T) {
+	first, err := NewStateSigner("0123456789abcdef0123456789abcdef", time.Minute)
+	if err != nil {
+		t.Fatalf("new state signer: %v", err)
+	}
+	second, err := NewStateSigner("fedcba9876543210fedcba9876543210", time.Minute)
+	if err != nil {
+		t.Fatalf("new state signer: %v", err)
+	}
+	now := time.Now().UTC()
+	sealed, err := first.Seal(StatePayload{State: "s", Provider: "p"}, now)
+	if err != nil {
+		t.Fatalf("seal state: %v", err)
+	}
+	if _, err := second.Open(sealed, now); err == nil {
+		t.Fatal("expected a different key to reject the state")
+	}
+}
+
+func TestStateSignerRequiresSecretAndTTL(t *testing.T) {
+	if _, err := NewStateSigner("short", time.Minute); err == nil {
+		t.Fatal("expected a short secret to be rejected")
+	}
+	if _, err := NewStateSigner("0123456789abcdef0123456789abcdef", 0); err == nil {
+		t.Fatal("expected a non-positive ttl to be rejected")
 	}
 }
 
