@@ -120,10 +120,11 @@ func (h *Handler) resetPassword(c fiber.Ctx) error {
 		case errors.Is(err, ErrInvalidToken):
 			return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
 		case errors.Is(err, ErrInvalidInput):
-			return c.Status(fiber.StatusUnprocessableEntity).Render("auth/ResetPasswordView", fiber.Map{
-				"token":  token,
-				"errors": fiber.Map{"new_password": err.Error()},
-			})
+			return c.Status(fiber.StatusUnprocessableEntity).
+				Render("auth/ResetPasswordView", fiber.Map{
+					"token":  token,
+					"errors": fiber.Map{"new_password": err.Error()},
+				})
 		default:
 			h.logger.Errorw("reset password", "request_id", c.RequestID(), "error", err)
 			return fiber.ErrInternalServerError

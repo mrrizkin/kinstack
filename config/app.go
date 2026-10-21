@@ -84,7 +84,9 @@ func (c AppConfig) Validate() error {
 		return fmt.Errorf("APP_BODY_LIMIT_MB must be positive")
 	}
 	if c.HTTPReadTimeout <= 0 || c.HTTPWriteTimeout <= 0 || c.HTTPIdleTimeout <= 0 {
-		return fmt.Errorf("HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT, and HTTP_IDLE_TIMEOUT must be positive")
+		return fmt.Errorf(
+			"HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT, and HTTP_IDLE_TIMEOUT must be positive",
+		)
 	}
 	if err := validateURL("APP_URL", c.URL, false); err != nil {
 		return err

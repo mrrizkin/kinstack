@@ -110,7 +110,11 @@ func (r *SQLRepository) Close() error {
 }
 
 // List returns the newest notifications of the recipient.
-func (r *SQLRepository) List(ctx context.Context, recipientPublicID string, limit int) ([]Notification, error) {
+func (r *SQLRepository) List(
+	ctx context.Context,
+	recipientPublicID string,
+	limit int,
+) ([]Notification, error) {
 	items := make([]Notification, 0)
 	if err := r.listStmt.SelectContext(ctx, &items, recipientPublicID, limit); err != nil {
 		return nil, fmt.Errorf("list notifications: %w", err)
@@ -145,7 +149,10 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Notifica
 }
 
 // MarkRead marks one owned notification as read.
-func (r *SQLRepository) MarkRead(ctx context.Context, recipientPublicID, publicID string) (Notification, error) {
+func (r *SQLRepository) MarkRead(
+	ctx context.Context,
+	recipientPublicID, publicID string,
+) (Notification, error) {
 	var updated Notification
 	if err := r.markReadStmt.GetContext(ctx, &updated, recipientPublicID, publicID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

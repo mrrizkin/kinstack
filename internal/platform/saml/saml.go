@@ -118,7 +118,10 @@ func (p *Provider) Start(relayState string) (string, string, error) {
 }
 
 // Complete validates the SAML response and returns the asserted identity.
-func (p *Provider) Complete(request *http.Request, requestID string) (platformoauth.Identity, error) {
+func (p *Provider) Complete(
+	request *http.Request,
+	requestID string,
+) (platformoauth.Identity, error) {
 	if p == nil || p.serviceProvider == nil {
 		return platformoauth.Identity{}, ErrUnavailable
 	}
@@ -151,7 +154,9 @@ func identityFromAssertion(assertion *saml.Assertion) (platformoauth.Identity, e
 	for _, statement := range assertion.AttributeStatements {
 		for _, attribute := range statement.Attributes {
 			name := strings.ToLower(strings.TrimSpace(attribute.Name))
-			if friendly := strings.ToLower(strings.TrimSpace(attribute.FriendlyName)); friendly != "" {
+			if friendly := strings.ToLower(
+				strings.TrimSpace(attribute.FriendlyName),
+			); friendly != "" {
 				name = friendly
 			}
 			value := ""

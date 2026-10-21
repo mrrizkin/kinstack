@@ -41,7 +41,14 @@ func TestEnrollmentConfirmAndVerify(t *testing.T) {
 		t.Fatal("expected two-factor to stay disabled before confirmation")
 	}
 
-	if _, err := service.ConfirmEnrollment(ctx, publicID, "000000"); !errors.Is(err, ErrInvalidCode) {
+	if _, err := service.ConfirmEnrollment(
+		ctx,
+		publicID,
+		"000000",
+	); !errors.Is(
+		err,
+		ErrInvalidCode,
+	) {
 		t.Fatalf("expected ErrInvalidCode, got %v", err)
 	}
 

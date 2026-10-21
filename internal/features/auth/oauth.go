@@ -50,7 +50,13 @@ func (s *Service) bindIdentity(
 	if err != nil {
 		return FindUserByUsernameResult{}, err
 	}
-	if err := s.repository.UpsertIdentity(ctx, result.PublicID, provider, subject, email); err != nil {
+	if err := s.repository.UpsertIdentity(
+		ctx,
+		result.PublicID,
+		provider,
+		subject,
+		email,
+	); err != nil {
 		if errors.Is(err, ErrIdentityConflict) || errors.Is(err, ErrNotFound) {
 			return FindUserByUsernameResult{}, ErrOAuthUnregistered
 		}

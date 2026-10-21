@@ -16,7 +16,12 @@ func (h *Handler) updateProfile(c fiber.Ctx) error {
 	if _, err := h.service.UpdateDisplayName(c.Context(), h.actorPublicID(c), request); err != nil {
 		return h.writeError(c, err, "display_name")
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.profilePath(), i18n.T("profile.updated"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.profilePath(),
+		i18n.T("profile.updated"),
+	)
 }
 
 func (h *Handler) updatePreferences(c fiber.Ctx) error {
@@ -27,7 +32,12 @@ func (h *Handler) updatePreferences(c fiber.Ctx) error {
 	if _, err := h.service.UpdatePreferences(c.Context(), h.actorPublicID(c), request); err != nil {
 		return h.writeError(c, err, "theme")
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.profilePath(), i18n.T("profile.preferences_saved"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.profilePath(),
+		i18n.T("profile.preferences_saved"),
+	)
 }
 
 func (h *Handler) changePassword(c fiber.Ctx) error {
@@ -59,5 +69,10 @@ func (h *Handler) changePassword(c fiber.Ctx) error {
 		"request_id", c.RequestID(),
 		"user", h.actorPublicID(c),
 	)
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.profilePath(), i18n.T("profile.password_changed"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.profilePath(),
+		i18n.T("profile.password_changed"),
+	)
 }

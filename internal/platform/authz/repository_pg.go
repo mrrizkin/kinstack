@@ -169,14 +169,22 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.deleteRoleStmt, "authz_delete_role", deleteRoleQuery},
 		{&repository.rolePermissionsStmt, "authz_role_permissions", rolePermissionsQuery},
 		{&repository.rolePermsManyStmt, "authz_role_permissions_many", rolePermissionsManyQuery},
-		{&repository.replacePermsStmt, "authz_replace_role_permissions", replaceRolePermissionsQuery},
+		{
+			&repository.replacePermsStmt,
+			"authz_replace_role_permissions",
+			replaceRolePermissionsQuery,
+		},
 		{&repository.overridesStmt, "authz_user_overrides", userOverridesQuery},
 		{&repository.overridesManyStmt, "authz_user_overrides_many", userOverridesManyQuery},
 		{&repository.upsertOverrideStmt, "authz_upsert_user_override", upsertUserOverrideQuery},
 		{&repository.deleteOverrideStmt, "authz_delete_user_override", deleteUserOverrideQuery},
 		{&repository.assignRoleStmt, "authz_assign_user_role", assignUserRoleQuery},
 		{&repository.userRoleStmt, "authz_user_role", userRoleQuery},
-		{&repository.countAssignmentsStmt, "authz_count_role_assignments", countRoleAssignmentsQuery},
+		{
+			&repository.countAssignmentsStmt,
+			"authz_count_role_assignments",
+			countRoleAssignmentsQuery,
+		},
 	}
 	for _, statement := range statements {
 		stmt, err := owner.Prepare(statement.name, statement.query)
@@ -230,7 +238,14 @@ func (r *SQLRepository) FindRole(ctx context.Context, code string) (Role, error)
 // CreateRole inserts a new role.
 func (r *SQLRepository) CreateRole(ctx context.Context, input CreateRoleInput) (Role, error) {
 	var role Role
-	err := r.createRoleStmt.GetContext(ctx, &role, input.Code, input.Name, input.Description, input.Rank)
+	err := r.createRoleStmt.GetContext(
+		ctx,
+		&role,
+		input.Code,
+		input.Name,
+		input.Description,
+		input.Rank,
+	)
 	if isUniqueViolation(err) {
 		return Role{}, ErrRoleCodeTaken
 	}
@@ -243,7 +258,14 @@ func (r *SQLRepository) CreateRole(ctx context.Context, input CreateRoleInput) (
 // UpdateRole edits a role's metadata.
 func (r *SQLRepository) UpdateRole(ctx context.Context, input UpdateRoleInput) (Role, error) {
 	var role Role
-	err := r.updateRoleStmt.GetContext(ctx, &role, input.Code, input.Name, input.Description, input.Rank)
+	err := r.updateRoleStmt.GetContext(
+		ctx,
+		&role,
+		input.Code,
+		input.Name,
+		input.Description,
+		input.Rank,
+	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Role{}, ErrRoleNotFound
 	}
@@ -366,7 +388,10 @@ func (r *SQLRepository) UserOverridesMany(
 }
 
 // SetUserOverride upserts a per-user permission override.
-func (r *SQLRepository) SetUserOverride(ctx context.Context, input SetOverrideInput) (Override, error) {
+func (r *SQLRepository) SetUserOverride(
+	ctx context.Context,
+	input SetOverrideInput,
+) (Override, error) {
 	var override Override
 	err := r.upsertOverrideStmt.GetContext(
 		ctx,
@@ -387,7 +412,11 @@ func (r *SQLRepository) SetUserOverride(ctx context.Context, input SetOverrideIn
 }
 
 // DeleteUserOverride removes a per-user permission override.
-func (r *SQLRepository) DeleteUserOverride(ctx context.Context, publicID string, permission Permission) error {
+func (r *SQLRepository) DeleteUserOverride(
+	ctx context.Context,
+	publicID string,
+	permission Permission,
+) error {
 	if _, err := r.deleteOverrideStmt.ExecContext(ctx, publicID, permission); err != nil {
 		return fmt.Errorf("delete user override: %w", err)
 	}

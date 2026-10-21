@@ -69,7 +69,13 @@ func TestOAuthSignInRejectsEmptyProviderIdentity(t *testing.T) {
 		identity("", "subject-1", "admin@example.com", true),
 		identity("fake", "  ", "admin@example.com", true),
 	} {
-		if _, err := service.OAuthSignIn(context.Background(), candidate); !errors.Is(err, ErrOAuthUnregistered) {
+		if _, err := service.OAuthSignIn(
+			context.Background(),
+			candidate,
+		); !errors.Is(
+			err,
+			ErrOAuthUnregistered,
+		) {
 			t.Fatalf("expected ErrOAuthUnregistered for empty provider/subject, got %v", err)
 		}
 	}
@@ -79,7 +85,13 @@ func TestMemoryRepositoryRejectsRebindingSubject(t *testing.T) {
 	_, repository := newIdentityTestService()
 	ctx := context.Background()
 
-	if err := repository.UpsertIdentity(ctx, "usr_1", "fake", "subject-1", "admin@example.com"); err != nil {
+	if err := repository.UpsertIdentity(
+		ctx,
+		"usr_1",
+		"fake",
+		"subject-1",
+		"admin@example.com",
+	); err != nil {
 		t.Fatalf("bind: %v", err)
 	}
 	err := repository.UpsertIdentity(ctx, "usr_2", "fake", "subject-1", "other@example.com")

@@ -39,7 +39,11 @@ func (r *MemoryRepository) Seed(notification Notification) {
 }
 
 // List returns the newest notifications of the recipient.
-func (r *MemoryRepository) List(_ context.Context, recipientPublicID string, limit int) ([]Notification, error) {
+func (r *MemoryRepository) List(
+	_ context.Context,
+	recipientPublicID string,
+	limit int,
+) ([]Notification, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -90,7 +94,10 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateInput) (Notific
 }
 
 // MarkRead marks one owned notification as read.
-func (r *MemoryRepository) MarkRead(_ context.Context, recipientPublicID, publicID string) (Notification, error) {
+func (r *MemoryRepository) MarkRead(
+	_ context.Context,
+	recipientPublicID, publicID string,
+) (Notification, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

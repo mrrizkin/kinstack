@@ -125,9 +125,17 @@ func (s *Service) ChangePassword(
 	newPassword := request.NewPassword
 	switch {
 	case len(newPassword) < minPasswordLength:
-		return fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("profile.new_password_min", minPasswordLength))
+		return fmt.Errorf(
+			"%w: %s",
+			ErrInvalidInput,
+			i18n.T("profile.new_password_min", minPasswordLength),
+		)
 	case len(newPassword) > maxPasswordLength:
-		return fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("profile.new_password_max", maxPasswordLength))
+		return fmt.Errorf(
+			"%w: %s",
+			ErrInvalidInput,
+			i18n.T("profile.new_password_max", maxPasswordLength),
+		)
 	case newPassword != request.ConfirmPassword:
 		return ErrPasswordMismatch
 	}
@@ -139,7 +147,11 @@ func (s *Service) ChangePassword(
 
 	if !profile.Invited {
 		if strings.TrimSpace(request.CurrentPassword) == "" {
-			return fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("profile.current_password_required"))
+			return fmt.Errorf(
+				"%w: %s",
+				ErrInvalidInput,
+				i18n.T("profile.current_password_required"),
+			)
 		}
 		currentHash, err := s.repository.FindPasswordHash(ctx, publicID)
 		if err != nil {

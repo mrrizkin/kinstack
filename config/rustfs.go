@@ -55,7 +55,9 @@ func (c RustFSConfig) Validate() error {
 			return fmt.Errorf("rustfs credentials must be non-placeholder production secrets")
 		}
 		if !c.UseSSL || !strings.HasPrefix(strings.ToLower(c.Endpoint), "https://") {
-			return fmt.Errorf("RUSTFS_ENDPOINT must use HTTPS and RUSTFS_USE_SSL=true in production")
+			return fmt.Errorf(
+				"RUSTFS_ENDPOINT must use HTTPS and RUSTFS_USE_SSL=true in production",
+			)
 		}
 	}
 	return nil

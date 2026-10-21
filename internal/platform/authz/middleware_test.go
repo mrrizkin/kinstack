@@ -83,7 +83,12 @@ func TestGuardRouterRejectsAnonymous(t *testing.T) {
 	boundary := actor.New(actor.Dependency{Repository: actor.NewMemoryRepository("staff-1")})
 
 	app := fiber.New()
-	guard := NewGuardRouter(app, boundary, service, RoutePolicy{"GET /allowed": PermissionUsersView})
+	guard := NewGuardRouter(
+		app,
+		boundary,
+		service,
+		RoutePolicy{"GET /allowed": PermissionUsersView},
+	)
 	guard.Get("/allowed", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 
 	response, err := app.Test(httptest.NewRequest(http.MethodGet, "/allowed", nil))
@@ -185,7 +190,9 @@ func TestGuardRouterRejectsTokenOnBrowserSessionRoute(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			app := newBrowserSessionTestApp(t, scopes)
 
-			response, err := app.Test(httptest.NewRequest(http.MethodPost, "/profile/password", nil))
+			response, err := app.Test(
+				httptest.NewRequest(http.MethodPost, "/profile/password", nil),
+			)
 			if err != nil {
 				t.Fatalf("request: %v", err)
 			}

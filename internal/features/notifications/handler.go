@@ -83,7 +83,12 @@ func (h *Handler) markRead(c fiber.Ctx) error {
 		}
 		return h.internalServerError(c, "mark notification read", err)
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.notificationsPath(), i18n.T("notifications.read"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.notificationsPath(),
+		i18n.T("notifications.read"),
+	)
 }
 
 func (h *Handler) markAllRead(c fiber.Ctx) error {
@@ -93,7 +98,12 @@ func (h *Handler) markAllRead(c fiber.Ctx) error {
 		}
 		return h.internalServerError(c, "mark all notifications read", err)
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.notificationsPath(), i18n.T("notifications.all_read"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.notificationsPath(),
+		i18n.T("notifications.all_read"),
+	)
 }
 
 func (h *Handler) recipient(c fiber.Ctx) string {

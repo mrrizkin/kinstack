@@ -33,7 +33,11 @@ func TestIndexRejectsInvalidPagination(t *testing.T) {
 			}
 			defer response.Body.Close()
 			if response.StatusCode != fiber.StatusUnprocessableEntity {
-				t.Fatalf("status = %d, want %d", response.StatusCode, fiber.StatusUnprocessableEntity)
+				t.Fatalf(
+					"status = %d, want %d",
+					response.StatusCode,
+					fiber.StatusUnprocessableEntity,
+				)
 			}
 		})
 	}
@@ -56,7 +60,11 @@ func TestAccessRejectsInvalidPagination(t *testing.T) {
 			}
 			defer response.Body.Close()
 			if response.StatusCode != fiber.StatusUnprocessableEntity {
-				t.Fatalf("status = %d, want %d", response.StatusCode, fiber.StatusUnprocessableEntity)
+				t.Fatalf(
+					"status = %d, want %d",
+					response.StatusCode,
+					fiber.StatusUnprocessableEntity,
+				)
 			}
 		})
 	}

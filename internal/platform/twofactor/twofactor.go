@@ -170,7 +170,10 @@ func (s *Service) Disable(ctx context.Context, userPublicID string) error {
 }
 
 // RegenerateRecoveryCodes replaces every stored code with a fresh set.
-func (s *Service) RegenerateRecoveryCodes(ctx context.Context, userPublicID string) ([]string, error) {
+func (s *Service) RegenerateRecoveryCodes(
+	ctx context.Context,
+	userPublicID string,
+) ([]string, error) {
 	status, err := s.repository.FindStatus(ctx, userPublicID)
 	if err != nil {
 		return nil, err

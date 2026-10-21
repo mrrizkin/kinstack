@@ -168,7 +168,13 @@ func TestConsumeMagicLinkAuthenticatesAndBurnsToken(t *testing.T) {
 	if session.PublicID != "usr_magic" {
 		t.Fatalf("unexpected session: %#v", session)
 	}
-	if _, err := service.ConsumeMagicLink(context.Background(), "raw-token"); !errors.Is(err, ErrInvalidToken) {
+	if _, err := service.ConsumeMagicLink(
+		context.Background(),
+		"raw-token",
+	); !errors.Is(
+		err,
+		ErrInvalidToken,
+	) {
 		t.Fatalf("expected single-use token, got %v", err)
 	}
 }
@@ -347,11 +353,27 @@ func TestLoginLockoutIsScopedToTheClient(t *testing.T) {
 	ctx := context.Background()
 
 	for range 2 {
-		if _, err := service.LoginFrom(ctx, "admin", "salah", "10.0.0.1"); !errors.Is(err, ErrInvalidCredentials) {
+		if _, err := service.LoginFrom(
+			ctx,
+			"admin",
+			"salah",
+			"10.0.0.1",
+		); !errors.Is(
+			err,
+			ErrInvalidCredentials,
+		) {
 			t.Fatalf("expected invalid credentials, got %v", err)
 		}
 	}
-	if _, err := service.LoginFrom(ctx, "admin", "rahasia123", "10.0.0.1"); !errors.Is(err, ErrAccountLocked) {
+	if _, err := service.LoginFrom(
+		ctx,
+		"admin",
+		"rahasia123",
+		"10.0.0.1",
+	); !errors.Is(
+		err,
+		ErrAccountLocked,
+	) {
 		t.Fatalf("expected the attacking client to be locked, got %v", err)
 	}
 	if _, err := service.LoginFrom(ctx, "admin", "rahasia123", "10.0.0.2"); err != nil {
@@ -366,11 +388,24 @@ func TestLoginBreakGlassIgnoresAccountWideLock(c *testing.T) {
 	// Trip the account-wide counter from many clients, then confirm the
 	// break-glass account is still reachable from a fresh client.
 	for i := range 10 {
-		if _, err := service.LoginFrom(ctx, "superadmin", "salah", fmt.Sprintf("10.1.0.%d", i)); !errors.Is(err, ErrInvalidCredentials) {
+		if _, err := service.LoginFrom(
+			ctx,
+			"superadmin",
+			"salah",
+			fmt.Sprintf("10.1.0.%d", i),
+		); !errors.Is(
+			err,
+			ErrInvalidCredentials,
+		) {
 			c.Fatalf("attempt %d: expected invalid credentials, got %v", i, err)
 		}
 	}
-	if _, err := service.LoginFrom(ctx, "superadmin", "secret-super-admin-panjang", "10.2.0.1"); err != nil {
+	if _, err := service.LoginFrom(
+		ctx,
+		"superadmin",
+		"secret-super-admin-panjang",
+		"10.2.0.1",
+	); err != nil {
 		c.Fatalf("break-glass must not be locked account-wide: %v", err)
 	}
 }
@@ -390,13 +425,37 @@ func TestLoginInactiveAccountStillCountsAFailure(t *testing.T) {
 	service := NewService(ServiceDependency{Repository: repository, Lockout: guard})
 	ctx := context.Background()
 
-	if _, err := service.LoginFrom(ctx, "staf", "rahasia123", "10.0.0.9"); !errors.Is(err, ErrInactiveUser) {
+	if _, err := service.LoginFrom(
+		ctx,
+		"staf",
+		"rahasia123",
+		"10.0.0.9",
+	); !errors.Is(
+		err,
+		ErrInactiveUser,
+	) {
 		t.Fatalf("expected inactive user, got %v", err)
 	}
-	if _, err := service.LoginFrom(ctx, "staf", "rahasia123", "10.0.0.9"); !errors.Is(err, ErrInactiveUser) {
+	if _, err := service.LoginFrom(
+		ctx,
+		"staf",
+		"rahasia123",
+		"10.0.0.9",
+	); !errors.Is(
+		err,
+		ErrInactiveUser,
+	) {
 		t.Fatalf("expected inactive user, got %v", err)
 	}
-	if _, err := service.LoginFrom(ctx, "staf", "rahasia123", "10.0.0.9"); !errors.Is(err, ErrAccountLocked) {
+	if _, err := service.LoginFrom(
+		ctx,
+		"staf",
+		"rahasia123",
+		"10.0.0.9",
+	); !errors.Is(
+		err,
+		ErrAccountLocked,
+	) {
 		t.Fatalf("expected the pair to lock, got %v", err)
 	}
 }

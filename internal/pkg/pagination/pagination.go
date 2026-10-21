@@ -4,8 +4,6 @@
 // "menampilkan X–Y dari Z".
 package pagination
 
-import ()
-
 const (
 	// DefaultPerPage is used when a request omits or sends an invalid page size.
 	DefaultPerPage = 25

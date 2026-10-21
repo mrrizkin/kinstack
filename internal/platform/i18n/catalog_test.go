@@ -22,26 +22,29 @@ func TestCatalogCoversEveryLiteralCall(t *testing.T) {
 	missing := make(map[string]string)
 	for _, dir := range []string{"internal", "config", "cmd"} {
 		base := filepath.Join(root, dir)
-		walkErr := filepath.WalkDir(base, func(path string, entry fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if entry.IsDir() || filepath.Ext(path) != ".go" {
-				return nil
-			}
-			source, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return readErr
-			}
-			for _, match := range translationCall.FindAllStringSubmatch(string(source), -1) {
-				key := match[1]
-				if _, ok := catalog[key]; !ok {
-					relative, _ := filepath.Rel(root, path)
-					missing[key] = relative
+		walkErr := filepath.WalkDir(
+			base,
+			func(path string, entry fs.DirEntry, walkErr error) error {
+				if walkErr != nil {
+					return walkErr
 				}
-			}
-			return nil
-		})
+				if entry.IsDir() || filepath.Ext(path) != ".go" {
+					return nil
+				}
+				source, readErr := os.ReadFile(path)
+				if readErr != nil {
+					return readErr
+				}
+				for _, match := range translationCall.FindAllStringSubmatch(string(source), -1) {
+					key := match[1]
+					if _, ok := catalog[key]; !ok {
+						relative, _ := filepath.Rel(root, path)
+						missing[key] = relative
+					}
+				}
+				return nil
+			},
+		)
 		if walkErr != nil {
 			t.Fatalf("scan %s: %v", dir, walkErr)
 		}

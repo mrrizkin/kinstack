@@ -118,11 +118,17 @@ type appRepositories struct {
 
 func newAppRepositories(deps *appDependencies, d AppDependency) *appRepositories {
 	repositories := &appRepositories{}
-	repositories.auth = assert.OK(auth.NewSQLRepository(auth.RepositoryDependency{DB: d.Database.DB}))
+	repositories.auth = assert.OK(
+		auth.NewSQLRepository(auth.RepositoryDependency{DB: d.Database.DB}),
+	)
 	deps.track(repositories.auth)
-	repositories.users = assert.OK(users.NewSQLRepository(users.RepositoryDependency{DB: d.Database.DB}))
+	repositories.users = assert.OK(
+		users.NewSQLRepository(users.RepositoryDependency{DB: d.Database.DB}),
+	)
 	deps.track(repositories.users)
-	repositories.authz = assert.OK(authz.NewSQLRepository(authz.RepositoryDependency{DB: d.Database.DB}))
+	repositories.authz = assert.OK(
+		authz.NewSQLRepository(authz.RepositoryDependency{DB: d.Database.DB}),
+	)
 	deps.track(repositories.authz)
 	repositories.profile = assert.OK(
 		profile.NewSQLRepository(profile.RepositoryDependency{DB: d.Database.DB}),
@@ -172,7 +178,9 @@ func newNotificationsFeature(
 	inertiaAdapter *fibertia.Fibertia,
 ) *notificationsfeature.Feature {
 	repository := assert.OK(
-		notificationsfeature.NewSQLRepository(notificationsfeature.RepositoryDependency{DB: d.Database.DB}),
+		notificationsfeature.NewSQLRepository(
+			notificationsfeature.RepositoryDependency{DB: d.Database.DB},
+		),
 	)
 	deps.track(repository)
 	return notificationsfeature.New(notificationsfeature.Dependency{

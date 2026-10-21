@@ -83,7 +83,9 @@ func (r *MemoryRepository) ListPasskeys(
 // SavePasskey stores a new credential.
 func (r *MemoryRepository) SavePasskey(_ context.Context, id string, record PasskeyRecord) error {
 	if len(record.ID) == 0 || !bytes.Equal(record.ID, record.Credential.ID) ||
-		strings.TrimSpace(record.Name) == "" || len(strings.TrimSpace(record.Name)) > maxPasskeyNameLength {
+		strings.TrimSpace(
+			record.Name,
+		) == "" || len(strings.TrimSpace(record.Name)) > maxPasskeyNameLength {
 		return ErrPasskeyInvalid
 	}
 	r.mu.Lock()

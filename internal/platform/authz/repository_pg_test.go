@@ -61,7 +61,11 @@ func TestSQLUserOverridesMany(t *testing.T) {
 	userA := fmt.Sprintf("batch-a-%d", time.Now().UnixNano())
 	userB := userA + "-b"
 	t.Cleanup(func() {
-		_, _ = db.Exec(`DELETE FROM user_permissions WHERE user_public_id IN ($1, $2)`, userA, userB)
+		_, _ = db.Exec(
+			`DELETE FROM user_permissions WHERE user_public_id IN ($1, $2)`,
+			userA,
+			userB,
+		)
 	})
 
 	if _, err := repository.SetUserOverride(ctx, SetOverrideInput{

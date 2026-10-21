@@ -49,7 +49,8 @@ func TestProviderMetadataAndStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	if !strings.Contains(redirect, "SAMLRequest=") || !strings.Contains(redirect, "RelayState=relay-1") {
+	if !strings.Contains(redirect, "SAMLRequest=") ||
+		!strings.Contains(redirect, "RelayState=relay-1") {
 		t.Fatalf("unexpected redirect: %s", redirect)
 	}
 	if strings.TrimSpace(requestID) == "" {

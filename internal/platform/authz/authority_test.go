@@ -15,7 +15,9 @@ import (
 func newAuthorityService(t *testing.T) (*Service, *MemoryRepository) {
 	t.Helper()
 	repository := NewMemoryRepository()
-	repository.SeedRole(Role{Code: "administrator", Name: "Administrator", IsSystem: true, Rank: 100})
+	repository.SeedRole(
+		Role{Code: "administrator", Name: "Administrator", IsSystem: true, Rank: 100},
+	)
 	repository.SeedRole(Role{Code: "access-admin", Name: "Access Admin", Rank: 90})
 	repository.SeedRole(Role{Code: "junior-admin", Name: "Junior Admin", Rank: 50})
 	repository.SeedRole(Role{Code: "staff", Name: "Staf", IsSystem: true, Rank: 10})

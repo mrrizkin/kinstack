@@ -268,7 +268,12 @@ func TestSQLRepositoryDeleteBeforePrunesOldRows(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var table string
-	if err := db.GetContext(ctx, &table, `SELECT to_regclass('audit_events')`); err != nil || table == "" {
+	if err := db.GetContext(
+		ctx,
+		&table,
+		`SELECT to_regclass('audit_events')`,
+	); err != nil ||
+		table == "" {
 		t.Skip("audit events migration is not applied")
 	}
 

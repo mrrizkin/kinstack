@@ -97,7 +97,11 @@ func normalizeFilter(request FilterRequest) (Query, error) {
 		}
 	}
 	if len(query.Search) > maxSearchLength {
-		return Query{}, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("audit.search_too_long", maxSearchLength))
+		return Query{}, fmt.Errorf(
+			"%w: %s",
+			ErrInvalidInput,
+			i18n.T("audit.search_too_long", maxSearchLength),
+		)
 	}
 
 	perPage := request.PerPage

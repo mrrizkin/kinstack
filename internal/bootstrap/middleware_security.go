@@ -34,12 +34,16 @@ func registerTransportMiddleware(d GlobalMiddlewareDependency) {
 		HSTSMaxAge:                hstsMaxAge(d.Config),
 	}))
 	d.App.Use(security.CSP(security.CSPConfig{
-		Enabled:        d.Config.Security.CSPEnabled,
-		ReportOnly:     d.Config.Security.CSPReportOnly,
-		ReportURI:      d.Config.Security.CSPReportURI,
-		ScriptSources:  cspSources(d.Config.Security.ExtraScriptSources, d.Config.Umami.ScriptURL),
-		ConnectSources: cspSources(d.Config.Security.ExtraConnectSources, d.Config.GlitchTip.DSN, d.Config.Umami.ScriptURL),
-		ImageSources:   cspSources(d.Config.Security.ExtraImageSources, d.Config.RustFS.PublicURL),
+		Enabled:       d.Config.Security.CSPEnabled,
+		ReportOnly:    d.Config.Security.CSPReportOnly,
+		ReportURI:     d.Config.Security.CSPReportURI,
+		ScriptSources: cspSources(d.Config.Security.ExtraScriptSources, d.Config.Umami.ScriptURL),
+		ConnectSources: cspSources(
+			d.Config.Security.ExtraConnectSources,
+			d.Config.GlitchTip.DSN,
+			d.Config.Umami.ScriptURL,
+		),
+		ImageSources: cspSources(d.Config.Security.ExtraImageSources, d.Config.RustFS.PublicURL),
 	}))
 	d.App.Use(recoverer.New(recoverer.Config{
 		EnableStackTrace: true,
@@ -168,7 +172,8 @@ func registerCSRFMiddleware(d GlobalMiddlewareDependency) {
 			// CSRF token. Both are protected by a single-use transaction record in
 			// shared storage (sealed state for OAuth, random RelayState for SAML)
 			// plus the provider's own response validation.
-			return c.Path() == "/login/oauth/callback" || c.Path() == "/login/saml/acs" || c.Path() == "/csp-report"
+			return c.Path() == "/login/oauth/callback" || c.Path() == "/login/saml/acs" ||
+				c.Path() == "/csp-report"
 		},
 	}))
 }

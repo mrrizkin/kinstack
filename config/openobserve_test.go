@@ -53,7 +53,8 @@ func TestOpenObserveProductionRequiresAuth(t *testing.T) {
 		ServiceName:      "kinstack",
 		TracesSampleRate: 1,
 	}
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "OPENOBSERVE_AUTH_HEADER") {
+	if err := cfg.Validate(); err == nil ||
+		!strings.Contains(err.Error(), "OPENOBSERVE_AUTH_HEADER") {
 		t.Fatalf("expected auth error, got %v", err)
 	}
 }

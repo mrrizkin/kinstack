@@ -47,7 +47,8 @@ func TestTelemetryExportsToOpenObserve(t *testing.T) {
 
 	_, span := telemetry.tracer.Start(context.Background(), "test span")
 	span.End()
-	if _, err := telemetry.LogWriter().Write([]byte(`{"level":"info","message":"hello"}` + "\n")); err != nil {
+	if _, err := telemetry.LogWriter().
+		Write([]byte(`{"level":"info","message":"hello"}` + "\n")); err != nil {
 		t.Fatalf("write log: %v", err)
 	}
 

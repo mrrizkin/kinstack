@@ -12,10 +12,20 @@ type fakeProvider struct {
 
 func (f fakeProvider) Name() string  { return f.name }
 func (f fakeProvider) Label() string { return f.label }
-func (f fakeProvider) Start(context.Context, AuthorizationRequest, ContinuationStore) (string, error) {
+
+func (f fakeProvider) Start(
+	context.Context,
+	AuthorizationRequest,
+	ContinuationStore,
+) (string, error) {
 	return "https://example.test/auth", nil
 }
-func (f fakeProvider) Complete(context.Context, ExchangeRequest, ContinuationStore) (Identity, error) {
+
+func (f fakeProvider) Complete(
+	context.Context,
+	ExchangeRequest,
+	ContinuationStore,
+) (Identity, error) {
 	return Identity{Subject: f.name}, nil
 }
 

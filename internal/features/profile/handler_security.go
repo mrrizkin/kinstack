@@ -24,7 +24,12 @@ func (h *Handler) revokeSession(c fiber.Ctx) error {
 		h.logger.Errorw("revoke session", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.profilePath(), i18n.T("profile.session_revoked"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.profilePath(),
+		i18n.T("profile.session_revoked"),
+	)
 }
 
 // revokeOtherSessions signs out every device except the current one.
@@ -40,7 +45,12 @@ func (h *Handler) revokeOtherSessions(c fiber.Ctx) error {
 		h.logger.Errorw("revoke other sessions", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.profilePath(), i18n.T("profile.other_sessions_revoked"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		h.profilePath(),
+		i18n.T("profile.other_sessions_revoked"),
+	)
 }
 
 // beginTwoFactor stores a pending TOTP secret for the account.

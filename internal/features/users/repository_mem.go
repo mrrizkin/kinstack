@@ -32,7 +32,10 @@ func (r *MemoryRepository) Seed(user UserResult) {
 	r.users[user.PublicID] = user
 }
 
-func (r *MemoryRepository) ListUsers(_ context.Context, query pagination.Query) ([]UserResult, error) {
+func (r *MemoryRepository) ListUsers(
+	_ context.Context,
+	query pagination.Query,
+) ([]UserResult, error) {
 	items := r.allUsers()
 	start := min(query.Offset(), len(items))
 	end := min(start+query.Limit(), len(items))

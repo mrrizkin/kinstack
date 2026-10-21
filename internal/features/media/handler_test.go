@@ -55,7 +55,9 @@ func TestFileResponseDoesNotLeakStorageDetails(t *testing.T) {
 	})
 	service := NewService(ServiceDependency{
 		Repository: repository,
-		Storage:    failingStorage{err: errors.New("bucket=private endpoint=s3.internal access denied")},
+		Storage: failingStorage{
+			err: errors.New("bucket=private endpoint=s3.internal access denied"),
+		},
 	})
 	app, _ := newMediaTestApp(t, service)
 
@@ -90,7 +92,9 @@ func TestDeleteResponseDoesNotLeakStorageDetails(t *testing.T) {
 	})
 	service := NewService(ServiceDependency{
 		Repository: repository,
-		Storage:    failingStorage{err: errors.New("bucket=private endpoint=s3.internal access denied")},
+		Storage: failingStorage{
+			err: errors.New("bucket=private endpoint=s3.internal access denied"),
+		},
 	})
 	app, _ := newMediaTestApp(t, service)
 

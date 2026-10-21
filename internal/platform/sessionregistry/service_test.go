@@ -71,11 +71,17 @@ func TestRevokeDestroysTransportSession(t *testing.T) {
 	service, _, store := newService(t)
 	ctx := context.Background()
 
-	first, err := service.Register(ctx, RegisterInput{UserPublicID: "user-1", SessionID: "session-a"})
+	first, err := service.Register(
+		ctx,
+		RegisterInput{UserPublicID: "user-1", SessionID: "session-a"},
+	)
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := service.Register(ctx, RegisterInput{UserPublicID: "user-1", SessionID: "session-b"}); err != nil {
+	if _, err := service.Register(
+		ctx,
+		RegisterInput{UserPublicID: "user-1", SessionID: "session-b"},
+	); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 
@@ -116,7 +122,10 @@ func TestRevokeOthersKeepsCurrent(t *testing.T) {
 	ctx := context.Background()
 
 	for _, sessionID := range []string{"session-a", "session-b", "session-c"} {
-		if _, err := service.Register(ctx, RegisterInput{UserPublicID: "user-1", SessionID: sessionID}); err != nil {
+		if _, err := service.Register(
+			ctx,
+			RegisterInput{UserPublicID: "user-1", SessionID: sessionID},
+		); err != nil {
 			t.Fatalf("register %s: %v", sessionID, err)
 		}
 	}
@@ -141,7 +150,10 @@ func TestRevokeSessionMarksLogout(t *testing.T) {
 	service, _, _ := newService(t)
 	ctx := context.Background()
 
-	if _, err := service.Register(ctx, RegisterInput{UserPublicID: "user-1", SessionID: "session-a"}); err != nil {
+	if _, err := service.Register(
+		ctx,
+		RegisterInput{UserPublicID: "user-1", SessionID: "session-a"},
+	); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	if err := service.RevokeSession(ctx, "session-a"); err != nil {

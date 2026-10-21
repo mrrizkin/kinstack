@@ -95,12 +95,20 @@ func (UnavailableProvider) Name() string { return "unavailable" }
 func (UnavailableProvider) Label() string { return "Unavailable" }
 
 // Start always fails because SSO is disabled.
-func (UnavailableProvider) Start(context.Context, AuthorizationRequest, ContinuationStore) (string, error) {
+func (UnavailableProvider) Start(
+	context.Context,
+	AuthorizationRequest,
+	ContinuationStore,
+) (string, error) {
 	return "", ErrUnavailable
 }
 
 // Complete always fails because SSO is disabled.
-func (UnavailableProvider) Complete(context.Context, ExchangeRequest, ContinuationStore) (Identity, error) {
+func (UnavailableProvider) Complete(
+	context.Context,
+	ExchangeRequest,
+	ContinuationStore,
+) (Identity, error) {
 	return Identity{}, ErrUnavailable
 }
 
@@ -246,7 +254,8 @@ func (p *HTTPProvider) Complete(
 		EmailVerified bool   `json:"email_verified"`
 		Name          string `json:"name"`
 	}
-	if err := json.NewDecoder(io.LimitReader(userResponse.Body, 64<<10)).Decode(&identity); err != nil {
+	if err := json.NewDecoder(io.LimitReader(userResponse.Body, 64<<10)).
+		Decode(&identity); err != nil {
 		return Identity{}, ErrInvalidCode
 	}
 	return Identity{

@@ -187,7 +187,10 @@ func (r *SQLRepository) Close() error {
 }
 
 // ListUsers returns one page of non-deleted accounts.
-func (r *SQLRepository) ListUsers(ctx context.Context, query pagination.Query) ([]UserResult, error) {
+func (r *SQLRepository) ListUsers(
+	ctx context.Context,
+	query pagination.Query,
+) ([]UserResult, error) {
 	rows := make([]UserResult, 0)
 	if err := r.listStmt.SelectContext(ctx, &rows, query.Limit(), query.Offset()); err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
@@ -258,7 +261,10 @@ func (r *SQLRepository) UpdateUser(ctx context.Context, input UpdateUserInput) (
 	if errors.Is(err, sql.ErrNoRows) {
 		return UserResult{}, ErrNotFound
 	}
-	if constraint, ok := uniqueViolationConstraint(err); ok && constraint == "users_email_active_idx" {
+	if constraint, ok := uniqueViolationConstraint(
+		err,
+	); ok &&
+		constraint == "users_email_active_idx" {
 		return UserResult{}, ErrEmailTaken
 	}
 	if err != nil {

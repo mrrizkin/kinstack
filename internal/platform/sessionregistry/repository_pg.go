@@ -193,7 +193,10 @@ func (r *SQLRepository) ListActive(ctx context.Context, userPublicID string) ([]
 }
 
 // FindByPublicID returns one active session.
-func (r *SQLRepository) FindByPublicID(ctx context.Context, sessionPublicID string) (Result, error) {
+func (r *SQLRepository) FindByPublicID(
+	ctx context.Context,
+	sessionPublicID string,
+) (Result, error) {
 	var result Result
 	if err := r.findByID.GetContext(ctx, &result, sessionPublicID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -246,7 +249,12 @@ func (r *SQLRepository) RevokeAllExcept(
 	keepSessionID string,
 ) ([]string, error) {
 	sessionIDs := make([]string, 0)
-	if err := r.revokeRest.SelectContext(ctx, &sessionIDs, userPublicID, keepSessionID); err != nil {
+	if err := r.revokeRest.SelectContext(
+		ctx,
+		&sessionIDs,
+		userPublicID,
+		keepSessionID,
+	); err != nil {
 		return nil, fmt.Errorf("revoke other sessions: %w", err)
 	}
 	return sessionIDs, nil

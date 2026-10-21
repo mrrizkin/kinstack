@@ -24,7 +24,10 @@ func newValidationApp(t *testing.T, boundary *Actor, mark bool) *fiber.App {
 	app.Use(func(c fiber.Ctx) error {
 		boundary.SetRequestActor(c, SessionActor{PublicID: "user-1"})
 		if mark {
-			if err := boundary.ValidateSession(c.Context(), boundary.ActorFromContext(c)); err != nil {
+			if err := boundary.ValidateSession(
+				c.Context(),
+				boundary.ActorFromContext(c),
+			); err != nil {
 				return err
 			}
 			boundary.MarkValidated(c)

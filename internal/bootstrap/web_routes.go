@@ -126,7 +126,8 @@ func dashboardMetrics(c fiber.Ctx, d WebRoutesDependency) fiber.Map {
 		metrics["roles_total"] = roles
 	}
 	from := time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339)
-	if page, err := d.Audit.Service().List(c.Context(), audit.FilterRequest{From: from, Page: 1, PerPage: 1}); err == nil {
+	if page, err := d.Audit.Service().
+		List(c.Context(), audit.FilterRequest{From: from, Page: 1, PerPage: 1}); err == nil {
 		metrics["audit_24h"] = page.Total
 	}
 	session := d.Actor.ActorFromContext(c)

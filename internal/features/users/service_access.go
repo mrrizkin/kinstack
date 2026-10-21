@@ -112,7 +112,13 @@ func (s *Service) CreateRole(ctx context.Context, request CreateRoleRequest) (Ro
 	if err != nil {
 		return RoleDTO{}, err
 	}
-	role, err := authorization.CreateRole(ctx, request.Code, request.Name, request.Description, request.Rank)
+	role, err := authorization.CreateRole(
+		ctx,
+		request.Code,
+		request.Name,
+		request.Description,
+		request.Rank,
+	)
 	if err != nil {
 		return RoleDTO{}, err
 	}
@@ -120,12 +126,22 @@ func (s *Service) CreateRole(ctx context.Context, request CreateRoleRequest) (Ro
 }
 
 // UpdateRole edits a custom role.
-func (s *Service) UpdateRole(ctx context.Context, code string, request UpdateRoleRequest) (RoleDTO, error) {
+func (s *Service) UpdateRole(
+	ctx context.Context,
+	code string,
+	request UpdateRoleRequest,
+) (RoleDTO, error) {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
 		return RoleDTO{}, err
 	}
-	role, err := authorization.UpdateRole(ctx, code, request.Name, request.Description, request.Rank)
+	role, err := authorization.UpdateRole(
+		ctx,
+		code,
+		request.Name,
+		request.Description,
+		request.Rank,
+	)
 	if err != nil {
 		return RoleDTO{}, err
 	}
@@ -164,7 +180,11 @@ func (s *Service) AssignRole(ctx context.Context, publicID, role string) error {
 }
 
 // SetOverride validates and upserts a per-user permission override.
-func (s *Service) SetOverride(ctx context.Context, publicID string, request SetOverrideRequest) error {
+func (s *Service) SetOverride(
+	ctx context.Context,
+	publicID string,
+	request SetOverrideRequest,
+) error {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
 		return err
@@ -190,7 +210,11 @@ func (s *Service) DeleteOverride(ctx context.Context, publicID, permission strin
 	if err != nil {
 		return err
 	}
-	return authorization.DeleteOverride(ctx, publicID, authz.Permission(strings.TrimSpace(permission)))
+	return authorization.DeleteOverride(
+		ctx,
+		publicID,
+		authz.Permission(strings.TrimSpace(permission)),
+	)
 }
 
 func (s *Service) requireAuthorization() (*authz.Service, error) {

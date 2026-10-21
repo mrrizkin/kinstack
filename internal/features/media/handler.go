@@ -69,12 +69,14 @@ func (h *Handler) file(c fiber.Ctx) error {
 		case errors.Is(err, ErrNotFound):
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": ErrNotFound.Error()})
 		case errors.Is(err, ErrInvalidInput):
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": ErrInvalidInput.Error()})
+			return c.Status(fiber.StatusUnprocessableEntity).
+				JSON(fiber.Map{"error": ErrInvalidInput.Error()})
 		case errors.Is(err, ErrStorage):
 			// The wrapped storage error carries bucket and object details; keep
 			// them in the log and return the shared, generic message.
 			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": ErrStorage.Error()})
+			return c.Status(fiber.StatusServiceUnavailable).
+				JSON(fiber.Map{"error": ErrStorage.Error()})
 		default:
 			return h.internalServerError(c, "open media", err)
 		}
@@ -105,7 +107,10 @@ func (h *Handler) file(c fiber.Ctx) error {
 	c.Set(fiber.HeaderContentType, asset.ContentType)
 	// Filenames are user supplied; quote and strip control characters so they
 	// cannot break out of the Content-Disposition header.
-	c.Set(fiber.HeaderContentDisposition, "inline; filename=\""+headerSafeFilename(asset.Filename)+"\"")
+	c.Set(
+		fiber.HeaderContentDisposition,
+		"inline; filename=\""+headerSafeFilename(asset.Filename)+"\"",
+	)
 	return c.Send(data)
 }
 
@@ -174,11 +179,13 @@ func (h *Handler) delete(c fiber.Ctx) error {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": ErrNotFound.Error()})
 		}
 		if errors.Is(err, ErrInvalidInput) {
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": ErrInvalidInput.Error()})
+			return c.Status(fiber.StatusUnprocessableEntity).
+				JSON(fiber.Map{"error": ErrInvalidInput.Error()})
 		}
 		if errors.Is(err, ErrStorage) {
 			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": ErrStorage.Error()})
+			return c.Status(fiber.StatusServiceUnavailable).
+				JSON(fiber.Map{"error": ErrStorage.Error()})
 		}
 		return h.internalServerError(c, "delete media", err)
 	}

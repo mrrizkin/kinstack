@@ -16,7 +16,13 @@ func newTestService() (*Service, *MemoryRepository) {
 func TestCreateReturnsUsableTokenOnce(t *testing.T) {
 	service, _ := newTestService()
 
-	created, err := service.Create(context.Background(), "user-1", "CI pipeline", 0, []string{"users.view"})
+	created, err := service.Create(
+		context.Background(),
+		"user-1",
+		"CI pipeline",
+		0,
+		[]string{"users.view"},
+	)
 	if err != nil {
 		t.Fatalf("create token: %v", err)
 	}
@@ -49,10 +55,28 @@ func TestCreateReturnsUsableTokenOnce(t *testing.T) {
 
 func TestCreateValidatesName(t *testing.T) {
 	service, _ := newTestService()
-	if _, err := service.Create(context.Background(), "user-1", "", 0, nil); !errors.Is(err, ErrInvalidInput) {
+	if _, err := service.Create(
+		context.Background(),
+		"user-1",
+		"",
+		0,
+		nil,
+	); !errors.Is(
+		err,
+		ErrInvalidInput,
+	) {
 		t.Fatalf("expected invalid input, got %v", err)
 	}
-	if _, err := service.Create(context.Background(), "user-1", strings.Repeat("a", maxNameLength+1), 0, nil); !errors.Is(err, ErrInvalidInput) {
+	if _, err := service.Create(
+		context.Background(),
+		"user-1",
+		strings.Repeat("a", maxNameLength+1),
+		0,
+		nil,
+	); !errors.Is(
+		err,
+		ErrInvalidInput,
+	) {
 		t.Fatalf("expected invalid input, got %v", err)
 	}
 }
@@ -88,7 +112,13 @@ func TestCreateWithoutScopesDeniesEverything(t *testing.T) {
 func TestAuthenticateRejectsMalformedToken(t *testing.T) {
 	service, _ := newTestService()
 	for _, raw := range []string{"", "nope", "hus_", "hus_onlypublicid", "hus_pub."} {
-		if _, _, err := service.Authenticate(context.Background(), raw); !errors.Is(err, ErrInvalidToken) {
+		if _, _, err := service.Authenticate(
+			context.Background(),
+			raw,
+		); !errors.Is(
+			err,
+			ErrInvalidToken,
+		) {
 			t.Fatalf("token %q: expected invalid token, got %v", raw, err)
 		}
 	}
@@ -97,7 +127,13 @@ func TestAuthenticateRejectsMalformedToken(t *testing.T) {
 func TestAuthenticateRejectsUnknownToken(t *testing.T) {
 	service, _ := newTestService()
 	raw := tokenScheme + "unknownpublicid" + "." + strings.Repeat("a", 43)
-	if _, _, err := service.Authenticate(context.Background(), raw); !errors.Is(err, ErrInvalidToken) {
+	if _, _, err := service.Authenticate(
+		context.Background(),
+		raw,
+	); !errors.Is(
+		err,
+		ErrInvalidToken,
+	) {
 		t.Fatalf("expected invalid token, got %v", err)
 	}
 }
@@ -109,7 +145,13 @@ func TestAuthenticateRejectsTamperedSecret(t *testing.T) {
 		t.Fatalf("create token: %v", err)
 	}
 	tampered := created.Token[:len(created.Token)-1] + "x"
-	if _, _, err := service.Authenticate(context.Background(), tampered); !errors.Is(err, ErrInvalidToken) {
+	if _, _, err := service.Authenticate(
+		context.Background(),
+		tampered,
+	); !errors.Is(
+		err,
+		ErrInvalidToken,
+	) {
 		t.Fatalf("expected invalid token, got %v", err)
 	}
 }
@@ -120,13 +162,30 @@ func TestAuthenticateRejectsRevokedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create token: %v", err)
 	}
-	if err := service.Revoke(context.Background(), "user-1", created.APIToken.PublicID); err != nil {
+	if err := service.Revoke(
+		context.Background(),
+		"user-1",
+		created.APIToken.PublicID,
+	); err != nil {
 		t.Fatalf("revoke token: %v", err)
 	}
-	if _, _, err := service.Authenticate(context.Background(), created.Token); !errors.Is(err, ErrInvalidToken) {
+	if _, _, err := service.Authenticate(
+		context.Background(),
+		created.Token,
+	); !errors.Is(
+		err,
+		ErrInvalidToken,
+	) {
 		t.Fatalf("expected invalid token, got %v", err)
 	}
-	if err := service.Revoke(context.Background(), "user-2", created.APIToken.PublicID); !errors.Is(err, ErrNotFound) {
+	if err := service.Revoke(
+		context.Background(),
+		"user-2",
+		created.APIToken.PublicID,
+	); !errors.Is(
+		err,
+		ErrNotFound,
+	) {
 		t.Fatalf("expected not found for another owner, got %v", err)
 	}
 }
@@ -144,7 +203,13 @@ func TestAuthenticateRejectsExpiredToken(t *testing.T) {
 		t.Fatalf("create token: %v", err)
 	}
 	current = current.Add(48 * time.Hour)
-	if _, _, err := service.Authenticate(context.Background(), created.Token); !errors.Is(err, ErrInvalidToken) {
+	if _, _, err := service.Authenticate(
+		context.Background(),
+		created.Token,
+	); !errors.Is(
+		err,
+		ErrInvalidToken,
+	) {
 		t.Fatalf("expected invalid token, got %v", err)
 	}
 }

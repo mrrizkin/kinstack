@@ -83,7 +83,11 @@ func appendPolicy(index map[Permission][]Policy, policy Policy) error {
 }
 
 // baseDecision builds the RBAC baseline decision for a resolved permission set.
-func baseDecision(principal Principal, granted map[Permission]struct{}, permission Permission) Decision {
+func baseDecision(
+	principal Principal,
+	granted map[Permission]struct{},
+	permission Permission,
+) Decision {
 	if permission == Authenticated {
 		return Allow("authenticated", i18n.T("authz.reason.authenticated"))
 	}

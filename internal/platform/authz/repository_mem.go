@@ -209,7 +209,10 @@ func (r *MemoryRepository) UserOverrides(_ context.Context, publicID string) ([]
 	for _, override := range set {
 		overrides = append(overrides, override)
 	}
-	sort.Slice(overrides, func(i, j int) bool { return overrides[i].Permission < overrides[j].Permission })
+	sort.Slice(
+		overrides,
+		func(i, j int) bool { return overrides[i].Permission < overrides[j].Permission },
+	)
 	return overrides, nil
 }
 
@@ -227,14 +230,20 @@ func (r *MemoryRepository) UserOverridesMany(
 		for _, override := range set {
 			overrides = append(overrides, override)
 		}
-		sort.Slice(overrides, func(i, j int) bool { return overrides[i].Permission < overrides[j].Permission })
+		sort.Slice(
+			overrides,
+			func(i, j int) bool { return overrides[i].Permission < overrides[j].Permission },
+		)
 		result[publicID] = overrides
 	}
 	return result, nil
 }
 
 // SetUserOverride upserts a user's override.
-func (r *MemoryRepository) SetUserOverride(_ context.Context, input SetOverrideInput) (Override, error) {
+func (r *MemoryRepository) SetUserOverride(
+	_ context.Context,
+	input SetOverrideInput,
+) (Override, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.userRoles[input.UserPublicID]; !ok {
@@ -254,7 +263,11 @@ func (r *MemoryRepository) SetUserOverride(_ context.Context, input SetOverrideI
 }
 
 // DeleteUserOverride removes a user's override.
-func (r *MemoryRepository) DeleteUserOverride(_ context.Context, publicID string, permission Permission) error {
+func (r *MemoryRepository) DeleteUserOverride(
+	_ context.Context,
+	publicID string,
+	permission Permission,
+) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.overrides[publicID], permission)

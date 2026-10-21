@@ -33,7 +33,10 @@ func (c *SecurityConfig) Load() {
 // Validate rejects values that would break the policy or inject headers.
 func (c SecurityConfig) Validate() error {
 	if c.CSPReportURI != "" && !strings.HasPrefix(c.CSPReportURI, "/") {
-		if parsed, err := url.Parse(c.CSPReportURI); err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+		if parsed, err := url.Parse(
+			c.CSPReportURI,
+		); err != nil || parsed.Scheme != "https" ||
+			parsed.Host == "" {
 			return fmt.Errorf("CSP_REPORT_URI must be a relative path or an https URL")
 		}
 	}

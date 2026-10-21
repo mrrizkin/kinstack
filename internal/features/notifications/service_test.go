@@ -13,7 +13,13 @@ func newTestService() (*Service, *MemoryRepository) {
 
 func TestNotifyCreatesUnreadNotification(t *testing.T) {
 	service, _ := newTestService()
-	created, err := service.Notify(context.Background(), "user-1", "system", "Halo", "Pesan pertama")
+	created, err := service.Notify(
+		context.Background(),
+		"user-1",
+		"system",
+		"Halo",
+		"Pesan pertama",
+	)
 	if err != nil {
 		t.Fatalf("notify: %v", err)
 	}

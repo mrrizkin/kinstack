@@ -249,7 +249,9 @@ func newOTel(cfg config.OpenObserveConfig) (*otelProviders, error) {
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithResource(res),
 		sdktrace.WithBatcher(traceExporter),
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.TracesSampleRate))),
+		sdktrace.WithSampler(
+			sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.TracesSampleRate)),
+		),
 	)
 	otel.SetTracerProvider(tracerProvider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
@@ -265,7 +267,12 @@ func newOTel(cfg config.OpenObserveConfig) (*otelProviders, error) {
 		}
 	}
 	if cfg.ExportMetrics {
-		providers.metrics, providers.requestCount, providers.requestLatency, err = newMetrics(ctx, cfg, res, headers)
+		providers.metrics, providers.requestCount, providers.requestLatency, err = newMetrics(
+			ctx,
+			cfg,
+			res,
+			headers,
+		)
 		if err != nil {
 			return nil, err
 		}

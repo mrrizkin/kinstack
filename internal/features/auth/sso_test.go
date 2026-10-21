@@ -76,8 +76,10 @@ func newSSOTestApp(t *testing.T) (*fiber.App, *fakeSSOProvider, *MemoryRepositor
 	})
 	provider := &fakeSSOProvider{}
 	handler := NewHandler(HandlerDependency{
-		Service:             NewService(ServiceDependency{Repository: repository}),
-		Actor:               actor.New(actor.Dependency{Repository: actor.NewMemoryRepository("usr_1")}),
+		Service: NewService(ServiceDependency{Repository: repository}),
+		Actor: actor.New(
+			actor.Dependency{Repository: actor.NewMemoryRepository("usr_1")},
+		),
 		Logger:              applog.NewNoopLogger(),
 		OAuthProviders:      []platformoauth.Provider{provider},
 		OAuthStateSecret:    strings.Repeat("s", 32),

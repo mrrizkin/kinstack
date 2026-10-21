@@ -66,12 +66,42 @@ type Definition struct {
 
 // catalog is the ordered, authoritative permission catalog.
 var catalog = []Definition{
-	{PermissionUsersView, CategorySystem, i18n.T("authz.users_view.label"), i18n.T("authz.users_view.description")},
-	{PermissionUsersManage, CategorySystem, i18n.T("authz.users_manage.label"), i18n.T("authz.users_manage.description")},
-	{PermissionAccessManage, CategorySystem, i18n.T("authz.access_manage.label"), i18n.T("authz.access_manage.description")},
-	{PermissionAuditView, CategorySystem, i18n.T("authz.audit_view.label"), i18n.T("authz.audit_view.description")},
-	{PermissionMediaView, CategorySystem, i18n.T("authz.media_view.label"), i18n.T("authz.media_view.description")},
-	{PermissionMediaManage, CategorySystem, i18n.T("authz.media_manage.label"), i18n.T("authz.media_manage.description")},
+	{
+		PermissionUsersView,
+		CategorySystem,
+		i18n.T("authz.users_view.label"),
+		i18n.T("authz.users_view.description"),
+	},
+	{
+		PermissionUsersManage,
+		CategorySystem,
+		i18n.T("authz.users_manage.label"),
+		i18n.T("authz.users_manage.description"),
+	},
+	{
+		PermissionAccessManage,
+		CategorySystem,
+		i18n.T("authz.access_manage.label"),
+		i18n.T("authz.access_manage.description"),
+	},
+	{
+		PermissionAuditView,
+		CategorySystem,
+		i18n.T("authz.audit_view.label"),
+		i18n.T("authz.audit_view.description"),
+	},
+	{
+		PermissionMediaView,
+		CategorySystem,
+		i18n.T("authz.media_view.label"),
+		i18n.T("authz.media_view.description"),
+	},
+	{
+		PermissionMediaManage,
+		CategorySystem,
+		i18n.T("authz.media_manage.label"),
+		i18n.T("authz.media_manage.description"),
+	},
 }
 
 // Catalog returns a copy of the ordered permission catalog.

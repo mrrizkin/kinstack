@@ -50,7 +50,8 @@ func TestRoutePolicyCoversWorkspaceRoutes(t *testing.T) {
 			t.Errorf("route %q is missing from routePolicy", route)
 			continue
 		}
-		if policy != authz.Authenticated && policy != authz.BrowserSession && !authz.IsKnown(policy) {
+		if policy != authz.Authenticated && policy != authz.BrowserSession &&
+			!authz.IsKnown(policy) {
 			t.Errorf("route %q has unknown permission %q", route, policy)
 		}
 	}

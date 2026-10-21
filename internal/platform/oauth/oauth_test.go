@@ -120,7 +120,10 @@ func TestHTTPProviderAuthorizationAndExchange(t *testing.T) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"sub":"subject-1","email":"user@example.com","email_verified":true,"name":"User"}`)
+			_, _ = io.WriteString(
+				w,
+				`{"sub":"subject-1","email":"user@example.com","email_verified":true,"name":"User"}`,
+			)
 		default:
 			http.NotFound(w, r)
 		}
@@ -150,7 +153,8 @@ func TestHTTPProviderAuthorizationAndExchange(t *testing.T) {
 		t.Fatalf("parse authorization url: %v", err)
 	}
 	query := parsed.Query()
-	if query.Get("code_challenge_method") != "S256" || query.Get("code_challenge") != CodeChallenge("verifier-1") {
+	if query.Get("code_challenge_method") != "S256" ||
+		query.Get("code_challenge") != CodeChallenge("verifier-1") {
 		t.Fatalf("unexpected PKCE parameters: %s", redirect)
 	}
 

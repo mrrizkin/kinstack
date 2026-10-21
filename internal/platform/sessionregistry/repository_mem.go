@@ -102,7 +102,10 @@ func (r *MemoryRepository) ListActive(ctx context.Context, userPublicID string) 
 }
 
 // FindByPublicID returns one active session.
-func (r *MemoryRepository) FindByPublicID(ctx context.Context, sessionPublicID string) (Result, error) {
+func (r *MemoryRepository) FindByPublicID(
+	ctx context.Context,
+	sessionPublicID string,
+) (Result, error) {
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}

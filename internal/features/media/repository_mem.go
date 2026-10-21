@@ -91,7 +91,10 @@ func (r *MemoryRepository) Find(_ context.Context, ownerPublicID, publicID strin
 }
 
 // Delete soft-deletes one owned asset.
-func (r *MemoryRepository) Delete(_ context.Context, ownerPublicID, publicID string) (Asset, error) {
+func (r *MemoryRepository) Delete(
+	_ context.Context,
+	ownerPublicID, publicID string,
+) (Asset, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

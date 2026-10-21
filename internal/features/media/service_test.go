@@ -21,7 +21,13 @@ func newRecordingStorage() *recordingStorage {
 	return &recordingStorage{objects: map[string]int64{}, deleted: map[string]bool{}}
 }
 
-func (s *recordingStorage) Put(_ context.Context, key string, body io.Reader, size int64, _ string) error {
+func (s *recordingStorage) Put(
+	_ context.Context,
+	key string,
+	body io.Reader,
+	size int64,
+	_ string,
+) error {
 	if s.failPut {
 		return errors.New("storage down")
 	}
@@ -66,14 +72,23 @@ func testPNG(t *testing.T, width int) []byte {
 func newTestService() (*Service, *MemoryRepository, *recordingStorage) {
 	repository := NewMemoryRepository()
 	storage := newRecordingStorage()
-	return NewService(ServiceDependency{Repository: repository, Storage: storage}), repository, storage
+	return NewService(
+		ServiceDependency{Repository: repository, Storage: storage},
+	), repository, storage
 }
 
 func TestUploadStoresAsset(t *testing.T) {
 	service, _, storage := newTestService()
 	data := testPNG(t, 2)
 	body := bytes.NewReader(data)
-	asset, err := service.Upload(context.Background(), "user-1", "foto.png", "image/png", int64(len(data)), body)
+	asset, err := service.Upload(
+		context.Background(),
+		"user-1",
+		"foto.png",
+		"image/png",
+		int64(len(data)),
+		body,
+	)
 	if err != nil {
 		t.Fatalf("upload: %v", err)
 	}

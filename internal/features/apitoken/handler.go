@@ -98,7 +98,8 @@ func (h *Handler) create(c fiber.Ctx) error {
 	}
 	var request CreateAPITokenRequest
 	if err := c.Bind().Body(&request); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
+		return c.Status(fiber.StatusBadRequest).
+			JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
 	}
 	if err := h.validateScopes(c, request.Scopes); err != nil {
 		return err
@@ -141,7 +142,13 @@ func (h *Handler) validateScopes(c fiber.Ctx, scopes []string) error {
 	}
 	granted, err := h.authorization.Permissions(c.Context(), authz.PrincipalFromActor(session))
 	if err != nil {
-		h.logger.Errorw("resolve permissions for token scopes", "request_id", c.RequestID(), "error", err)
+		h.logger.Errorw(
+			"resolve permissions for token scopes",
+			"request_id",
+			c.RequestID(),
+			"error",
+			err,
+		)
 		return fiber.ErrInternalServerError
 	}
 	allowed := make(map[string]struct{}, len(granted))
@@ -168,5 +175,10 @@ func (h *Handler) revoke(c fiber.Ctx) error {
 			return fiber.ErrInternalServerError
 		}
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, "/api-tokens", i18n.T("apitoken.revoked"))
+	return platforminertia.RedirectWithFlash(
+		h.inertia,
+		c,
+		"/api-tokens",
+		i18n.T("apitoken.revoked"),
+	)
 }

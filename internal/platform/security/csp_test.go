@@ -1,11 +1,11 @@
 package security
 
 import (
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
-	"net/http/httptest"
 )
 
 func TestCSPDisabledIsNoOp(t *testing.T) {
@@ -72,7 +72,10 @@ func TestCSPReportOnly(t *testing.T) {
 	if resp.Header.Get("Content-Security-Policy") != "" {
 		t.Fatal("enforcing header set in report-only mode")
 	}
-	if !strings.Contains(resp.Header.Get("Content-Security-Policy-Report-Only"), "report-uri /csp-report") {
+	if !strings.Contains(
+		resp.Header.Get("Content-Security-Policy-Report-Only"),
+		"report-uri /csp-report",
+	) {
 		t.Fatal("missing report-uri directive")
 	}
 }

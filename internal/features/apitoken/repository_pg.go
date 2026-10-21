@@ -141,7 +141,10 @@ func (r *SQLRepository) Create(
 }
 
 // ListByUser returns the active tokens of one user.
-func (r *SQLRepository) ListByUser(ctx context.Context, userPublicID string) ([]TokenResult, error) {
+func (r *SQLRepository) ListByUser(
+	ctx context.Context,
+	userPublicID string,
+) ([]TokenResult, error) {
 	results := make([]TokenResult, 0)
 	if err := r.list.SelectContext(ctx, &results, userPublicID); err != nil {
 		return nil, fmt.Errorf("list api tokens: %w", err)

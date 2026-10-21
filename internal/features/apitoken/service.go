@@ -83,7 +83,11 @@ func (s *Service) Create(
 		)
 	}
 	if expiresInDays < 0 || expiresInDays > maxExpiryDays {
-		return CreatedToken{}, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("apitoken.expiry_invalid"))
+		return CreatedToken{}, fmt.Errorf(
+			"%w: %s",
+			ErrInvalidInput,
+			i18n.T("apitoken.expiry_invalid"),
+		)
 	}
 	normalizedScopes, err := normalizeScopes(scopes)
 	if err != nil {
@@ -134,7 +138,11 @@ func (s *Service) List(ctx context.Context, userPublicID string) ([]APITokenDTO,
 
 // Revoke marks one token owned by the user as revoked.
 func (s *Service) Revoke(ctx context.Context, userPublicID, tokenPublicID string) error {
-	return s.repository.Revoke(ctx, strings.TrimSpace(userPublicID), strings.TrimSpace(tokenPublicID))
+	return s.repository.Revoke(
+		ctx,
+		strings.TrimSpace(userPublicID),
+		strings.TrimSpace(tokenPublicID),
+	)
 }
 
 // RevokeAll revokes every personal API token of one user. Used after a
@@ -193,7 +201,11 @@ func normalizeScopes(scopes []string) (pq.StringArray, error) {
 			continue
 		}
 		if !authz.IsKnown(authz.Permission(code)) {
-			return nil, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("apitoken.scope_unknown", code))
+			return nil, fmt.Errorf(
+				"%w: %s",
+				ErrInvalidInput,
+				i18n.T("apitoken.scope_unknown", code),
+			)
 		}
 		if _, ok := seen[code]; ok {
 			continue

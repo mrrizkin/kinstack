@@ -77,7 +77,11 @@ func TestPlaceholderSecretAcceptsPassphrases(t *testing.T) {
 
 func TestProductionRejectsExampleValkeyPassword(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
-	cfg := ValkeyConfig{Host: "valkey.example.test", Port: 6379, Password: "kinstack-local-password"}
+	cfg := ValkeyConfig{
+		Host:     "valkey.example.test",
+		Port:     6379,
+		Password: "kinstack-local-password",
+	}
 	err := cfg.Validate()
 	if err == nil || !strings.Contains(err.Error(), "VALKEY_PASSWORD") {
 		t.Fatalf("expected VALKEY_PASSWORD placeholder error, got %v", err)

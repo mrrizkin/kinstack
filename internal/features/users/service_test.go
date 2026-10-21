@@ -283,7 +283,8 @@ func TestListPaginatesAndCounts(t *testing.T) {
 	if len(list.Users) != 2 {
 		t.Fatalf("expected 2 users, got %d", len(list.Users))
 	}
-	if list.Page.Total != 5 || list.Page.TotalPages != 3 || list.Page.From != 3 || list.Page.To != 4 {
+	if list.Page.Total != 5 || list.Page.TotalPages != 3 || list.Page.From != 3 ||
+		list.Page.To != 4 {
 		t.Fatalf("unexpected page: %+v", list.Page)
 	}
 
@@ -292,7 +293,11 @@ func TestListPaginatesAndCounts(t *testing.T) {
 		t.Fatalf("list past the end: %v", err)
 	}
 	if past.Page.Page != 3 || len(past.Users) != 1 {
-		t.Fatalf("past-end page must clamp to the last page: page=%+v rows=%d", past.Page, len(past.Users))
+		t.Fatalf(
+			"past-end page must clamp to the last page: page=%+v rows=%d",
+			past.Page,
+			len(past.Users),
+		)
 	}
 
 	counts, err := service.Count(testContext())
@@ -344,12 +349,15 @@ func TestAccessViewPaginatesUsersAndBatchesOverrides(t *testing.T) {
 	}
 	authorizationRepository := newSeededAuthorizationRepository()
 	authorizationRepository.SeedUser("staff-a", testStaffRole)
-	if _, err := authorizationRepository.SetUserOverride(context.Background(), authz.SetOverrideInput{
-		UserPublicID: "staff-a",
-		Permission:   authz.PermissionUsersView,
-		Effect:       authz.EffectAllow,
-		Reason:       "onboarding",
-	}); err != nil {
+	if _, err := authorizationRepository.SetUserOverride(
+		context.Background(),
+		authz.SetOverrideInput{
+			UserPublicID: "staff-a",
+			Permission:   authz.PermissionUsersView,
+			Effect:       authz.EffectAllow,
+			Reason:       "onboarding",
+		},
+	); err != nil {
 		t.Fatalf("seed override: %v", err)
 	}
 	service := NewService(ServiceDependency{
@@ -364,7 +372,8 @@ func TestAccessViewPaginatesUsersAndBatchesOverrides(t *testing.T) {
 	if len(props.Users) != 2 {
 		t.Fatalf("expected 2 users on the page, got %d", len(props.Users))
 	}
-	if props.Page.Total != 5 || props.Page.TotalPages != 3 || props.Page.From != 1 || props.Page.To != 2 {
+	if props.Page.Total != 5 || props.Page.TotalPages != 3 || props.Page.From != 1 ||
+		props.Page.To != 2 {
 		t.Fatalf("unexpected page: %+v", props.Page)
 	}
 	if len(props.Roles) != 2 || len(props.Permissions) == 0 {
@@ -391,7 +400,8 @@ func TestAccessViewPaginatesUsersAndBatchesOverrides(t *testing.T) {
 			continue
 		}
 		found = true
-		if len(user.Overrides) != 1 || user.Overrides[0].Permission != string(authz.PermissionUsersView) {
+		if len(user.Overrides) != 1 ||
+			user.Overrides[0].Permission != string(authz.PermissionUsersView) {
 			t.Fatalf("expected the staff-a override, got %+v", user.Overrides)
 		}
 	}

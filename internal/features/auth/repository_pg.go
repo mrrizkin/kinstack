@@ -169,8 +169,16 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.touchStmt, "auth_touch_last_login", touchLastLoginQuery},
 		{&repository.createTokenStmt, "auth_create_magic_link_token", createMagicLinkTokenQuery},
 		{&repository.consumeTokenStmt, "auth_consume_magic_link_token", consumeMagicLinkTokenQuery},
-		{&repository.createResetStmt, "auth_create_password_reset_token", createPasswordResetTokenQuery},
-		{&repository.consumeResetStmt, "auth_consume_password_reset_token", consumePasswordResetTokenQuery},
+		{
+			&repository.createResetStmt,
+			"auth_create_password_reset_token",
+			createPasswordResetTokenQuery,
+		},
+		{
+			&repository.consumeResetStmt,
+			"auth_consume_password_reset_token",
+			consumePasswordResetTokenQuery,
+		},
 		{&repository.updatePassStmt, "auth_update_password_hash", updatePasswordHashQuery},
 	}
 	for _, statement := range statements {

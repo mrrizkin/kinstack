@@ -44,7 +44,10 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateTokenInput) (To
 }
 
 // ListByUser returns the active tokens of one user, newest first.
-func (r *MemoryRepository) ListByUser(_ context.Context, userPublicID string) ([]TokenResult, error) {
+func (r *MemoryRepository) ListByUser(
+	_ context.Context,
+	userPublicID string,
+) ([]TokenResult, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	results := make([]TokenResult, 0)

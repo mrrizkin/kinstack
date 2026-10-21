@@ -45,7 +45,11 @@ func (r *SQLRepository) List(ctx context.Context, query Query) (Page, error) {
 	where, args := buildAuditFilter(query)
 
 	var total int
-	if err := r.db.GetContext(ctx, &total, "SELECT count(*) FROM audit_events"+where, args...); err != nil {
+	if err := r.db.GetContext(
+		ctx,
+		&total,
+		"SELECT count(*) FROM audit_events"+where,
+		args...); err != nil {
 		return Page{}, fmt.Errorf("count audit events: %w", err)
 	}
 
@@ -98,7 +102,10 @@ func buildAuditFilter(query Query) (string, []any) {
 
 	add := func(condition string, value any) {
 		args = append(args, value)
-		conditions = append(conditions, strings.Replace(condition, "?", "$"+strconv.Itoa(len(args)), 1))
+		conditions = append(
+			conditions,
+			strings.Replace(condition, "?", "$"+strconv.Itoa(len(args)), 1),
+		)
 	}
 
 	if query.ActorKey != "" {

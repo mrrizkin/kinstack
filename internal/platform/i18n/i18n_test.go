@@ -6,13 +6,18 @@ func TestTranslateEnglishCatalog(t *testing.T) {
 	if got, want := T("auth.invalid_credentials"), "Incorrect username or password."; got != want {
 		t.Fatalf("T() = %q, want %q", got, want)
 	}
-	if got, want := T("auth.account_locked"), "Too many sign-in attempts. Try again later."; got != want {
+	if got, want := T(
+		"auth.account_locked",
+	), "Too many sign-in attempts. Try again later."; got != want {
 		t.Fatalf("T() = %q, want %q", got, want)
 	}
 }
 
 func TestTranslateArguments(t *testing.T) {
-	if got, want := T("users.password_too_short", 12), "Password must be at least 12 characters."; got != want {
+	if got, want := T(
+		"users.password_too_short",
+		12,
+	), "Password must be at least 12 characters."; got != want {
 		t.Fatalf("T() = %q, want %q", got, want)
 	}
 }
@@ -24,7 +29,10 @@ func TestResolveAndFallbackLocale(t *testing.T) {
 	if got := Resolve("id-ID"); got != English {
 		t.Fatalf("Resolve() fallback = %q, want %q", got, English)
 	}
-	if got := TLocale(Locale("fr"), "auth.invalid_credentials"); got != "Incorrect username or password." {
+	if got := TLocale(
+		Locale("fr"),
+		"auth.invalid_credentials",
+	); got != "Incorrect username or password." {
 		t.Fatalf("TLocale() fallback = %q", got)
 	}
 	if got := T("missing.key"); got != "missing.key" {

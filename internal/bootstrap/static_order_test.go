@@ -30,7 +30,9 @@ func TestStaticAssetsAreMountedBetweenTransportAndAccessMiddleware(t *testing.T)
 	if !(transport < assets && assets < access) {
 		t.Fatalf(
 			"assets must be mounted between transport and access middleware: transport=%d assets=%d access=%d",
-			transport, assets, access,
+			transport,
+			assets,
+			access,
 		)
 	}
 }

@@ -18,7 +18,11 @@ func (r *fakeRevoker) RevokeAll(_ context.Context, userPublicID string) error {
 	return r.err
 }
 
-func seededResetService(t *testing.T, revoker CredentialRevoker, rawToken string) (*Service, *MemoryRepository) {
+func seededResetService(
+	t *testing.T,
+	revoker CredentialRevoker,
+	rawToken string,
+) (*Service, *MemoryRepository) {
 	t.Helper()
 	repository := NewMemoryRepository()
 	seedUser(t, repository, "rahasia123")
@@ -45,7 +49,11 @@ func TestResetPasswordRevokesSessionsAndTokens(t *testing.T) {
 	revoker := &fakeRevoker{}
 	service, _ := seededResetService(t, revoker, "reset-token-raw")
 
-	if err := service.ResetPassword(context.Background(), "reset-token-raw", "password-baru-1"); err != nil {
+	if err := service.ResetPassword(
+		context.Background(),
+		"reset-token-raw",
+		"password-baru-1",
+	); err != nil {
 		t.Fatalf("reset password: %v", err)
 	}
 	if len(revoker.revoked) != 1 || revoker.revoked[0] != "usr_1" {
@@ -74,7 +82,11 @@ func TestResetPasswordAbortsWhenRevocationFails(t *testing.T) {
 
 func TestResetPasswordWithoutRevokerStillWorks(t *testing.T) {
 	service, _ := seededResetService(t, nil, "reset-token-raw")
-	if err := service.ResetPassword(context.Background(), "reset-token-raw", "password-baru-1"); err != nil {
+	if err := service.ResetPassword(
+		context.Background(),
+		"reset-token-raw",
+		"password-baru-1",
+	); err != nil {
 		t.Fatalf("reset password: %v", err)
 	}
 }

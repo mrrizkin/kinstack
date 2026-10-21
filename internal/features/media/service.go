@@ -99,7 +99,9 @@ func (s *Service) Upload(
 	// Validate image dimensions without decoding the full pixel payload. This
 	// rejects decompression bombs while keeping metadata handling out of scope.
 	if strings.HasPrefix(contentType, "image/") && contentType != "image/webp" {
-		data, err := io.ReadAll(io.LimitReader(io.MultiReader(bytes.NewReader(head), body), maxUploadSize+1))
+		data, err := io.ReadAll(
+			io.LimitReader(io.MultiReader(bytes.NewReader(head), body), maxUploadSize+1),
+		)
 		if err != nil || int64(len(data)) > maxUploadSize {
 			return AssetDTO{}, ErrInvalidInput
 		}
@@ -115,7 +117,9 @@ func (s *Service) Upload(
 			return AssetDTO{}, ErrInvalidInput
 		}
 	} else {
-		data, err := io.ReadAll(io.LimitReader(io.MultiReader(bytes.NewReader(head), body), maxUploadSize+1))
+		data, err := io.ReadAll(
+			io.LimitReader(io.MultiReader(bytes.NewReader(head), body), maxUploadSize+1),
+		)
 		if err != nil || int64(len(data)) > maxUploadSize {
 			return AssetDTO{}, ErrInvalidInput
 		}

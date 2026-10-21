@@ -35,7 +35,10 @@ func NewMemoryRepository(userPublicIDs ...string) *MemoryRepository {
 }
 
 // FindStatus returns the stored state of one account.
-func (r *MemoryRepository) FindStatus(ctx context.Context, userPublicID string) (StatusResult, error) {
+func (r *MemoryRepository) FindStatus(
+	ctx context.Context,
+	userPublicID string,
+) (StatusResult, error) {
 	if err := ctx.Err(); err != nil {
 		return StatusResult{}, err
 	}
@@ -55,7 +58,11 @@ func (r *MemoryRepository) FindStatus(ctx context.Context, userPublicID string) 
 }
 
 // SetSecret stores a pending secret.
-func (r *MemoryRepository) SetSecret(ctx context.Context, userPublicID string, secret Secret) error {
+func (r *MemoryRepository) SetSecret(
+	ctx context.Context,
+	userPublicID string,
+	secret Secret,
+) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}

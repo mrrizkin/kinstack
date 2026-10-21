@@ -21,7 +21,10 @@ func TestInertiaEntryUsesNonce(t *testing.T) {
 	var out strings.Builder
 	err := InertiaEntry(
 		ScriptNonce(`<script type="module" src="/build/app.js"></script>`, "nonce-value"),
-		ScriptNonce(`<script data-page="app" type="application/json">{"a":1}</script>`, "nonce-value"),
+		ScriptNonce(
+			`<script data-page="app" type="application/json">{"a":1}</script>`,
+			"nonce-value",
+		),
 		"",
 		"nonce-value",
 	).Render(context.Background(), &out)

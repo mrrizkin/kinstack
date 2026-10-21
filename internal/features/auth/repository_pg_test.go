@@ -62,10 +62,22 @@ func TestSQLIdentityBindingRoundTrip(t *testing.T) {
 	})
 
 	subject := seed
-	if err := repository.UpsertIdentity(ctx, first, "test-provider", subject, "first@example.com"); err != nil {
+	if err := repository.UpsertIdentity(
+		ctx,
+		first,
+		"test-provider",
+		subject,
+		"first@example.com",
+	); err != nil {
 		t.Fatalf("bind identity: %v", err)
 	}
-	if err := repository.UpsertIdentity(ctx, first, "test-provider", subject, "renamed@example.com"); err != nil {
+	if err := repository.UpsertIdentity(
+		ctx,
+		first,
+		"test-provider",
+		subject,
+		"renamed@example.com",
+	); err != nil {
 		t.Fatalf("refresh identity: %v", err)
 	}
 	resolved, err := repository.FindIdentityUser(ctx, "test-provider", subject)
@@ -76,10 +88,26 @@ func TestSQLIdentityBindingRoundTrip(t *testing.T) {
 		t.Fatalf("identity resolved to %q, want %q", resolved.PublicID, first)
 	}
 
-	if err := repository.UpsertIdentity(ctx, second, "test-provider", subject, "second@example.com"); !errors.Is(err, ErrIdentityConflict) {
+	if err := repository.UpsertIdentity(
+		ctx,
+		second,
+		"test-provider",
+		subject,
+		"second@example.com",
+	); !errors.Is(
+		err,
+		ErrIdentityConflict,
+	) {
 		t.Fatalf("expected ErrIdentityConflict on rebinding, got %v", err)
 	}
-	if _, err := repository.FindIdentityUser(ctx, "test-provider", subject+"-missing"); !errors.Is(err, ErrNotFound) {
+	if _, err := repository.FindIdentityUser(
+		ctx,
+		"test-provider",
+		subject+"-missing",
+	); !errors.Is(
+		err,
+		ErrNotFound,
+	) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }

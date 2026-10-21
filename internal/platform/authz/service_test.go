@@ -29,7 +29,10 @@ func newTestService(t *testing.T) (*Service, *MemoryRepository) {
 
 // adminContext asserts the seeded administrator as the acting principal.
 func adminContext() context.Context {
-	return WithPrincipal(context.Background(), Principal{PublicID: "administrator-1", Role: adminRole})
+	return WithPrincipal(
+		context.Background(),
+		Principal{PublicID: "administrator-1", Role: adminRole},
+	)
 }
 
 func TestRoleWithAllPermissions(t *testing.T) {
@@ -281,7 +284,13 @@ func TestRoleMutationValidation(t *testing.T) {
 	); err == nil {
 		t.Fatalf("expected unknown permission to fail")
 	}
-	if _, err := service.UpdateRole(ctx, "staff", "Kasir Depan", "Kasir shift depan", 15); !errors.Is(
+	if _, err := service.UpdateRole(
+		ctx,
+		"staff",
+		"Kasir Depan",
+		"Kasir shift depan",
+		15,
+	); !errors.Is(
 		err,
 		ErrSystemRole,
 	) {
@@ -293,7 +302,9 @@ func TestRoleMutationValidation(t *testing.T) {
 }
 
 func TestMigrationSeedUsesKnownPermissions(t *testing.T) {
-	contents, err := os.ReadFile("../../../db/migrations/202601010005_insert_authorization_seed.sql")
+	contents, err := os.ReadFile(
+		"../../../db/migrations/202601010005_insert_authorization_seed.sql",
+	)
 	if err != nil {
 		t.Fatalf("read migration: %v", err)
 	}
@@ -362,7 +373,10 @@ func TestEffectiveBoundsTheResolutionCache(t *testing.T) {
 	}
 	service.mu.Unlock()
 
-	if _, err := service.Permissions(context.Background(), Principal{PublicID: "fresh-1", Role: adminRole}); err != nil {
+	if _, err := service.Permissions(
+		context.Background(),
+		Principal{PublicID: "fresh-1", Role: adminRole},
+	); err != nil {
 		t.Fatalf("resolve permissions: %v", err)
 	}
 

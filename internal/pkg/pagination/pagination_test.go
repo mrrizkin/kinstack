@@ -9,9 +9,19 @@ func TestNewNormalizesBounds(t *testing.T) {
 		perPage int
 		want    Query
 	}{
-		{name: "default when zero", page: 0, perPage: 0, want: Query{Page: 1, PerPage: DefaultPerPage}},
+		{
+			name:    "default when zero",
+			page:    0,
+			perPage: 0,
+			want:    Query{Page: 1, PerPage: DefaultPerPage},
+		},
 		{name: "negative page", page: -3, perPage: 10, want: Query{Page: 1, PerPage: 10}},
-		{name: "oversized per page", page: 2, perPage: MaxPerPage + 1, want: Query{Page: 2, PerPage: DefaultPerPage}},
+		{
+			name:    "oversized per page",
+			page:    2,
+			perPage: MaxPerPage + 1,
+			want:    Query{Page: 2, PerPage: DefaultPerPage},
+		},
 		{name: "valid", page: 4, perPage: 50, want: Query{Page: 4, PerPage: 50}},
 	}
 	for _, test := range cases {
@@ -41,25 +51,61 @@ func TestNewPageWindows(t *testing.T) {
 			name:  "empty",
 			query: New(1, 10),
 			total: 0,
-			want:  Page{Page: 1, PerPage: 10, Total: 0, TotalPages: 0, From: 0, To: 0, HasPrev: false, HasNext: false},
+			want: Page{
+				Page:       1,
+				PerPage:    10,
+				Total:      0,
+				TotalPages: 0,
+				From:       0,
+				To:         0,
+				HasPrev:    false,
+				HasNext:    false,
+			},
 		},
 		{
 			name:  "first page",
 			query: New(1, 10),
 			total: 25,
-			want:  Page{Page: 1, PerPage: 10, Total: 25, TotalPages: 3, From: 1, To: 10, HasPrev: false, HasNext: true},
+			want: Page{
+				Page:       1,
+				PerPage:    10,
+				Total:      25,
+				TotalPages: 3,
+				From:       1,
+				To:         10,
+				HasPrev:    false,
+				HasNext:    true,
+			},
 		},
 		{
 			name:  "last page partial",
 			query: New(3, 10),
 			total: 25,
-			want:  Page{Page: 3, PerPage: 10, Total: 25, TotalPages: 3, From: 21, To: 25, HasPrev: true, HasNext: false},
+			want: Page{
+				Page:       3,
+				PerPage:    10,
+				Total:      25,
+				TotalPages: 3,
+				From:       21,
+				To:         25,
+				HasPrev:    true,
+				HasNext:    false,
+			},
 		},
 		{
 			name:  "beyond last page",
 			query: New(9, 10),
 			total: 25,
-			want:  Page{Page: 9, PerPage: 10, Total: 25, TotalPages: 3, From: 0, To: 0, HasPrev: true, HasNext: false},
+			want: Page{
+				Page:       9,
+				PerPage:    10,
+				Total:      25,
+				TotalPages: 3,
+				From:       0,
+				To:         0,
+				HasPrev:    true,
+				HasNext:    false,
+			},
 		},
 	}
 	for _, test := range cases {
