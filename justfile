@@ -62,7 +62,7 @@ format-check:
 
 # Go formatting gate. verify only checks; use `just format-go` to fix.
 format-go-check:
-    ./scripts/check-gofmt.sh
+    ./scripts/check-go-format.sh
 
 test: type-check test-go test-frontend
 
