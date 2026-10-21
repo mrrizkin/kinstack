@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { computed, ref, useTemplateRef } from "vue";
 
+import AppFilterMenu from "@/components/AppFilterMenu.vue";
 import AppInputDate from "@/components/AppInputDate.vue";
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
@@ -84,7 +85,10 @@ const activeFilters = computed<Record<string, string>>(() => {
 });
 
 const applying = ref(false);
-const hasFilters = computed(() => Object.keys(activeFilters.value).length > 0);
+const activeFilterCount = computed(() => Object.keys(activeFilters.value).length);
+const hasFilters = computed(() => activeFilterCount.value > 0);
+
+const filterMenu = useTemplateRef<{ close: () => void }>("filterMenu");
 
 const MAX_SEARCH = 200;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -115,6 +119,7 @@ const emptyActions = computed(() =>
 
 function applyFilters() {
   if (!validateFilters()) return;
+  filterMenu.value?.close();
   router.get("/audit", activeFilters.value, {
     preserveState: true,
     preserveScroll: true,
@@ -134,6 +139,7 @@ function resetFilters() {
   filterErrors.value.search = "";
   filterErrors.value.from = "";
   filterErrors.value.to = "";
+  filterMenu.value?.close();
   router.get(
     "/audit",
     {},
@@ -167,12 +173,18 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
 
     <template #body>
       <div class="space-y-6">
-        <UCard>
-          <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" @submit.prevent="applyFilters">
-            <UFormField label="Search" :error="filterErrors.search || undefined">
+        <div class="flex items-center justify-end">
+          <AppFilterMenu
+            ref="filterMenu"
+            :active-count="activeFilterCount"
+            :applying="applying"
+            :disabled="applying"
+            @apply="applyFilters"
+            @reset="resetFilters">
+            <UFormField label="Search" class="col-span-2 max-md:col-span-1" :error="filterErrors.search || undefined">
               <UInput v-model="form.search" class="w-full" placeholder="Search activity or user details" />
             </UFormField>
-            <UFormField label="User">
+            <UFormField label="User" class="col-span-2 max-md:col-span-1">
               <UInput v-model="form.actor_key" class="w-full" placeholder="Username or user ID" />
             </UFormField>
             <UFormField label="Action">
@@ -187,18 +199,8 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
             <UFormField label="To date" :error="filterErrors.to || undefined">
               <AppInputDate v-model="form.to" placeholder="2026-01-01" class="w-full" />
             </UFormField>
-            <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-3">
-              <UButton
-                type="button"
-                color="neutral"
-                variant="outline"
-                label="Reset"
-                :disabled="applying"
-                @click="resetFilters" />
-              <UButton type="submit" color="primary" :icon="icons.filter" label="Apply" :loading="applying" />
-            </div>
-          </form>
-        </UCard>
+          </AppFilterMenu>
+        </div>
 
         <AppTableCard :view="view" class="hidden md:block">
           <UTable :data="entries" :columns="view.columns" class="w-full">
