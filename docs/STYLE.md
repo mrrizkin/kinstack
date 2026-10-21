@@ -90,6 +90,18 @@ guarantee.
   `<UApp>` holder.
 - Reuse existing components. Wrap a Nuxt UI component only when the wrapper adds
   behavior or removes duplication.
+- Render table cells through cell components instead of `resolveComponent()`:
+  Nuxt UI tags are only auto-imported inside `.vue` files.
+- A `columns.ts` module maps a row to cell props; it never builds markup. Cells
+  shared across slices keep their English labels overridable through props.
+- `components/` never imports `@/pages/`; shared cells take flat structural
+  props rather than feature DTOs.
+- Shared cells must be usable from `h(Cell, props)`: all data arrives as props.
+  A scalar cell may return a plain string or number.
+- Render timestamps through the shared time cell so every surface keeps the
+  machine-readable `<time datetime>` attribute and the shared format.
+- Send JSON requests through `requestJson` in `resources/js/lib/http.ts`, which
+  uses Inertia's HTTP client; do not call `fetch` directly.
 - Around 300 lines per component is a review signal, not a gate.
 - Server messages and flashes go through `internal/platform/i18n`; client shell copy lives in `resources/js/i18n`; page copy is written in English.
 

@@ -54,6 +54,13 @@ After restoring, run `just migrate-status` and test login and `/dashboard`.
 Valkey stores sessions, lockouts, and temporary state. Losing it forces users to
 sign in again.
 
+## Observability
+
+Error tracking, analytics, and server telemetry are opt-in. Each integration
+stays disabled until its environment values are set, so a core-only environment
+needs no extra services. `just infra-up` starts the optional local profile;
+local ports and defaults live in `deploy/compose.yml` and `.env.example`.
+
 ## Alerts
 
 | Alert | Condition | Action |
