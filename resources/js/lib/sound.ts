@@ -69,7 +69,7 @@ export function playNotificationSound(kind: NotificationSound = "info") {
  * Plays the chime regardless of the mute preference: used to preview the sound
  * when the user toggles it in the user menu.
  */
-export function previewNotificationSound(kind: NotificationSound = "info") {
+function previewNotificationSound(kind: NotificationSound = "info") {
   if (prefersReducedMotion()) return;
   const audio = resolveContext();
   if (!audio) return;

@@ -7,7 +7,7 @@ import (
 
 func TestRenderCompiledTemplates(t *testing.T) {
 	sender := NewMemorySender()
-	for _, name := range []string{"magic-link.html", "password-reset.html", "verify-email.html"} {
+	for _, name := range []string{"magic-link.html", "password-reset.html", "invite.html"} {
 		html, err := sender.Render(name, map[string]string{
 			"Link":      "https://example.test/token",
 			"ExpiresAt": "1 Jan 2030",
