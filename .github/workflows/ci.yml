@@ -56,6 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - run: sudo apt-get update && sudo apt-get install -y ripgrep
       - run: bun install --frozen-lockfile
       # FIXME: see the justfile audit recipe for why this advisory is ignored.
       - run: bun audit --ignore=GHSA-hp3w-g68c-fv3c
@@ -66,6 +67,7 @@ jobs:
       - run: bun test resources/js
       - run: bun x oxlint resources
       - run: bun x oxfmt --check resources/
+      - run: ./scripts/check-icons.sh
 
   smoke-csp:
     runs-on: ubuntu-latest
