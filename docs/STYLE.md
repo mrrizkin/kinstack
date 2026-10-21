@@ -27,6 +27,23 @@ the boundary, use typed errors, and assert invariants where they are assumed.
 cheap to recover, and depth is revealed progressively. Consistency beats
 novelty; a flow that silently confuses a first-time user is a defect.
 
+## Validation boundaries
+
+Validate where untrusted data enters, then trust the types inside your own code.
+Do not re-check invariants that the boundary and the type system already
+guarantee.
+
+- Make illegal states unrepresentable (a union of states, not a free-form
+  string) instead of adding runtime checks at every consumer.
+- Assert an invariant once, where it is owned: the store, the service, the
+  constructor. Copy-pasting the check into each caller is duplication, not
+  safety.
+- Parse instead of coercing. A malformed payload fails loudly at the boundary;
+  silently falling back to "close enough" hides the bug until it is expensive.
+- Security limits stack across layers (edge validation, parameterized queries,
+  rate limits). That is independent defense, not a reason to duplicate internal
+  validation.
+
 ## Adding a feature
 
 - Put application behavior in `internal/features/<name>` as a slice. Keep the
