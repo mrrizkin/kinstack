@@ -3,6 +3,7 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
+import AppCellStack from "@/components/cells/AppCellStack.vue";
 import type { TableView } from "@/lib/table-view";
 
 import type { Role } from "../types";
@@ -36,12 +37,12 @@ defineProps<{
         <article v-for="role in roles" :key="role.code" class="space-y-3 p-4">
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="text-highlighted font-medium">{{ role.name }}</p>
-                <UBadge v-if="role.is_system" color="neutral" variant="subtle" size="sm">Built-in</UBadge>
-              </div>
-              <p class="text-muted mt-1 font-mono text-xs">{{ role.code }}</p>
-              <p class="text-muted mt-1 text-xs">{{ role.description || "—" }}</p>
+              <AppCellStack
+                :primary="role.name"
+                :secondary="role.code"
+                :tertiary="role.description || '—'"
+                :badges="role.is_system ? [{ label: 'Built-in' }] : []"
+                mono="secondary" />
             </div>
             <UDropdownMenu :items="[menuItems(role)]" :content="{ align: 'end', collisionPadding: 12 }">
               <UButton

@@ -3,9 +3,13 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
+import AppCellSelect from "@/components/cells/AppCellSelect.vue";
+import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
+import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
 import type { TableView } from "@/lib/table-view";
 
 import type { UserAccess } from "../types";
+import UserOverridesCell from "./UserOverridesCell.vue";
 
 defineProps<{
   users: UserAccess[];
@@ -43,13 +47,10 @@ defineProps<{
         <article v-for="user in users" :key="user.public_id" class="space-y-3 p-4">
           <div class="flex flex-wrap items-start justify-between gap-2">
             <div class="min-w-0">
-              <p class="text-highlighted font-medium">{{ user.display_name }}</p>
-              <p class="text-muted text-xs">@{{ user.username }}</p>
+              <AppUserIdentityCell :name="user.display_name" :username="user.username" />
             </div>
             <div class="flex items-center gap-1">
-              <UBadge :color="user.is_active ? 'success' : 'error'" variant="subtle" size="sm">
-                {{ user.is_active ? "Active" : "Inactive" }}
-              </UBadge>
+              <AppStatusBadgeCell :active="user.is_active" />
               <UDropdownMenu :items="[menuItems(user)]" :content="{ align: 'end', collisionPadding: 12 }">
                 <UButton
                   icon="i-material-symbols:more-vert"
@@ -64,32 +65,17 @@ defineProps<{
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Role</span>
             <div class="flex items-center gap-2">
-              <USelect
+              <AppCellSelect
                 :model-value="user.role"
                 :items="roleOptions"
                 size="sm"
-                class="w-44"
-                :disabled="assigningRoleId === user.public_id"
-                @update:model-value="(value: unknown) => assignRole(user, String(value))" />
-              <UIcon
-                v-if="assigningRoleId === user.public_id"
-                name="i-bi-arrow-repeat"
-                class="text-muted size-3.5 animate-spin" />
+                :busy="assigningRoleId === user.public_id"
+                @update:model-value="(role: string) => assignRole(user, role)" />
             </div>
           </div>
           <div class="space-y-1.5">
             <p class="text-muted text-xs">Custom permissions</p>
-            <div v-if="user.overrides.length > 0" class="flex flex-wrap gap-1">
-              <UBadge
-                v-for="override in user.overrides"
-                :key="override.permission"
-                :color="override.expired ? 'neutral' : override.effect === 'allow' ? 'success' : 'error'"
-                variant="subtle"
-                size="sm">
-                {{ override.effect === "allow" ? "+" : "−" }} {{ override.label }}
-              </UBadge>
-            </div>
-            <p v-else class="text-muted text-xs">None</p>
+            <UserOverridesCell :overrides="user.overrides" />
           </div>
         </article>
       </AppMobileList>

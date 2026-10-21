@@ -7,12 +7,14 @@ import AppMobileList from "@/components/AppMobileList.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
+import AppCellBadge from "@/components/cells/AppCellBadge.vue";
+import AppCellStack from "@/components/cells/AppCellStack.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
-import { formatDateTime } from "@/lib/formatters";
 import { useTableView } from "@/lib/table-view";
 
-import { actionLabel, createAuditColumns, type Entry, statusColor } from "./columns";
+import { actionLabel, createAuditColumns, type Entry, outcomeColor, outcomeLabel, statusColor } from "./columns";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
@@ -220,30 +222,30 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
           <AppMobileList v-if="entries.length > 0">
             <article v-for="entry in entries" :key="entry.id" class="space-y-3 p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <time :datetime="entry.occurred_at" class="text-muted text-xs">
-                  {{ formatDateTime(entry.occurred_at) }}
-                </time>
+                <AppCellTime :value="entry.occurred_at" />
                 <div class="flex flex-wrap items-center gap-1">
-                  <UBadge :color="statusColor(entry.status)" variant="subtle" size="sm">
-                    {{ entry.status || "-" }}
-                  </UBadge>
-                  <UBadge :color="entry.outcome === 'failure' ? 'error' : 'success'" variant="subtle" size="sm">
-                    {{ entry.outcome === "failure" ? "Failure" : "Success" }}
-                  </UBadge>
+                  <AppCellBadge :color="statusColor(entry.status)" :label="String(entry.status || '-')" />
+                  <AppCellBadge :color="outcomeColor(entry.outcome)" :label="outcomeLabel(entry.outcome)" />
                 </div>
               </div>
 
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                  <UBadge color="neutral" variant="subtle" size="sm">{{ actionLabel(entry.action) }}</UBadge>
-                  <span class="text-highlighted truncate font-mono text-xs">{{ entry.resource || "-" }}</span>
-                </div>
-                <p class="text-muted mt-1 text-xs">{{ entry.method || "-" }}</p>
+              <div class="flex min-w-0 flex-wrap items-start gap-2">
+                <AppCellBadge :label="actionLabel(entry.action)" />
+                <AppCellStack
+                  class="min-w-0 flex-1"
+                  :primary="entry.resource || '-'"
+                  :secondary="entry.method || '-'"
+                  mono="primary"
+                  truncate />
               </div>
 
-              <div class="border-default space-y-1 border-t pt-2">
-                <p class="text-toned truncate text-xs font-medium">{{ entry.actor_key || "anonymous" }}</p>
-                <p class="text-muted truncate font-mono text-[11px]">{{ entry.request_id || "-" }}</p>
+              <div class="border-default border-t pt-2">
+                <AppCellStack
+                  class="min-w-0"
+                  :primary="entry.actor_key || 'anonymous'"
+                  :secondary="entry.request_id || '-'"
+                  mono="secondary"
+                  truncate />
               </div>
             </article>
           </AppMobileList>

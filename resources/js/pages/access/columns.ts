@@ -1,6 +1,13 @@
 import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
-import { h, resolveComponent } from "vue";
+import { h } from "vue";
 
+import AppCellSelect from "@/components/cells/AppCellSelect.vue";
+import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
+
+import RoleActionsCell from "./components/RoleActionsCell.vue";
+import RoleNameCell from "./components/RoleNameCell.vue";
+import UserAccessActionsCell from "./components/UserAccessActionsCell.vue";
+import UserOverridesCell from "./components/UserOverridesCell.vue";
 import type { Role, UserAccess } from "./types";
 
 export interface RoleColumnsContext {
@@ -17,23 +24,11 @@ export interface UserColumnsContext {
 }
 
 export function createRoleColumns(ctx: RoleColumnsContext): TableColumn<Role>[] {
-  const UBadge = resolveComponent("UBadge");
-  const UButton = resolveComponent("UButton");
-
   return [
     {
       accessorKey: "name",
       header: "Role",
-      cell: ({ row }) =>
-        h("div", undefined, [
-          h("div", { class: "text-highlighted flex items-center gap-2 font-medium" }, [
-            row.original.name,
-            row.original.is_system
-              ? h(UBadge, { color: "neutral", variant: "subtle", size: "sm" }, () => "Built-in")
-              : null,
-          ]),
-          h("div", { class: "text-muted text-xs" }, `${row.original.code} · ${row.original.description || "—"}`),
-        ]),
+      cell: ({ row }) => h(RoleNameCell, { role: row.original }),
     },
     {
       accessorKey: "rank",
@@ -48,105 +43,50 @@ export function createRoleColumns(ctx: RoleColumnsContext): TableColumn<Role>[] 
     {
       id: "actions",
       header: "Actions",
-      meta: { class: { th: "text-right", td: "text-right" } },
+      meta: { class: { th: "text-right" } },
       cell: ({ row }) =>
-        h("div", { class: "flex justify-end gap-1" }, [
-          h(UButton, {
-            size: "xs",
-            color: "neutral",
-            variant: "ghost",
-            label: "Edit",
-            onClick: () => ctx.openEditRole(row.original),
-          }),
-          h(UButton, {
-            size: "xs",
-            color: "neutral",
-            variant: "outline",
-            label: "Manage permissions",
-            onClick: () => ctx.openRolePermissions(row.original),
-          }),
-          !row.original.is_system
-            ? h(UButton, {
-                size: "xs",
-                color: "error",
-                variant: "link",
-                label: "Delete",
-                onClick: () => ctx.requestDeleteRole(row.original),
-              })
-            : null,
-        ]),
+        h(RoleActionsCell, {
+          role: row.original,
+          onEdit: () => ctx.openEditRole(row.original),
+          onPermissions: () => ctx.openRolePermissions(row.original),
+          onRemove: () => ctx.requestDeleteRole(row.original),
+        }),
     },
   ];
 }
 
 export function createUserColumns(ctx: UserColumnsContext): TableColumn<UserAccess>[] {
-  const UBadge = resolveComponent("UBadge");
-  const UButton = resolveComponent("UButton");
-  const USelect = resolveComponent("USelect");
-  const UIcon = resolveComponent("UIcon");
-
   return [
     {
       accessorKey: "display_name",
       header: "User",
       cell: ({ row }) =>
-        h("div", undefined, [
-          h("div", { class: "text-highlighted font-medium" }, row.original.display_name),
-          h("div", { class: "text-muted text-xs" }, `@${row.original.username}`),
-        ]),
+        h(AppUserIdentityCell, {
+          name: row.original.display_name,
+          username: row.original.username,
+        }),
     },
     {
       accessorKey: "role",
       header: "Role",
-      cell: ({ row }) => {
-        const busy = ctx.assigningRoleId() === row.original.public_id;
-        return h("div", { class: "flex items-center gap-2" }, [
-          h(USelect, {
-            modelValue: row.original.role,
-            items: ctx.roleOptions(),
-            size: "xs",
-            class: "w-40",
-            disabled: busy,
-            "onUpdate:modelValue": (value: unknown) => ctx.assignRole(row.original, String(value)),
-          }),
-          busy ? h(UIcon, { name: "i-bi-arrow-repeat", class: "text-muted size-3.5 animate-spin" }) : null,
-        ]);
-      },
+      cell: ({ row }) =>
+        h(AppCellSelect, {
+          modelValue: row.original.role,
+          items: ctx.roleOptions(),
+          busy: ctx.assigningRoleId() === row.original.public_id,
+          "onUpdate:modelValue": (role: string) => ctx.assignRole(row.original, role),
+        }),
     },
     {
       id: "overrides",
       header: "Custom permissions",
-      cell: ({ row }) =>
-        row.original.overrides.length === 0
-          ? h("span", { class: "text-muted text-xs" }, "None")
-          : h(
-              "div",
-              { class: "flex flex-wrap gap-1" },
-              row.original.overrides.map((override) =>
-                h(
-                  UBadge,
-                  {
-                    color: override.expired ? "neutral" : override.effect === "allow" ? "success" : "error",
-                    variant: "subtle",
-                    size: "sm",
-                  },
-                  () => `${override.effect === "allow" ? "+" : "−"} ${override.label}`,
-                ),
-              ),
-            ),
+      cell: ({ row }) => h(UserOverridesCell, { overrides: row.original.overrides }),
     },
     {
       id: "actions",
       header: "Actions",
-      meta: { class: { th: "text-right", td: "text-right" } },
-      cell: ({ row }) =>
-        h(UButton, {
-          size: "xs",
-          color: "neutral",
-          variant: "outline",
-          label: "Manage permissions",
-          onClick: () => ctx.openUserOverrides(row.original),
-        }),
+      meta: { class: { th: "text-right" } },
+      cell: ({ row }) => h(UserAccessActionsCell, { onManage: () => ctx.openUserOverrides(row.original) }),
     },
   ];
 }

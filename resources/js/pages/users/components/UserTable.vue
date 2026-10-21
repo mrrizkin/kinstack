@@ -3,7 +3,10 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
-import { formatDateTime } from "@/lib/formatters";
+import AppCellSelect from "@/components/cells/AppCellSelect.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
+import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
+import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
 import type { TableView } from "@/lib/table-view";
 
 import type { User } from "../columns";
@@ -39,15 +42,14 @@ defineProps<{
       <article v-for="user in users" :key="user.public_id" class="space-y-3 p-4">
         <div class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0">
-            <p class="text-highlighted font-medium">{{ user.display_name }}</p>
-            <p class="text-muted text-xs">@{{ user.username }}</p>
-            <p v-if="user.email" class="text-muted truncate text-xs">{{ user.email }}</p>
+            <AppUserIdentityCell
+              :name="user.display_name"
+              :username="user.username"
+              :email="user.email"
+              :badges="user.invited ? [{ label: 'Invited', color: 'info' }] : []" />
           </div>
           <div class="flex items-center gap-1">
-            <UBadge :color="user.is_active ? 'success' : 'error'" variant="subtle" size="sm">
-              {{ user.is_active ? "Active" : "Inactive" }}
-            </UBadge>
-            <UBadge v-if="user.invited" color="info" variant="subtle" size="sm">Invited</UBadge>
+            <AppStatusBadgeCell :active="user.is_active" />
             <UDropdownMenu :items="[menuItems(user)]" :content="{ align: 'end', collisionPadding: 12 }">
               <UButton
                 icon="i-material-symbols:more-vert"
@@ -64,22 +66,17 @@ defineProps<{
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Role</span>
             <div class="flex items-center gap-2">
-              <USelect
+              <AppCellSelect
                 :model-value="user.role"
                 :items="roleOptions"
                 size="sm"
-                class="w-44"
-                :disabled="busyUserId === user.public_id"
-                @update:model-value="(value: unknown) => changeRole(user, String(value))" />
-              <UIcon
-                v-if="busyUserId === user.public_id"
-                name="i-bi-arrow-repeat"
-                class="text-muted size-3.5 animate-spin" />
+                :busy="busyUserId === user.public_id"
+                @update:model-value="(role: string) => changeRole(user, role)" />
             </div>
           </div>
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Last login</span>
-            <span class="text-toned text-right text-xs">{{ formatDateTime(user.last_login_at) }}</span>
+            <AppCellTime :value="user.last_login_at" align="end" />
           </div>
         </div>
       </article>

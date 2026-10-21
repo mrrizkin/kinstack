@@ -1,7 +1,12 @@
 import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
-import { h, resolveComponent } from "vue";
+import { h } from "vue";
 
-import { formatDateTime } from "@/lib/formatters";
+import AppCellSelect from "@/components/cells/AppCellSelect.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
+import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
+import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
+
+import UserActionsCell from "./components/UserActionsCell.vue";
 
 export interface User {
   public_id: string;
@@ -62,84 +67,50 @@ export interface UserColumnsContext {
 }
 
 export function createUserColumns(ctx: UserColumnsContext): TableColumn<User>[] {
-  const UBadge = resolveComponent("UBadge");
-  const USelect = resolveComponent("USelect");
-  const UButton = resolveComponent("UButton");
-  const UIcon = resolveComponent("UIcon");
-
   return [
     {
       accessorKey: "display_name",
       header: "User",
       cell: ({ row }) =>
-        h("div", undefined, [
-          h("div", { class: "text-highlighted font-medium" }, row.original.display_name),
-          h("div", { class: "text-muted text-xs" }, `@${row.original.username}`),
-          row.original.email ? h("div", { class: "text-muted text-xs" }, row.original.email) : null,
-          row.original.invited
-            ? h(UBadge, { color: "info", variant: "subtle", size: "sm", class: "mt-1" }, () => "Invited")
-            : null,
-        ]),
+        h(AppUserIdentityCell, {
+          name: row.original.display_name,
+          username: row.original.username,
+          email: row.original.email,
+          badges: row.original.invited ? [{ label: "Invited", color: "info" }] : [],
+        }),
     },
     {
       accessorKey: "role",
       header: "Role",
       cell: ({ row }) =>
-        h("div", { class: "flex items-center gap-2" }, [
-          h(USelect, {
-            modelValue: row.original.role,
-            items: ctx.roleOptions(),
-            size: "xs",
-            class: "w-40",
-            disabled: ctx.isBusy(row.original),
-            "onUpdate:modelValue": (value: unknown) => ctx.changeRole(row.original, String(value)),
-          }),
-          ctx.isBusy(row.original)
-            ? h(UIcon, { name: "i-bi-arrow-repeat", class: "text-muted size-3.5 animate-spin" })
-            : null,
-        ]),
+        h(AppCellSelect, {
+          modelValue: row.original.role,
+          items: ctx.roleOptions(),
+          busy: ctx.isBusy(row.original),
+          "onUpdate:modelValue": (role: string) => ctx.changeRole(row.original, role),
+        }),
     },
     {
       accessorKey: "is_active",
       header: "Status",
-      cell: ({ row }) =>
-        h(
-          UBadge,
-          {
-            color: row.original.is_active ? "success" : "error",
-            variant: "subtle",
-            size: "sm",
-          },
-          () => (row.original.is_active ? "Active" : "Inactive"),
-        ),
+      cell: ({ row }) => h(AppStatusBadgeCell, { active: row.original.is_active }),
     },
     {
       accessorKey: "last_login_at",
       header: "Last login",
-      cell: ({ row }) => formatDateTime(row.original.last_login_at),
+      cell: ({ row }) => h(AppCellTime, { value: row.original.last_login_at }),
     },
     {
       id: "actions",
       header: "Actions",
-      meta: { class: { th: "text-right", td: "text-right" } },
+      meta: { class: { th: "text-right" } },
       cell: ({ row }) =>
-        h("div", { class: "flex justify-end gap-1" }, [
-          h(UButton, {
-            size: "xs",
-            color: "neutral",
-            variant: "outline",
-            label: "Reset password",
-            onClick: () => ctx.resetPassword(row.original),
-          }),
-          h(UButton, {
-            size: "xs",
-            color: row.original.is_active ? "error" : "success",
-            variant: "link",
-            label: row.original.is_active ? "Deactivate" : "Activate",
-            loading: ctx.isBusy(row.original),
-            onClick: () => ctx.toggleActive(row.original),
-          }),
-        ]),
+        h(UserActionsCell, {
+          active: row.original.is_active,
+          busy: ctx.isBusy(row.original),
+          onReset: () => ctx.resetPassword(row.original),
+          onToggle: () => ctx.toggleActive(row.original),
+        }),
     },
   ];
 }

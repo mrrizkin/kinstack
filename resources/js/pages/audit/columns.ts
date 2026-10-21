@@ -1,7 +1,10 @@
 import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
-import { h, resolveComponent } from "vue";
+import { h } from "vue";
 
-import { formatDateTime } from "@/lib/formatters";
+import AppCellBadge from "@/components/cells/AppCellBadge.vue";
+import AppCellStack from "@/components/cells/AppCellStack.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
+import type { CellBadgeColor } from "@/components/cells/types";
 
 export interface Entry {
   id: number;
@@ -26,71 +29,72 @@ export function actionLabel(action: string) {
   return ACTION_LABELS[action] ?? action;
 }
 
-export function statusColor(status: number) {
+export function statusColor(status: number): CellBadgeColor {
   if (status >= 500) return "error";
   if (status >= 400) return "warning";
   if (status >= 200 && status < 400) return "success";
   return "neutral";
 }
 
-export function createAuditColumns(): TableColumn<Entry>[] {
-  const UBadge = resolveComponent("UBadge");
+export function outcomeLabel(outcome: string) {
+  return outcome === "failure" ? "Failure" : "Success";
+}
 
+export function outcomeColor(outcome: string): CellBadgeColor {
+  return outcome === "failure" ? "error" : "success";
+}
+
+export function createAuditColumns(): TableColumn<Entry>[] {
   return [
     {
       accessorKey: "occurred_at",
       header: "Time",
-      cell: ({ row }) =>
-        h("div", { class: "text-muted whitespace-nowrap text-xs" }, formatDateTime(row.original.occurred_at)),
+      cell: ({ row }) => h(AppCellTime, { value: row.original.occurred_at }),
     },
     {
       accessorKey: "actor_key",
       header: "User",
       cell: ({ row }) =>
-        h("div", { class: "text-xs" }, [
-          h("div", { class: "text-highlighted font-medium" }, row.original.actor_key || "anonymous"),
-          h("div", { class: "text-muted" }, row.original.request_id || "-"),
-        ]),
+        h(AppCellStack, {
+          primary: row.original.actor_key || "anonymous",
+          secondary: row.original.request_id || "-",
+          mono: "secondary",
+        }),
     },
     {
       accessorKey: "action",
       header: "Action",
-      cell: ({ row }) =>
-        h(UBadge, { color: "neutral", variant: "subtle", size: "sm" }, () => actionLabel(row.original.action)),
+      cell: ({ row }) => h(AppCellBadge, { label: actionLabel(row.original.action) }),
     },
     {
       accessorKey: "resource",
       header: "Resource",
       cell: ({ row }) =>
-        h("div", { class: "text-xs" }, [
-          h("div", { class: "text-highlighted font-mono" }, row.original.resource || "-"),
-          h("div", { class: "text-muted" }, row.original.method || "-"),
-        ]),
+        h(AppCellStack, {
+          primary: row.original.resource || "-",
+          secondary: row.original.method || "-",
+          mono: "primary",
+        }),
     },
     {
       accessorKey: "status",
       header: "Status",
-      meta: { class: { th: "text-right", td: "text-right" } },
+      meta: { class: { th: "text-right" } },
       cell: ({ row }) =>
-        h("div", { class: "flex justify-end" }, [
-          h(UBadge, { color: statusColor(row.original.status), variant: "subtle", size: "sm" }, () =>
-            String(row.original.status || "-"),
-          ),
-        ]),
+        h(AppCellBadge, {
+          color: statusColor(row.original.status),
+          label: String(row.original.status || "-"),
+          align: "end",
+        }),
     },
     {
       accessorKey: "outcome",
       header: "Outcome",
       cell: ({ row }) =>
-        h(
-          UBadge,
-          {
-            color: row.original.outcome === "failure" ? "error" : "success",
-            variant: "subtle",
-            size: "sm",
-          },
-          () => (row.original.outcome === "failure" ? "Failure" : "Success"),
-        ),
+        h(AppCellBadge, {
+          color: outcomeColor(row.original.outcome),
+          label: outcomeLabel(row.original.outcome),
+        }),
     },
   ];
 }
