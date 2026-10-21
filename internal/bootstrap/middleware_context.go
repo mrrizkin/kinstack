@@ -23,7 +23,7 @@ func registerContextMiddleware(d GlobalMiddlewareDependency) {
 	d.App.Use(func(c fiber.Ctx) error {
 		d.Inertia.ShareWith(c, "app_name", d.Config.App.Name)
 		d.Inertia.ShareWith(c, "csrf_token", csrf.TokenFromContext(c))
-		d.Inertia.ShareWith(c, "pdf_enabled", d.Documents.Enabled())
+		d.Inertia.ShareWith(c, "media_enabled", d.Config.RustFS.Enabled)
 		d.Inertia.ShareWith(c, "auth_methods", fiber.Map{
 			"magic_link": d.Config.Auth.MagicLink.Enabled,
 			"passkey":    d.Config.Auth.Passkey.Enabled,

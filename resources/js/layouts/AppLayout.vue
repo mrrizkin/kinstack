@@ -9,6 +9,8 @@ import AppUserMenu from "@/components/AppUserMenu.vue";
 import AppWorkspaceMenu from "@/components/AppWorkspaceMenu.vue";
 import { notificationsOpen } from "@/lib/dashboard";
 import { icons } from "@/lib/icons";
+import { isNavigationItemVisible } from "@/lib/navigation";
+import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 interface NavigationItem {
@@ -16,6 +18,7 @@ interface NavigationItem {
   path: string;
   icon: string;
   permission?: string;
+  requiresMedia?: boolean;
 }
 
 interface NavigationGroup {
@@ -25,6 +28,7 @@ interface NavigationGroup {
 
 const page = usePage();
 const { t } = useI18n();
+const { mediaEnabled } = usePageProps();
 const { can } = usePermissions();
 const sidebarOpen = ref(false);
 
@@ -70,6 +74,7 @@ const primaryNavigation = computed<NavigationGroup[]>(() => [
         path: "/media",
         icon: icons.media,
         permission: PERMISSIONS.mediaView,
+        requiresMedia: true,
       },
       {
         label: t("shell.nav.notifications"),
@@ -90,7 +95,7 @@ const visibleGroups = computed(() =>
   primaryNavigation.value
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.permission || can(item.permission)),
+      items: group.items.filter((item) => isNavigationItemVisible(item, can, mediaEnabled.value)),
     }))
     .filter((group) => group.items.length > 0),
 );

@@ -49,7 +49,7 @@ const umamiSchema = z.looseObject({
 export const sharedPagePropsSchema = z.looseObject({
   app_name: z.string().optional(),
   csrf_token: z.string().optional(),
-  pdf_enabled: z.boolean().optional(),
+  media_enabled: z.boolean().optional(),
   auth_methods: authMethodsSchema.optional(),
   actor: actorSchema.nullish(),
   authz_permissions: z.array(z.string()).optional(),

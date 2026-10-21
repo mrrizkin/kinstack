@@ -16,7 +16,7 @@ describe("page props contracts", () => {
     const props = sharedPagePropsSchema.parse({
       app_name: "KinStack",
       csrf_token: "token",
-      pdf_enabled: true,
+      media_enabled: true,
       auth_methods: { passkey: true, magic_link: false },
       actor: { public_id: "usr_1", username: "alex", superuser: true },
       authz_permissions: ["users.view"],

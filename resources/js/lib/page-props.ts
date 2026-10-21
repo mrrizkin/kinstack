@@ -26,7 +26,7 @@ export function usePageProps() {
   const permissions = computed<string[]>(() => shared.value.authz_permissions ?? []);
   const csrfToken = computed<string>(() => shared.value.csrf_token ?? "");
   const errors = computed<ErrorBag>(() => errorBagSchema.parse(shared.value.errors ?? {}));
-  const pdfEnabled = computed<boolean>(() => shared.value.pdf_enabled ?? false);
+  const mediaEnabled = computed<boolean>(() => shared.value.media_enabled ?? false);
 
-  return { page, shared, actor, authMethods, permissions, csrfToken, errors, pdfEnabled };
+  return { page, shared, actor, authMethods, permissions, csrfToken, errors, mediaEnabled };
 }

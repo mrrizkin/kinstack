@@ -6,6 +6,7 @@ import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { icons } from "@/lib/icons";
+import { isNavigationItemVisible } from "@/lib/navigation";
 import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
@@ -17,6 +18,7 @@ interface QuickLink {
   to: string;
   icon: string;
   permission?: string;
+  requiresMedia?: boolean;
 }
 
 interface Metrics {
@@ -31,7 +33,7 @@ interface Metrics {
 const props = defineProps<{ metrics: Metrics }>();
 
 const { can } = usePermissions();
-const { actor } = usePageProps();
+const { actor, mediaEnabled } = usePageProps();
 
 const displayName = computed(() => actor.value?.display_name || actor.value?.username || "User");
 const isSuperuser = computed(() => Boolean(actor.value?.superuser));
@@ -77,6 +79,7 @@ const quickLinks: QuickLink[] = [
     to: "/media",
     icon: icons.media,
     permission: PERMISSIONS.mediaView,
+    requiresMedia: true,
   },
   {
     label: "Notifications",
@@ -86,7 +89,9 @@ const quickLinks: QuickLink[] = [
   },
 ];
 
-const visibleQuickLinks = computed(() => quickLinks.filter((link) => !link.permission || can(link.permission)));
+const visibleQuickLinks = computed(() =>
+  quickLinks.filter((link) => isNavigationItemVisible(link, can, mediaEnabled.value)),
+);
 
 interface MetricCard {
   label: string;
@@ -95,6 +100,7 @@ interface MetricCard {
   icon: string;
   to: string;
   permission?: string;
+  requiresMedia?: boolean;
 }
 
 const metricCards = computed(() => {
@@ -133,6 +139,7 @@ const metricCards = computed(() => {
         icon: icons.media,
         to: "/media",
         permission: PERMISSIONS.mediaView,
+        requiresMedia: true,
       },
       {
         label: "Notifications",
@@ -144,7 +151,7 @@ const metricCards = computed(() => {
       },
     );
   }
-  return cards.filter((card) => !card.permission || can(card.permission));
+  return cards.filter((card) => isNavigationItemVisible(card, can, mediaEnabled.value));
 });
 </script>
 
