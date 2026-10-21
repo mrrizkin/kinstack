@@ -1,82 +1,92 @@
 # Style
 
-KinStack is a base, not a finished application. The code is the reference
-implementation; this page states the conventions a new slice must match. When a
-rule has a working example, the example is the specification.
+KinStack is a base. Applications built on it inherit the standards below; this
+page is the contract for the code you add. The base already follows these
+standards, so its own slices are the reference implementation to copy from.
 
 ## Principles
 
+Design goals, in order. Apply them to the features you add, not just to code
+that ships with the base.
+
 **Simple is good.** Simplicity is the hardest revision, not the first draft.
-Spend design time up front, prefer the simpler signature, and do not reach for
-generics, reflection, extra interfaces, or dependencies until they earn their
-place.
+Spend design time before writing, choose the simpler signature, and do not reach
+for generics, reflection, decorative interfaces, or dependencies until they earn
+their place.
 
-**Lean software.** Every dependency must save more complexity than it adds,
+**Lean software.** A dependency must remove more complexity than it adds,
 including its types, supply-chain risk, and upgrade cost. Prefer the standard
-library; a little copying beats a little dependency. Keep the base tidy to
-develop, iterate, and maintain, so the code stays readable years later without
-extra documentation.
+library and a little copying over a package. Keep the application tidy enough to
+iterate on and maintain for years without extra documentation.
 
-**Bound the system.** Every loop, queue, batch, read, and list has an explicit
-limit. Input is validated at the boundary, errors are typed, and invariants are
-asserted close to where they are assumed.
+**Bound the system.** Everything you accept, store, or return has an explicit
+limit: request bodies, uploads, list pages, batches, retries, loops. Validate at
+the boundary, use typed errors, and assert invariants where they are assumed.
 
-**Learnable by default.** Every action has visible, immediate feedback, mistakes
-are cheap to recover, and depth is disclosed progressively. Consistency beats
-novelty; silent confusion is a defect.
+**Learnable by default.** Every action shows immediate feedback, mistakes are
+cheap to recover, and depth is revealed progressively. Consistency beats
+novelty; a flow that silently confuses a first-time user is a defect.
+
+## Adding a feature
+
+- Put application behavior in `internal/features/<name>` as a slice. Keep the
+  handler/service/repository boundary; `internal/features/users` is the most
+  complete example to copy.
+- Register every new permission code in `internal/platform/authz/catalog.go`.
+- Register every guarded route in `routePolicy` in
+  `internal/bootstrap/web_routes.go`. Startup fails without an entry.
+- Parse transport data in the handler, decide in the service, persist through a
+  repository interface owned by the slice. Handlers do not make decisions.
+- Reuse `internal/platform` for pagination, audit, authorization, sessions, and
+  documents instead of adding local variants.
+- Add a Goose migration for schema changes; never edit an applied migration.
+- Add the copy you need to the existing i18n boundary in the same change.
 
 ## Go
 
-- Bound resources: request bodies, uploads, list pages, batches, retries.
-  Examples: `internal/features/media/handler.go`,
-  `internal/platform/audit/repository_pg.go`, `internal/pkg/pagination`.
-- Reject invalid input instead of guessing. Page requests fail closed in
-  `internal/features/users/service_users.go`; past-end pages clamp in
-  `internal/pkg/pagination/pagination.go`.
-- Expected failures are typed sentinel errors; unexpected ones are logged once
-  with `request_id`. See `internal/features/users/errors.go`.
+- Bound anything you read, list, batch, or retry. Reject invalid input instead
+  of guessing; past-end pages clamp, malformed input fails closed.
+- Return typed sentinel errors for expected failures. Log unexpected failures
+  once, with `request_id`. Never return raw storage or database errors to a
+  client.
 - Assert invariants that must never break, at startup or at the decision point.
-  See `internal/pkg/assert` and `internal/platform/authz/authority.go`.
-- Authorization rules live in the platform, not in handlers: rank, permission
-  subset, self-change, and session requirements are enforced by `authz`.
-- Guarded routes need a `routePolicy` entry; startup fails without one and the
-  policy test covers it (`internal/bootstrap/route_policy_test.go`).
+- Keep authorization rules in the platform layer (rank, permission subset,
+  self-change, session requirements), never in a handler.
 - Prefer small functions and centralize branching in the orchestrator. Around 70
-  lines is a review signal, never a gate.
+  lines is a review signal, not a gate.
 - Names carry units, ownership, and call history; acronyms stay uppercase; Go
-  naming, not `snake_case`.
+  naming, never `snake_case`.
 - Comments explain why and which constraint holds; the code explains what.
 
 ## Vue and TypeScript
 
-- Composition API with `<script setup lang="ts">` only. `ref<T>()` everywhere;
-  `reactive<T>()` is not used.
-- Parse every trust boundary at runtime with zod, not just a TypeScript type:
-  `resources/js/lib/http.ts` and `resources/js/lib/contracts`.
-- No `any`; narrow `unknown`. Type assertions are allowed only where a parsed
-  payload crosses the boundary, with the parse right there.
-- Explicit dependencies only: `watch([...])` instead of multi-dependency
-  `watchEffect`, props/events instead of `provide`/`inject` for business logic.
-- Inertia layouts are declared by the page with
-  `defineOptions({ layout: [BaseLayout, XLayout] })`; `resources/js/layouts/BaseLayout.vue`
-  is the only `<UApp>` holder.
-- Reuse existing components; wrap a Nuxt UI component only when the wrapper adds
-  behavior or removes duplication. See `resources/js/components/AppPagination.vue`
-  and `AppConfirmDialog.vue`.
-- Around 300 lines per component is a review signal, never a gate.
-- Copy goes through the existing i18n boundary, in English.
+- Composition API with `<script setup lang="ts">` only. Use `ref<T>()`;
+  `reactive<T>()` is not part of the standard.
+- Parse every trust boundary at runtime with zod, not just a TypeScript type.
+  Inbound API payloads, storage reads, and route params are boundaries.
+- No `any`; narrow `unknown`. Type assertions are limited to the place where a
+  parsed payload crosses the boundary.
+- Be explicit: `watch([...])` instead of multi-dependency `watchEffect`, and
+  props/events instead of `provide`/`inject` for business logic.
+- Declare Inertia layouts on the page with
+  `defineOptions({ layout: [BaseLayout, XLayout] })`; `BaseLayout` is the only
+  `<UApp>` holder.
+- Reuse existing components. Wrap a Nuxt UI component only when the wrapper adds
+  behavior or removes duplication.
+- Around 300 lines per component is a review signal, not a gate.
+- Route user-facing copy through the i18n boundary, in English.
 
 ## Documentation
 
-- English, professional, timeless: no status, roadmap, history, or agent
-  instructions in `docs/`.
-- Document invariants and operations only. Decisions, rationale, and task state
-  live in agent memory, not in the repository.
-- Documentation explains KinStack as a base for building applications.
-- `AGENTS.md` holds agent instructions; humans read `README.md` and `docs/`.
+- Write documentation in English, professionally, and timelessly. Document
+  invariants and operations for the application you are building, not its
+  status, roadmap, or history.
+- Keep decisions, rationale, and task state out of the repository; they belong
+  in agent memory.
+- Agent instructions live in `AGENTS.md`, never in `docs/`.
 
 ## Gates
 
 - `just verify` must pass before a change is complete.
-- `just shape` reports long functions, large components, and casts. It informs
-  review and never fails a build.
+- `just shape` reports long functions, large components, and casts to inform
+  review. It never fails a build.
