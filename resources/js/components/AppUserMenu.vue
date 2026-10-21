@@ -47,14 +47,18 @@ const items = computed<DropdownMenuItem[][]>(() => {
         avatar: { src: avatarSrc.value, alt: displayName.value, size: "sm" },
       },
     ],
-    [
+  ];
+
+  // The break-glass super admin has no profile row; /profile would redirect.
+  if (!actor.value?.superuser) {
+    groups.push([
       {
         label: t("shell.userMenu.settings"),
         icon: icons.settings,
         to: "/profile",
       },
-    ],
-  ];
+    ]);
+  }
 
   groups.push([
     {

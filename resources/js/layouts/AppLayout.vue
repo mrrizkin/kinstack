@@ -28,7 +28,7 @@ interface NavigationGroup {
 
 const page = usePage();
 const { t } = useI18n();
-const { mediaEnabled } = usePageProps();
+const { actor, mediaEnabled } = usePageProps();
 const { can } = usePermissions();
 const sidebarOpen = ref(false);
 
@@ -132,27 +132,28 @@ const links = computed<NavigationMenuItem[][]>(() => {
     main.push(...group.items.map(toMenuItem));
   }
 
-  return [
-    main,
-    [
-      {
-        label: t("shell.settings.title"),
-        icon: icons.settings,
-        to: "/profile",
-        onSelect: () => {
-          sidebarOpen.value = false;
-        },
+  const utility: NavigationMenuItem[] = [];
+  // The break-glass super admin has no profile row; /profile would redirect.
+  if (!actor.value?.superuser) {
+    utility.push({
+      label: t("shell.settings.title"),
+      icon: icons.settings,
+      to: "/profile",
+      onSelect: () => {
+        sidebarOpen.value = false;
       },
-      {
-        label: t("shell.help"),
-        icon: icons.help,
-        to: "/help",
-        onSelect: () => {
-          sidebarOpen.value = false;
-        },
-      },
-    ],
-  ];
+    });
+  }
+  utility.push({
+    label: t("shell.help"),
+    icon: icons.help,
+    to: "/help",
+    onSelect: () => {
+      sidebarOpen.value = false;
+    },
+  });
+
+  return [main, utility];
 });
 
 interface CommandGroupItem {
