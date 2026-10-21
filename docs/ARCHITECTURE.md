@@ -87,16 +87,12 @@ it with `authz.PrincipalFromContext` and fail closed when it is missing.
 Resolved permission sets are cached per instance for `authz.DefaultCacheTTL`
 (15 seconds) and the cache is capped at 10k entries. Role and override
 mutations invalidate the affected users immediately on the serving replica;
-other replicas converge within the TTL, which is the accepted revocation
-window.
+other replicas converge within the TTL.
 
-### Single sign-on
-
-OAuth and SAML identities are bound to an account by `(provider, subject)`,
-stored in `user_identities`. The first sign-in links a subject to the account
-that owns the verified email; after that the binding is authoritative and the
-provider's email may change. The same subject can never be rebound to a second
-account, and the base never provisions accounts from an external provider.
+External identities are bound by `(provider, subject)` in `user_identities`.
+The first sign-in links the subject to the account that owns the verified
+email; later sign-ins use the binding. A subject never rebinds to another
+account, and the base never provisions accounts from a provider.
 
 ## UI
 

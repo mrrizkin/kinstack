@@ -52,7 +52,7 @@ After restoring, run `just migrate-status` and test login and `/dashboard`.
 ### Valkey
 
 Valkey stores sessions, lockouts, and temporary state. Losing it forces users to
-sign in again. This is accepted behavior.
+sign in again.
 
 ## Alerts
 
@@ -67,12 +67,6 @@ sign in again. This is accepted behavior.
 | TLS certificate | < 14 days | Renew at the reverse proxy |
 
 ## Deployment
-
-Images derive the Inertia asset version from the `VERSION` build arg, which
-compose fills from `IMAGE_TAG`. Leave both empty only for local experiments:
-the build then falls back to a timestamp so browsers still reload after a
-rebuild.
-
 
 1. Run `just verify` on the release commit.
 2. Build the image.
@@ -139,27 +133,19 @@ expand → migrate → contract pattern.
 - SMTP, object storage, and database credentials: keep them in a secret manager.
 - After rotation, test login, email, and media.
 
-## Two-factor storage
+## Authentication
 
 - TOTP secrets are sealed with AES-256-GCM under a key derived from
   `AUTH_2FA_KEY` (or `SECRET_KEY` when unset) and never logged.
-- Rows created before the sealed format are migrated lazily on the next
-  successful verification. To migrate everything at once, run
-  `kinstack backfill-2fa` (idempotent, batched by 100).
-- Recovery codes are stored as Argon2id hashes; legacy SHA-256 hashes keep
-  working once and are upgraded on use.
+- `kinstack backfill-2fa` seals remaining plaintext secrets (idempotent,
+  batched by 100).
+- Recovery codes are stored as Argon2id hashes.
 - A TOTP code is accepted once per timestep; replaying a code inside its
   validity window is rejected.
-
-## Passkeys and SSO
-
-- Passkey ceremonies require user verification (`VerificationRequired`). A
-  passkey enrolled before this rule (or on an authenticator without a PIN or
-  biometric) can no longer sign in; the user signs in with password + 2FA and
-  re-enrolls the passkey from the profile page.
+- Passkeys require user verification (`VerificationRequired`); enroll from the
+  profile page after signing in with password and a second factor.
 - OAuth and SAML accounts are bound to `(provider, subject)`. The SAML IdP must
-  assert a persistent NameID; transient NameIDs create a new binding on every
-  login and are not supported.
+  assert a persistent NameID; transient identifiers are rejected.
 
 ## Capacity
 
@@ -168,6 +154,6 @@ expand → migrate → contract pattern.
   `max_connections` budget.
 - Email delivery and PDF rendering run synchronously in the request path.
 - Audit records are append-only and kept indefinitely by default. A scheduled
-  run of `kinstack prune-audit 8760h` enforces the one-year target; run it from
-  cron or a Kubernetes CronJob, for example daily at 03:15.
+  run of `kinstack prune-audit 8760h` enforces the one-year target; schedule it
+  from cron or a Kubernetes CronJob.
 - Media uploads are validated by magic bytes and image dimensions before storage.
