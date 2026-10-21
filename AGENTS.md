@@ -11,7 +11,8 @@ just audit
 just migrate
 ```
 
-Run `just verify` before finishing a change.
+Run `just verify` before finishing a change. Follow `docs/STYLE.md` for code
+conventions and principles.
 
 ## Layout
 
