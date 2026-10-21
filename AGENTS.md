@@ -33,6 +33,7 @@ conventions and principles.
 - Register guarded routes in `routePolicy` in
   `internal/bootstrap/web_routes.go`.
 - Reuse existing components and helpers; do not create duplicates.
+- Icon names live in `resources/js/lib/icons.ts`; components use `icons.<key>`.
 - Use the existing i18n boundaries and English copy.
 - Do not commit `.env`, secrets, build output, `node_modules`, or local state.
 

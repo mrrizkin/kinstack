@@ -105,6 +105,15 @@ guarantee.
 - Around 300 lines per component is a review signal, not a gate.
 - Server messages and flashes go through `internal/platform/i18n`; client shell copy lives in `resources/js/i18n`; page copy is written in English.
 
+## Icons
+
+- `resources/js/lib/icons.ts` holds every icon name; components take semantic
+  keys (`:icon="icons.delete"`). `check-icons.sh` rejects names anywhere else.
+- Key by intent, not glyph: `icons.access` may change shape, `icons.lock`
+  cannot. Names stay literal strings so the Vite plugin can bundle them.
+- Nuxt UI defaults live in `vite.config.ts` under `ui.icons` and reference the
+  registry.
+
 ## Documentation
 
 - Write documentation in English, professionally, and timelessly. Document
