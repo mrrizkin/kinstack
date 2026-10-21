@@ -23,6 +23,8 @@ just dev
 Open <http://localhost:3000>. Development email is captured at
 <http://localhost:8025>.
 
+Go builds embed `assets/emails/dist`; `just` targets build it on demand.
+
 ## Commands
 
 ```bash

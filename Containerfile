@@ -25,6 +25,7 @@ RUN go mod download
 
 COPY . .
 COPY --from=frontend /src/public/build ./public/build
+COPY --from=frontend /src/assets/emails/dist ./assets/emails/dist
 
 RUN go tool templ generate
 RUN CGO_ENABLED=1 GOOS=linux \

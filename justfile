@@ -18,9 +18,14 @@ dev-assets:
 generate-views:
     go tool templ generate
 
+# Emails are embedded at compile time; build them when a fresh checkout lacks
+# the generated directory.
+ensure-email-assets:
+    @ls assets/emails/dist/*.html >/dev/null 2>&1 || bun x vite build
+
 build: build-assets build-app
 
-build-app: generate-views
+build-app: ensure-email-assets generate-views
     go build -trimpath -ldflags "-X kinstack/internal/platform/inertia.buildVersion=`git rev-parse --short HEAD || echo dev`" -o ./build/kinstack ./cmd/kinstack
 
 build-assets:
@@ -70,7 +75,7 @@ format-go-check:
 
 test: type-check test-go test-frontend
 
-test-go:
+test-go: ensure-email-assets
     go test ./...
 
 test-frontend:
