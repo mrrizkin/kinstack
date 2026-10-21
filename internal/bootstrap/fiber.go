@@ -9,16 +9,16 @@ import (
 	"kinstack/internal/pkg/debug"
 	"kinstack/internal/pkg/log"
 	"kinstack/internal/platform/httperror"
+	"kinstack/internal/platform/inertia"
 	"kinstack/internal/platform/observability"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
 type FiberAppDependency struct {
 	Config    config.Config
-	Inertia   *fibertia.Fibertia
+	Inertia   *inertia.Adapter
 	Log       *log.Logger
 	Telemetry *observability.Telemetry
 }

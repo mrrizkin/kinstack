@@ -23,6 +23,7 @@ const { t } = useI18n();
 
 const {
   passwordForm,
+  passwordDialogOpen,
   fieldError,
   formError,
   pendingSession,
@@ -30,17 +31,19 @@ const {
   pendingRevokeOthers,
   revokingOthers,
   beginningTwoFactor,
-  pendingDisableTwoFactor,
-  disablingTwoFactor,
+  enrollDialogOpen,
   twoFactorForm,
   twoFactorPasswordForm,
+  twoFactorAction,
   qrDataUrl,
+  openPasswordDialog,
   submitPassword,
-  beginTwoFactor,
+  openEnrollDialog,
+  closeEnrollDialog,
+  openTwoFactorAction,
+  closeTwoFactorAction,
   confirmTwoFactor,
-  disableTwoFactor,
-  confirmDisableTwoFactor,
-  regenerateRecoveryCodes,
+  confirmTwoFactorAction,
   confirmRevokeSession,
   revokeOtherSessions,
   confirmRevokeOtherSessions,
@@ -53,7 +56,11 @@ const {
   <UAlert v-if="formError" color="error" variant="subtle" :icon="icons.error" :title="formError" class="mb-4" />
 
   <SecurityPanel
+    v-model:password-dialog-open="passwordDialogOpen"
+    v-model:enroll-dialog-open="enrollDialogOpen"
+    v-model:two-factor-action="twoFactorAction"
     v-model:pending-session="pendingSession"
+    v-model:pending-revoke-others="pendingRevokeOthers"
     :profile="profile"
     :password-form="passwordForm"
     :two-factor-form="twoFactorForm"
@@ -63,18 +70,17 @@ const {
     :qr-data-url="qrDataUrl"
     :field-error="fieldError"
     :revoking-session="revokingSession"
-    v-model:pending-revoke-others="pendingRevokeOthers"
     :revoking-others="revokingOthers"
     :beginning-two-factor="beginningTwoFactor"
-    v-model:pending-disable-two-factor="pendingDisableTwoFactor"
-    :disabling-two-factor="disablingTwoFactor"
+    :open-password-dialog="openPasswordDialog"
     :submit-password="submitPassword"
-    :begin-two-factor="beginTwoFactor"
+    :open-enroll-dialog="openEnrollDialog"
+    :close-enroll-dialog="closeEnrollDialog"
+    :open-two-factor-action="openTwoFactorAction"
+    :close-two-factor-action="closeTwoFactorAction"
     :confirm-two-factor="confirmTwoFactor"
-    :disable-two-factor="disableTwoFactor"
-    :confirm-disable-two-factor="confirmDisableTwoFactor"
-    :regenerate-recovery-codes="regenerateRecoveryCodes"
-    :revoke-other-sessions="revokeOtherSessions"
+    :confirm-two-factor-action="confirmTwoFactorAction"
     :confirm-revoke-session="confirmRevokeSession"
+    :revoke-other-sessions="revokeOtherSessions"
     :confirm-revoke-other-sessions="confirmRevokeOtherSessions" />
 </template>

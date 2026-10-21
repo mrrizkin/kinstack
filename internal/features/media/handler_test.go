@@ -31,8 +31,7 @@ func (s failingStorage) PublicURL(key string) string { return "https://cdn.test/
 func newMediaTestApp(t *testing.T, service *Service) (*fiber.App, *actor.Actor) {
 	t.Helper()
 	actorBoundary := actor.New(actor.Dependency{Repository: actor.NewMemoryRepository("user-1")})
-	// The failure paths under test never render; only the actor boundary and the
-	// logger are exercised, so the Inertia adapter stays nil.
+	// Failure paths answer JSON clients only, so no adapter is needed.
 	handler := &Handler{service: service, actor: actorBoundary, logger: applog.NoopLogger{}}
 	app := fiber.New()
 	app.Use(func(c fiber.Ctx) error {
@@ -99,6 +98,7 @@ func TestDeleteResponseDoesNotLeakStorageDetails(t *testing.T) {
 	app, _ := newMediaTestApp(t, service)
 
 	req := httptest.NewRequest("POST", "/media/asset-1/delete", nil)
+	req.Header.Set("Accept", "application/json")
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { icons } from "@/lib/icons";
+import { previewNotificationSound } from "@/lib/sound";
 
 import type { PreferencesForm, ThemeOption } from "../types";
 
@@ -9,11 +10,15 @@ defineProps<{
   fieldError: (field: string, local?: Record<string, unknown>) => string | undefined;
   submitPreferences: () => void;
 }>();
+
+function previewSound(enabled: boolean) {
+  if (enabled) previewNotificationSound("info");
+}
 </script>
 
 <template>
-  <div class="grid gap-4 lg:grid-cols-3">
-    <UCard class="lg:col-span-2">
+  <div class="max-w-2xl">
+    <UCard>
       <h2 class="text-highlighted text-sm font-semibold">Personalization</h2>
       <form class="mt-4 space-y-4" @submit.prevent="submitPreferences">
         <UFormField
@@ -27,7 +32,8 @@ defineProps<{
           <USwitch
             v-model="preferencesForm.sound_enabled"
             label="Play a chime when a notification appears"
-            description="A preview plays when enabled." />
+            description="A preview plays when enabled."
+            @update:model-value="previewSound" />
         </UFormField>
 
         <div class="flex justify-end">

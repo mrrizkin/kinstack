@@ -12,32 +12,45 @@ interface SecurityFormsProps {
   two_factor: TwoFactor;
 }
 
+/** A two-factor action that requires the account password first. */
+export type TwoFactorAction = "disable" | "regenerate";
+
 export function useSecurityForms(props: SecurityFormsProps) {
+  const { message: fieldError, formError } = useServerErrors();
+
   const passwordForm = useForm({
     current_password: "",
     new_password: "",
     confirm_password: "",
   });
+  const passwordDialogOpen = ref(false);
+
+  function openPasswordDialog() {
+    passwordForm.reset();
+    passwordForm.clearErrors();
+    passwordDialogOpen.value = true;
+  }
 
   function submitPassword() {
     passwordForm.post("/profile/password", {
       preserveScroll: true,
-      onSuccess: () => passwordForm.reset(),
+      onSuccess: () => {
+        passwordForm.reset();
+        passwordDialogOpen.value = false;
+      },
     });
   }
-
-  const { message: fieldError, formError } = useServerErrors();
 
   const pendingSession = ref<ActiveSession | null>(null);
   const revokingSession = ref(false);
   const pendingRevokeOthers = ref(false);
   const revokingOthers = ref(false);
-  const beginningTwoFactor = ref(false);
-  const pendingDisableTwoFactor = ref(false);
-  const disablingTwoFactor = ref(false);
 
+  const beginningTwoFactor = ref(false);
+  const enrollDialogOpen = ref(false);
   const twoFactorForm = useForm({ code: "" });
   const twoFactorPasswordForm = useForm({ password: "" });
+  const twoFactorAction = ref<TwoFactorAction | null>(null);
   const qrDataUrl = ref("");
 
   watch(
@@ -47,6 +60,20 @@ export function useSecurityForms(props: SecurityFormsProps) {
     },
     { immediate: true },
   );
+
+  function openEnrollDialog() {
+    twoFactorForm.reset();
+    twoFactorForm.clearErrors();
+    enrollDialogOpen.value = true;
+    // A pending secret is reused so the dialog shows the existing QR code.
+    if (!props.two_factor.enabled && !props.two_factor.pending_secret) {
+      beginTwoFactor();
+    }
+  }
+
+  function closeEnrollDialog(open: boolean) {
+    if (!open) enrollDialogOpen.value = false;
+  }
 
   function beginTwoFactor() {
     if (beginningTwoFactor.value) return;
@@ -60,31 +87,35 @@ export function useSecurityForms(props: SecurityFormsProps) {
   function confirmTwoFactor() {
     twoFactorForm.post("/profile/two-factor/confirm", {
       preserveScroll: true,
-      onSuccess: () => twoFactorForm.reset(),
-    });
-  }
-
-  function disableTwoFactor() {
-    pendingDisableTwoFactor.value = true;
-  }
-
-  function confirmDisableTwoFactor() {
-    if (disablingTwoFactor.value) return;
-    twoFactorPasswordForm.post("/profile/two-factor/disable", {
-      preserveScroll: true,
-      onStart: () => (disablingTwoFactor.value = true),
-      onFinish: () => {
-        disablingTwoFactor.value = false;
-        pendingDisableTwoFactor.value = false;
+      onSuccess: () => {
+        twoFactorForm.reset();
+        enrollDialogOpen.value = false;
       },
-      onSuccess: () => twoFactorPasswordForm.reset(),
     });
   }
 
-  function regenerateRecoveryCodes() {
-    twoFactorPasswordForm.post("/profile/two-factor/recovery-codes", {
+  function openTwoFactorAction(action: TwoFactorAction) {
+    twoFactorPasswordForm.reset();
+    twoFactorPasswordForm.clearErrors();
+    twoFactorAction.value = action;
+  }
+
+  function closeTwoFactorAction(open: boolean) {
+    if (open) return;
+    twoFactorAction.value = null;
+    twoFactorPasswordForm.reset();
+  }
+
+  function confirmTwoFactorAction() {
+    const action = twoFactorAction.value;
+    if (!action || twoFactorPasswordForm.processing) return;
+    const url = action === "disable" ? "/profile/two-factor/disable" : "/profile/two-factor/recovery-codes";
+    twoFactorPasswordForm.post(url, {
       preserveScroll: true,
-      onSuccess: () => twoFactorPasswordForm.reset(),
+      onSuccess: () => {
+        twoFactorAction.value = null;
+        twoFactorPasswordForm.reset();
+      },
     });
   }
 
@@ -119,24 +150,27 @@ export function useSecurityForms(props: SecurityFormsProps) {
 
   return {
     passwordForm,
-    fieldError,
-    formError,
+    passwordDialogOpen,
     pendingSession,
     revokingSession,
     pendingRevokeOthers,
     revokingOthers,
     beginningTwoFactor,
-    pendingDisableTwoFactor,
-    disablingTwoFactor,
+    enrollDialogOpen,
     twoFactorForm,
     twoFactorPasswordForm,
+    twoFactorAction,
     qrDataUrl,
+    fieldError,
+    formError,
+    openPasswordDialog,
     submitPassword,
-    beginTwoFactor,
+    openEnrollDialog,
+    closeEnrollDialog,
+    openTwoFactorAction,
+    closeTwoFactorAction,
     confirmTwoFactor,
-    disableTwoFactor,
-    confirmDisableTwoFactor,
-    regenerateRecoveryCodes,
+    confirmTwoFactorAction,
     confirmRevokeSession,
     revokeOtherSessions,
     confirmRevokeOtherSessions,

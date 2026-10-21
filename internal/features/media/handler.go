@@ -11,7 +11,6 @@ import (
 	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -21,7 +20,7 @@ type HandlerDependency struct {
 	Service *Service
 	Actor   *actor.Actor
 	Logger  log.Log
-	Inertia *fibertia.Fibertia
+	Inertia *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for media management.
@@ -29,7 +28,7 @@ type Handler struct {
 	service *Service
 	actor   *actor.Actor
 	logger  log.Log
-	inertia *fibertia.Fibertia
+	inertia *platforminertia.Adapter
 }
 
 // NewHandler constructs the media HTTP handler.
@@ -131,7 +130,11 @@ func headerSafeFilename(filename string) string {
 
 func (h *Handler) upload(c fiber.Ctx) error {
 	if session := h.actor.ActorFromContext(c); session != nil && session.Superuser {
-		return fiber.NewError(fiber.StatusForbidden, i18n.T("media.upload_regular_only"))
+		return h.inertia.FailedAction(c,
+			h.mediaPath(),
+			fiber.StatusForbidden,
+			i18n.T("media.upload_regular_only"),
+		)
 	}
 	file, err := c.FormFile("file")
 	if err != nil || file == nil {
@@ -161,13 +164,11 @@ func (h *Handler) upload(c fiber.Ctx) error {
 			return h.internalServerError(c, "upload media", err)
 		}
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.mediaPath(), i18n.T("media.uploaded"))
+	return h.inertia.RedirectWithFlash(c, h.mediaPath(), i18n.T("media.uploaded"))
 }
 
 func (h *Handler) uploadValidationError(c fiber.Ctx, message string) error {
-	return platforminertia.ValidationErrors(
-		h.inertia,
-		c,
+	return h.inertia.ValidationErrors(c,
 		h.mediaPath(),
 		map[string]string{"file": message},
 	)
@@ -175,21 +176,33 @@ func (h *Handler) uploadValidationError(c fiber.Ctx, message string) error {
 
 func (h *Handler) delete(c fiber.Ctx) error {
 	if err := h.service.Delete(c.Context(), h.actorPublicID(c), c.Params("publicID")); err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": ErrNotFound.Error()})
-		}
-		if errors.Is(err, ErrInvalidInput) {
-			return c.Status(fiber.StatusUnprocessableEntity).
-				JSON(fiber.Map{"error": ErrInvalidInput.Error()})
-		}
-		if errors.Is(err, ErrStorage) {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			return h.inertia.FailedAction(
+				c,
+				h.mediaPath(),
+				fiber.StatusNotFound,
+				ErrNotFound.Error(),
+			)
+		case errors.Is(err, ErrInvalidInput):
+			return h.inertia.FailedAction(c,
+				h.mediaPath(),
+				fiber.StatusUnprocessableEntity,
+				ErrInvalidInput.Error(),
+			)
+		case errors.Is(err, ErrStorage):
 			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
-			return c.Status(fiber.StatusServiceUnavailable).
-				JSON(fiber.Map{"error": ErrStorage.Error()})
+			return h.inertia.FailedAction(
+				c,
+				h.mediaPath(),
+				fiber.StatusServiceUnavailable,
+				ErrStorage.Error(),
+			)
+		default:
+			return h.internalServerError(c, "delete media", err)
 		}
-		return h.internalServerError(c, "delete media", err)
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, h.mediaPath(), i18n.T("media.deleted"))
+	return h.inertia.RedirectWithFlash(c, h.mediaPath(), i18n.T("media.deleted"))
 }
 
 func (h *Handler) actorPublicID(c fiber.Ctx) string {

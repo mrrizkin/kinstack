@@ -9,7 +9,6 @@ import (
 	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -19,7 +18,7 @@ type HandlerDependency struct {
 	Service *Service
 	Actor   *actor.Actor
 	Logger  log.Log
-	Inertia *fibertia.Fibertia
+	Inertia *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for the notification center.
@@ -27,7 +26,7 @@ type Handler struct {
 	service *Service
 	actor   *actor.Actor
 	logger  log.Log
-	inertia *fibertia.Fibertia
+	inertia *platforminertia.Adapter
 }
 
 // NewHandler constructs the notification HTTP handler.
@@ -75,17 +74,28 @@ func (h *Handler) feed(c fiber.Ctx) error {
 
 func (h *Handler) markRead(c fiber.Ctx) error {
 	if err := h.service.MarkRead(c.Context(), h.recipient(c), c.Params("publicID")); err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
-		}
-		if errors.Is(err, ErrInvalidInput) {
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+		switch {
+		case errors.Is(err, ErrNotFound):
+			return h.inertia.FailedAction(
+				c,
+				h.notificationsPath(),
+				fiber.StatusNotFound,
+				err.Error(),
+			)
+		case errors.Is(err, ErrInvalidInput):
+			return h.inertia.FailedAction(
+				c,
+				h.notificationsPath(),
+				fiber.StatusUnprocessableEntity,
+				err.Error(),
+			)
 		}
 		return h.internalServerError(c, "mark notification read", err)
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	if platforminertia.WantsJSON(c) {
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+	return h.inertia.RedirectWithFlash(c,
 		h.notificationsPath(),
 		i18n.T("notifications.read"),
 	)
@@ -94,13 +104,19 @@ func (h *Handler) markRead(c fiber.Ctx) error {
 func (h *Handler) markAllRead(c fiber.Ctx) error {
 	if err := h.service.MarkAllRead(c.Context(), h.recipient(c)); err != nil {
 		if errors.Is(err, ErrInvalidInput) {
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+			return h.inertia.FailedAction(
+				c,
+				h.notificationsPath(),
+				fiber.StatusUnprocessableEntity,
+				err.Error(),
+			)
 		}
 		return h.internalServerError(c, "mark all notifications read", err)
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	if platforminertia.WantsJSON(c) {
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+	return h.inertia.RedirectWithFlash(c,
 		h.notificationsPath(),
 		i18n.T("notifications.all_read"),
 	)

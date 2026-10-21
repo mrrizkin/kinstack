@@ -5,10 +5,10 @@ import (
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
 	"kinstack/internal/platform/actor"
+	platforminertia "kinstack/internal/platform/inertia"
 	"kinstack/internal/platform/sessionregistry"
 	"kinstack/internal/platform/twofactor"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -18,7 +18,7 @@ type Dependency struct {
 	Repository Repository
 	Actor      *actor.Actor
 	Logger     applog.Log
-	Inertia    *fibertia.Fibertia
+	Inertia    *platforminertia.Adapter
 	Sessions   *sessionregistry.Service
 	TwoFactor  *twofactor.Service
 }

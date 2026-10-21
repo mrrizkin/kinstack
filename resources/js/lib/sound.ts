@@ -6,6 +6,9 @@ export type NotificationSound = "success" | "error" | "info" | "mute";
 
 const STORAGE_KEY = "kinstack-sound";
 
+const MARIMBA_MODULATION_RATIO = 4;
+const MARIMBA_MODULATION_INDEX = 1;
+
 const enabled = ref(
   typeof window === "undefined" ? true : parseSoundPreference(window.localStorage.getItem(STORAGE_KEY)) === "on",
 );
@@ -40,25 +43,44 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", warm, { once: true });
 }
 
-function tone(audio: AudioContext, frequency: number, offset: number, duration: number, peak = 0.05) {
-  const oscillator = audio.createOscillator();
-  const gain = audio.createGain();
+/**
+ * A wooden FM tone: a sine carrier modulated by its fourth harmonic with a
+ * decaying index.
+ */
+function marimba(audio: AudioContext, frequency: number, offset: number, duration: number, peak = 0.06) {
   const start = audio.currentTime + offset;
 
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(frequency, start);
+  const carrier = audio.createOscillator();
+  carrier.type = "sine";
+  carrier.frequency.setValueAtTime(frequency, start);
+
+  const modulator = audio.createOscillator();
+  modulator.type = "sine";
+  modulator.frequency.setValueAtTime(frequency * MARIMBA_MODULATION_RATIO, start);
+
+  const modulation = audio.createGain();
+  modulation.gain.setValueAtTime(frequency * MARIMBA_MODULATION_INDEX, start);
+  modulation.gain.exponentialRampToValueAtTime(frequency * 0.01, start + duration * 0.7);
+  modulator.connect(modulation);
+  modulation.connect(carrier.frequency);
+
+  const gain = audio.createGain();
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(peak, start + 0.015);
+  gain.gain.exponentialRampToValueAtTime(peak, start + 0.004);
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
 
-  oscillator.connect(gain);
+  carrier.connect(gain);
   gain.connect(audio.destination);
-  oscillator.start(start);
-  oscillator.stop(start + duration + 0.05);
+
+  carrier.start(start);
+  modulator.start(start);
+  carrier.stop(start + duration + 0.05);
+  modulator.stop(start + duration + 0.05);
 }
 
 /**
- * Plays a short chime for the given notification kind (no-op when muted).
+ * Plays a short marimba chime for the given notification kind:
+ * a rising pair for success, a single note for info, a falling pair for error.
  */
 export function playNotificationSound(kind: NotificationSound = "info") {
   if (!enabled.value) return;
@@ -67,28 +89,28 @@ export function playNotificationSound(kind: NotificationSound = "info") {
 
 /**
  * Plays the chime regardless of the mute preference: used to preview the sound
- * when the user toggles it in the user menu.
+ * when the user enables it from the settings page.
  */
-function previewNotificationSound(kind: NotificationSound = "info") {
+export function previewNotificationSound(kind: NotificationSound = "info") {
   if (prefersReducedMotion()) return;
   const audio = resolveContext();
   if (!audio) return;
 
   if (kind === "success") {
-    tone(audio, 880, 0, 0.12);
-    tone(audio, 1318.5, 0.09, 0.16);
+    marimba(audio, 783.99, 0, 0.22, 0.06);
+    marimba(audio, 1046.5, 0.11, 0.3, 0.055);
     return;
   }
   if (kind === "error") {
-    tone(audio, 320, 0, 0.18, 0.06);
-    tone(audio, 240, 0.11, 0.22, 0.05);
+    marimba(audio, 440, 0, 0.22, 0.06);
+    marimba(audio, 349.23, 0.11, 0.3, 0.055);
     return;
   }
   if (kind === "mute") {
-    tone(audio, 440, 0, 0.12, 0.04);
+    marimba(audio, 523.25, 0, 0.12, 0.05);
     return;
   }
-  tone(audio, 659.3, 0, 0.14);
+  marimba(audio, 523.25, 0, 0.4, 0.07);
 }
 
 /** Shared mute preference for the notification chime. */

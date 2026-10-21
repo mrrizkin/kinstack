@@ -3,6 +3,7 @@ package audit
 import (
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
+	platforminertia "kinstack/internal/platform/inertia"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -11,6 +12,7 @@ import (
 type Dependency struct {
 	Repository Repository
 	Logger     applog.Log
+	Inertia    *platforminertia.Adapter
 }
 
 // Feature owns the audit viewer service and HTTP entry point.
@@ -23,9 +25,14 @@ type Feature struct {
 func New(d Dependency) *Feature {
 	assert.Assert(d.Repository != nil, "audit repository is required")
 	assert.Assert(d.Logger != nil, "audit logger is required")
+	assert.Assert(d.Inertia != nil, "audit inertia adapter is required")
 
 	service := NewService(ServiceDependency{Repository: d.Repository})
-	handler := NewHandler(HandlerDependency{Service: service, Logger: d.Logger})
+	handler := NewHandler(HandlerDependency{
+		Service: service,
+		Logger:  d.Logger,
+		Inertia: d.Inertia,
+	})
 	return &Feature{service: service, handler: handler}
 }
 

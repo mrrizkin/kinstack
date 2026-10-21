@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import { formatDateTime } from "@/lib/formatters";
 import { icons } from "@/lib/icons";
 
+import type { TwoFactorAction } from "../composables/useSecurityForms";
 import type {
   ActiveSession,
   PasswordForm,
@@ -11,24 +14,17 @@ import type {
   TwoFactorCodeForm,
   TwoFactorPasswordForm,
 } from "../types";
+import PasswordConfirmDialog from "./PasswordConfirmDialog.vue";
+import PasswordDialog from "./PasswordDialog.vue";
+import TwoFactorEnrollDialog from "./TwoFactorEnrollDialog.vue";
 
+const passwordDialogOpen = defineModel<boolean>("passwordDialogOpen", { required: true });
+const enrollDialogOpen = defineModel<boolean>("enrollDialogOpen", { required: true });
+const twoFactorAction = defineModel<TwoFactorAction | null>("twoFactorAction", { required: true });
 const pendingSession = defineModel<ActiveSession | null>("pendingSession", { required: true });
 const pendingRevokeOthers = defineModel<boolean>("pendingRevokeOthers", { required: true });
-const pendingDisableTwoFactor = defineModel<boolean>("pendingDisableTwoFactor", { required: true });
 
-function closePendingSession(value: boolean) {
-  if (!value) pendingSession.value = null;
-}
-
-function closeRevokeOthers(value: boolean) {
-  if (!value) pendingRevokeOthers.value = false;
-}
-
-function closeDisableTwoFactor(value: boolean) {
-  if (!value) pendingDisableTwoFactor.value = false;
-}
-
-defineProps<{
+const props = defineProps<{
   profile: Profile;
   passwordForm: PasswordForm;
   twoFactorForm: TwoFactorCodeForm;
@@ -39,168 +35,157 @@ defineProps<{
   revokingSession: boolean;
   revokingOthers: boolean;
   beginningTwoFactor: boolean;
-  disablingTwoFactor: boolean;
   fieldError: (field: string, local?: Record<string, unknown>) => string | undefined;
+  openPasswordDialog: () => void;
   submitPassword: () => void;
-  beginTwoFactor: () => void;
+  openEnrollDialog: () => void;
+  closeEnrollDialog: (open: boolean) => void;
+  openTwoFactorAction: (action: TwoFactorAction) => void;
+  closeTwoFactorAction: (open: boolean) => void;
   confirmTwoFactor: () => void;
-  disableTwoFactor: () => void;
-  confirmDisableTwoFactor: () => void;
-  regenerateRecoveryCodes: () => void;
-  revokeOtherSessions: () => void;
+  confirmTwoFactorAction: () => void;
   confirmRevokeSession: () => void;
+  revokeOtherSessions: () => void;
   confirmRevokeOtherSessions: () => void;
 }>();
+
+function closePendingSession(value: boolean) {
+  if (!value) pendingSession.value = null;
+}
+
+function closeRevokeOthers(value: boolean) {
+  if (!value) pendingRevokeOthers.value = false;
+}
+
+const twoFactorActionDialog = computed(() => {
+  if (twoFactorAction.value === "disable") {
+    return {
+      title: "Disable two-step verification",
+      description:
+        "Your account will be protected by your password only until you enable 2FA again. Confirm your password to continue.",
+      confirmLabel: "Disable 2FA",
+      color: "error" as const,
+    };
+  }
+  return {
+    title: "Regenerate recovery codes",
+    description: "New codes replace every existing recovery code immediately. Confirm your password to continue.",
+    confirmLabel: "Regenerate codes",
+    color: "primary" as const,
+  };
+});
+
+const enrollLabel = computed(() => (props.twoFactor.pending_secret ? "Continue setup" : "Enable 2FA"));
 </script>
 
 <template>
   <div class="grid gap-4 lg:grid-cols-3">
     <UCard class="lg:col-span-2">
-      <h2 class="text-highlighted text-sm font-semibold">Change password</h2>
-      <p class="text-muted mt-1 text-xs">
-        {{
-          profile.invited
-            ? "This account is still pending invitation. Set your first password with at least 8 characters."
-            : "Enter your current password, then a new password with at least 8 characters."
-        }}
-      </p>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-highlighted flex items-center gap-2 text-sm font-semibold">
+            <UIcon :name="icons.lock" class="text-muted" />
+            Password
+          </h2>
+          <p class="text-muted mt-1 text-xs">
+            {{
+              profile.invited
+                ? "This account is still pending invitation. Set your first password with at least 8 characters."
+                : "Your sign-in password. Changing it signs out every other device."
+            }}
+          </p>
+        </div>
+        <UButton
+          type="button"
+          color="primary"
+          size="xs"
+          :icon="profile.invited ? icons.invite : icons.lock"
+          :label="profile.invited ? 'Set password' : 'Change password'"
+          @click="openPasswordDialog" />
+      </div>
+
       <UAlert
         v-if="profile.invited"
         class="mt-4"
         color="info"
-        variant="subtle"
         :icon="icons.invite"
         title="Invited account"
         description="You have been invited to join. Set a password to fully activate your account." />
-      <form class="mt-4 space-y-4" @submit.prevent="submitPassword">
-        <UFormField
-          v-if="!profile.invited"
-          label="Current password"
-          :error="fieldError('current_password', passwordForm.errors)">
-          <UInput v-model="passwordForm.current_password" type="password" placeholder="••••••••" class="w-full" />
-        </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField label="New password" :error="fieldError('new_password', passwordForm.errors)">
-            <UInput v-model="passwordForm.new_password" type="password" placeholder="••••••••" class="w-full" />
-          </UFormField>
-          <UFormField label="Confirm new password" :error="fieldError('confirm_password', passwordForm.errors)">
-            <UInput v-model="passwordForm.confirm_password" type="password" placeholder="••••••••" class="w-full" />
-          </UFormField>
+
+      <dl class="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-xs">
+        <div>
+          <dt class="text-muted">Minimum length</dt>
+          <dd class="text-highlighted">8 characters</dd>
         </div>
-        <div class="flex justify-end">
-          <UButton
-            type="submit"
-            color="primary"
-            label="Save password"
-            :icon="icons.access"
-            :loading="passwordForm.processing" />
+        <div>
+          <dt class="text-muted">Verification</dt>
+          <dd class="text-highlighted">{{ profile.invited ? "Not required yet" : "Current password required" }}</dd>
         </div>
-      </form>
+      </dl>
     </UCard>
 
-    <UCard class="lg:col-span-3">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 class="text-highlighted flex items-center gap-2 text-sm font-semibold">
-            <UIcon :name="icons.shieldCheck" />
-            Two-step verification (2FA)
-            <UBadge :color="twoFactor.enabled ? 'success' : 'neutral'" variant="subtle" size="sm">
-              {{ twoFactor.enabled ? "Active" : "Inactive" }}
-            </UBadge>
-          </h2>
-          <p class="text-muted mt-1 text-xs">
-            Protect your account with a code from your authenticator app when signing in from a new device.
-          </p>
-        </div>
-        <UButton
-          v-if="!twoFactor.enabled && !twoFactor.pending_secret"
-          type="button"
-          color="primary"
-          size="xs"
-          :icon="icons.qrCode"
-          label="Enable 2FA"
-          :loading="beginningTwoFactor"
-          @click="beginTwoFactor" />
+    <UCard>
+      <div class="flex items-start justify-between gap-2">
+        <h2 class="text-highlighted flex items-center gap-2 text-sm font-semibold">
+          <UIcon :name="icons.shieldCheck" class="text-muted" />
+          Two-step verification
+        </h2>
+        <UBadge :color="twoFactor.enabled ? 'success' : 'neutral'" variant="subtle" size="sm">
+          {{ twoFactor.enabled ? "Active" : "Inactive" }}
+        </UBadge>
       </div>
+      <p class="text-muted mt-1 text-xs">
+        {{
+          twoFactor.enabled
+            ? "Your account asks for a code from your authenticator app when signing in from a new device."
+            : "Protect your account with a code from your authenticator app when signing in from a new device."
+        }}
+      </p>
 
-      <div v-if="twoFactor.recovery_codes.length" class="mt-4 space-y-3">
-        <UAlert
-          color="warning"
-          variant="subtle"
-          :icon="icons.warning"
-          title="Save these recovery codes now"
-          description="Each code can only be used once and will not be shown again." />
-        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          <code
-            v-for="code in twoFactor.recovery_codes"
-            :key="code"
-            class="border-default bg-elevated rounded border px-2 py-1 text-center font-mono text-xs">
-            {{ code }}
-          </code>
-        </div>
-      </div>
-
-      <div
-        v-if="!twoFactor.enabled && twoFactor.pending_secret"
-        class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div class="border-default bg-default w-fit rounded-lg border p-3">
-          <img v-if="qrDataUrl" :src="qrDataUrl" alt="2FA QR code" class="size-44" />
-          <p v-else class="text-muted w-44 text-center text-xs">QR code unavailable</p>
-        </div>
-        <form class="flex-1 space-y-3" @submit.prevent="confirmTwoFactor">
-          <p class="text-muted text-xs">
-            Scan the QR code with Google Authenticator or Authy, then enter the 6-digit code.
-          </p>
-          <p class="text-muted text-xs">
-            Manual key:
-            <code class="text-highlighted font-mono break-all">{{ twoFactor.pending_secret }}</code>
-          </p>
-          <UFormField label="Verification code" :error="fieldError('code', twoFactorForm.errors)">
-            <UInput
-              v-model="twoFactorForm.code"
-              placeholder="123456"
-              autocomplete="one-time-code"
-              class="w-full sm:w-48" />
-          </UFormField>
+      <div class="mt-4 flex flex-col gap-2">
+        <template v-if="twoFactor.enabled">
           <UButton
-            type="submit"
-            color="primary"
-            size="sm"
-            :icon="icons.check"
-            label="Confirm"
-            :loading="twoFactorForm.processing" />
-        </form>
-      </div>
-
-      <div v-if="twoFactor.enabled" class="mt-4 grid gap-4 sm:grid-cols-2">
-        <form class="space-y-3" @submit.prevent="regenerateRecoveryCodes">
-          <p class="text-highlighted text-xs font-semibold">Regenerate recovery codes</p>
-          <UFormField label="Password" :error="fieldError('two_factor_password', twoFactorPasswordForm.errors)">
-            <UInput v-model="twoFactorPasswordForm.password" type="password" placeholder="••••••••" class="w-full" />
-          </UFormField>
-          <UButton
-            type="submit"
+            type="button"
             color="neutral"
             variant="outline"
-            size="sm"
-            :icon="icons.loading"
-            label="Regenerate"
-            :loading="twoFactorPasswordForm.processing" />
-        </form>
-        <form class="space-y-3" @submit.prevent="disableTwoFactor">
-          <p class="text-highlighted text-xs font-semibold">Disable two-step verification</p>
-          <UFormField label="Password" :error="fieldError('two_factor_password', twoFactorPasswordForm.errors)">
-            <UInput v-model="twoFactorPasswordForm.password" type="password" placeholder="••••••••" class="w-full" />
-          </UFormField>
+            :icon="icons.reload"
+            label="Regenerate recovery codes"
+            block
+            @click="openTwoFactorAction('regenerate')" />
           <UButton
-            type="submit"
+            type="button"
             color="error"
             variant="outline"
-            size="sm"
             :icon="icons.shieldOff"
-            label="Disable"
-            :loading="disablingTwoFactor || twoFactorPasswordForm.processing" />
-        </form>
+            label="Disable 2FA"
+            block
+            @click="openTwoFactorAction('disable')" />
+        </template>
+        <UButton
+          v-else
+          type="button"
+          color="primary"
+          :icon="twoFactor.pending_secret ? icons.arrowRight : icons.qrCode"
+          :label="enrollLabel"
+          :loading="beginningTwoFactor"
+          block
+          @click="openEnrollDialog" />
+      </div>
+    </UCard>
+
+    <UCard v-if="twoFactor.recovery_codes.length" class="lg:col-span-3">
+      <UAlert
+        color="warning"
+        :icon="icons.warning"
+        title="Save these recovery codes now"
+        description="Each code can only be used once and will not be shown again." />
+      <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <code
+          v-for="code in twoFactor.recovery_codes"
+          :key="code"
+          class="border-default bg-elevated rounded border px-2 py-1 text-center font-mono text-xs">
+          {{ code }}
+        </code>
       </div>
     </UCard>
 
@@ -254,6 +239,34 @@ defineProps<{
       </ul>
     </UCard>
 
+    <PasswordDialog
+      v-model:open="passwordDialogOpen"
+      :profile="profile"
+      :password-form="passwordForm"
+      :field-error="fieldError"
+      @submit="submitPassword" />
+
+    <TwoFactorEnrollDialog
+      :open="enrollDialogOpen"
+      :two-factor="twoFactor"
+      :two-factor-form="twoFactorForm"
+      :qr-data-url="qrDataUrl"
+      :beginning-two-factor="beginningTwoFactor"
+      :field-error="fieldError"
+      @update:open="closeEnrollDialog"
+      @submit="confirmTwoFactor" />
+
+    <PasswordConfirmDialog
+      :open="twoFactorAction !== null"
+      :title="twoFactorActionDialog.title"
+      :description="twoFactorActionDialog.description"
+      :confirm-label="twoFactorActionDialog.confirmLabel"
+      :color="twoFactorActionDialog.color"
+      :password-form="twoFactorPasswordForm"
+      :field-error="fieldError"
+      @update:open="closeTwoFactorAction"
+      @confirm="confirmTwoFactorAction" />
+
     <AppConfirmDialog
       :open="Boolean(pendingSession)"
       title="Revoke session"
@@ -273,14 +286,5 @@ defineProps<{
       :loading="revokingOthers"
       @update:open="closeRevokeOthers"
       @confirm="confirmRevokeOtherSessions" />
-
-    <AppConfirmDialog
-      :open="pendingDisableTwoFactor"
-      title="Disable two-step verification"
-      description="Your account will be protected by your password only until you enable 2FA again."
-      confirm-label="Disable 2FA"
-      :loading="disablingTwoFactor"
-      @update:open="closeDisableTwoFactor"
-      @confirm="confirmDisableTwoFactor" />
   </div>
 </template>

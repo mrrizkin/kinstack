@@ -18,8 +18,8 @@ import (
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
+	"kinstack/internal/platform/inertia"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -37,7 +37,7 @@ type ReadinessChecks struct {
 type WebRoutesDependency struct {
 	App           *fiber.App
 	Config        config.Config
-	Inertia       *fibertia.Fibertia
+	Inertia       *inertia.Adapter
 	Actor         *actor.Actor
 	Authz         *authz.Service
 	Auth          *auth.Feature

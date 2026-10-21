@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { Head, router } from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { z } from "zod";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { unreadCount } from "@/lib/dashboard";
 import { formatDateTime } from "@/lib/formatters";
+import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
+import { usePageProps } from "@/lib/page-props";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
@@ -22,25 +27,55 @@ interface Notification {
 
 const props = defineProps<{ notifications: Notification[]; unread: number }>();
 
+const { csrfToken } = usePageProps();
+const { t } = useI18n();
+const notifications = ref([...props.notifications]);
+const unread = ref(props.unread);
+const error = ref("");
 const markingId = ref("");
 const markingAll = ref(false);
 
-function markRead(notification: Notification) {
+// The bell badge is shell state shared with this page, so seed it with the
+// server value instead of waiting for the feed to refresh.
+unreadCount.value = props.unread;
+
+// Marking read is silent housekeeping, matching the dashboard slide-over.
+async function markRead(notification: Notification) {
   if (notification.read || markingId.value) return;
-  router.post(`/notifications/${notification.public_id}/read`, undefined, {
-    preserveScroll: true,
-    onStart: () => (markingId.value = notification.public_id),
-    onFinish: () => (markingId.value = ""),
-  });
+  markingId.value = notification.public_id;
+  error.value = "";
+  try {
+    await requestJson(`/notifications/${encodeURIComponent(notification.public_id)}/read`, z.unknown(), {
+      method: "POST",
+      csrfToken: csrfToken.value,
+    });
+    notification.read = true;
+    unread.value = Math.max(0, unread.value - 1);
+    unreadCount.value = unread.value;
+  } catch {
+    error.value = t("shell.notifications.markError");
+  } finally {
+    markingId.value = "";
+  }
 }
 
-function markAllRead() {
-  if (markingAll.value) return;
-  router.post("/notifications/read-all", undefined, {
-    preserveScroll: true,
-    onStart: () => (markingAll.value = true),
-    onFinish: () => (markingAll.value = false),
-  });
+async function markAllRead() {
+  if (markingAll.value || unread.value === 0) return;
+  markingAll.value = true;
+  error.value = "";
+  try {
+    await requestJson("/notifications/read-all", z.unknown(), {
+      method: "POST",
+      csrfToken: csrfToken.value,
+    });
+    notifications.value = notifications.value.map((item) => ({ ...item, read: true }));
+    unread.value = 0;
+    unreadCount.value = 0;
+  } catch {
+    error.value = t("shell.notifications.markAllError");
+  } finally {
+    markingAll.value = false;
+  }
 }
 </script>
 
@@ -53,18 +88,12 @@ function markAllRead() {
           <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
         </template>
         <span class="text-muted hidden text-sm lg:block">
-          {{
-            props.unread > 0
-              ? `${props.unread} unread`
-              : props.notifications.length > 0
-                ? "All caught up"
-                : "No notifications"
-          }}
+          {{ unread > 0 ? `${unread} unread` : notifications.length > 0 ? "All caught up" : "No notifications" }}
         </span>
         <template #right>
           <AppNotificationBell />
           <UButton
-            v-if="props.unread > 0"
+            v-if="unread > 0"
             color="neutral"
             variant="outline"
             :icon="icons.markAllRead"
@@ -77,8 +106,10 @@ function markAllRead() {
 
     <template #body>
       <div class="space-y-3">
+        <UAlert v-if="error" color="error" variant="subtle" :icon="icons.error" :title="error" />
+
         <UEmpty
-          v-if="props.notifications.length === 0"
+          v-if="notifications.length === 0"
           :icon="icons.bellOff"
           title="No notifications yet."
           description="Account and workspace updates will appear here."
@@ -87,7 +118,7 @@ function markAllRead() {
           class="py-12" />
 
         <UCard
-          v-for="notification in props.notifications"
+          v-for="notification in notifications"
           :key="notification.public_id"
           :class="notification.read ? '' : 'ring-primary/40 ring-1'">
           <div class="flex items-start justify-between gap-4">

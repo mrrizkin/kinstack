@@ -9,11 +9,11 @@ import (
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/audit"
 	"kinstack/internal/platform/authz"
+	"kinstack/internal/platform/inertia"
 	"kinstack/internal/platform/observability"
 	"kinstack/internal/platform/pdf"
 	"kinstack/internal/platform/sessionregistry"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 )
@@ -22,7 +22,7 @@ import (
 type GlobalMiddlewareDependency struct {
 	App           *fiber.App
 	Config        config.Config
-	Inertia       *fibertia.Fibertia
+	Inertia       *inertia.Adapter
 	Session       fiber.Handler
 	SessionStore  *fibersession.Store
 	SharedStorage fiber.Storage

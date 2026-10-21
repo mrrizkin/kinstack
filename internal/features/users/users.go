@@ -6,8 +6,8 @@ import (
 	applog "kinstack/internal/pkg/log"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
+	platforminertia "kinstack/internal/platform/inertia"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -20,7 +20,7 @@ type Dependency struct {
 	Revoker       CredentialRevoker
 	Actor         *actor.Actor
 	Logger        applog.Log
-	Inertia       *fibertia.Fibertia
+	Inertia       *platforminertia.Adapter
 }
 
 // Feature owns the user account service and HTTP entry points.

@@ -19,7 +19,7 @@ const { preference, setPreference } = useTheme();
 const { actor, csrfToken } = usePageProps();
 
 const displayName = computed(() => actor.value?.display_name || actor.value?.username || "User");
-const avatarSrc = computed(() => avatarUrl(actor.value?.username || actor.value?.public_id || displayName.value));
+const avatarSrc = computed(() => avatarUrl(actor.value));
 
 const appearanceOptions = computed<{ label: string; value: ThemePreference; icon: string }[]>(() => [
   { label: t("shell.userMenu.light"), value: "light", icon: icons.light },

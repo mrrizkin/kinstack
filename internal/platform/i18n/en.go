@@ -91,7 +91,6 @@ var catalogs = map[Locale]map[string]string{
 		"profile.session_not_found":         "Session not found or already ended.",
 		"profile.session_revoked":           "Session ended.",
 		"profile.other_sessions_revoked":    "Other sessions ended.",
-		"profile.two_factor_scan":           "Scan the QR code, then enter the verification code.",
 		"profile.two_factor_enabled":        "Two-factor verification enabled.",
 		"profile.two_factor_disabled":       "Two-factor verification disabled.",
 		"profile.recovery_codes_created":    "New recovery codes created.",
@@ -111,6 +110,7 @@ var catalogs = map[Locale]map[string]string{
 		"media.deleted":             "File deleted.",
 
 		// API tokens.
+		"apitoken.superuser_only": "API tokens are available to regular accounts only.",
 		"apitoken.not_found":      "API token not found.",
 		"apitoken.invalid_token":  "Invalid API token.",
 		"apitoken.invalid_input":  "Invalid token data.",

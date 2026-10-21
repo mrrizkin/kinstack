@@ -18,12 +18,12 @@ import (
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
+	"kinstack/internal/platform/inertia"
 	"kinstack/internal/platform/objectstorage"
 	platformsaml "kinstack/internal/platform/saml"
 	"kinstack/internal/platform/sessionregistry"
 	"kinstack/internal/platform/twofactor"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -31,7 +31,7 @@ import (
 // composed by NewApp. Repositories register their closers so cleanup is owned in
 // one place (see cleanup.go).
 type appDependencies struct {
-	Inertia         *fibertia.Fibertia
+	Inertia         *inertia.Adapter
 	Authorization   *authz.Service
 	SessionRegistry *sessionregistry.Service
 	TwoFactor       *twofactor.Service
@@ -53,7 +53,7 @@ type appDependencies struct {
 	closers []io.Closer
 }
 
-func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *appDependencies {
+func newAppDependencies(d AppDependency, inertiaAdapter *inertia.Adapter) *appDependencies {
 	deps := &appDependencies{Inertia: inertiaAdapter}
 	repositories := newAppRepositories(deps, d)
 
@@ -84,6 +84,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *fibertia.Fibertia) *app
 	deps.Audit = auditfeature.New(auditfeature.Dependency{
 		Repository: repositories.audit,
 		Logger:     d.Log,
+		Inertia:    inertiaAdapter,
 	})
 	deps.APITokens = apitoken.New(apitoken.Dependency{
 		Repository:    repositories.apiToken,
@@ -152,7 +153,7 @@ func newAppRepositories(deps *appDependencies, d AppDependency) *appRepositories
 func newMediaFeature(
 	d AppDependency,
 	deps *appDependencies,
-	inertiaAdapter *fibertia.Fibertia,
+	inertiaAdapter *inertia.Adapter,
 ) *mediafeature.Feature {
 	if !d.Config.RustFS.Enabled {
 		return nil
@@ -175,7 +176,7 @@ func newMediaFeature(
 func newNotificationsFeature(
 	d AppDependency,
 	deps *appDependencies,
-	inertiaAdapter *fibertia.Fibertia,
+	inertiaAdapter *inertia.Adapter,
 ) *notificationsfeature.Feature {
 	repository := assert.OK(
 		notificationsfeature.NewSQLRepository(
@@ -272,7 +273,7 @@ func newUsersFeature(
 	deps *appDependencies,
 	repository *users.SQLRepository,
 	revoker *credentialRevoker,
-	inertiaAdapter *fibertia.Fibertia,
+	inertiaAdapter *inertia.Adapter,
 ) *users.Feature {
 	return users.New(users.Dependency{
 		Repository:    repository,
@@ -289,7 +290,7 @@ func newProfileFeature(
 	d AppDependency,
 	deps *appDependencies,
 	repository *profile.SQLRepository,
-	inertiaAdapter *fibertia.Fibertia,
+	inertiaAdapter *inertia.Adapter,
 ) *profile.Feature {
 	return profile.New(profile.Dependency{
 		Repository: repository,

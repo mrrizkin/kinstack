@@ -24,13 +24,18 @@ import (
 // strings, so a healthy render finishes in milliseconds.
 const documentTimeout = 10 * time.Second
 
+// Adapter is the application's Inertia boundary: Fibertia plus shared response helpers.
+type Adapter struct {
+	*fibertia.Fibertia
+}
+
 // Dependency contains the environment and session boundaries used to construct the adapter.
 type Dependency struct {
 	Environment  string
 	SessionStore *fibersession.Store
 }
 
-func New(d Dependency) *fibertia.Fibertia {
+func New(d Dependency) *Adapter {
 	vite := newVite()
 	baseTags, err := vite.ToHTML()
 	viteAvailable := err == nil
@@ -79,7 +84,7 @@ func New(d Dependency) *fibertia.Fibertia {
 			).Render(ctx, w)
 		},
 	)
-	return adapter
+	return &Adapter{Fibertia: adapter}
 }
 
 // buildVersion is injected at build time, for example with
@@ -134,7 +139,7 @@ func newVite() *vitego.Vite {
 	return vite
 }
 
-func Middleware(adapter *fibertia.Fibertia) fiber.Handler {
+func Middleware(adapter *Adapter) fiber.Handler {
 	assert.Assert(adapter != nil, "inertia adapter is required")
 
 	handler := adapter.Middleware
@@ -149,19 +154,12 @@ func Middleware(adapter *fibertia.Fibertia) fiber.Handler {
 // ValidationErrors stores field errors in the session and redirects back so the
 // Inertia client renders them on the originating form. Use the "form" key for
 // errors that do not belong to a single field.
-func ValidationErrors(
-	adapter *fibertia.Fibertia,
-	c fiber.Ctx,
-	back string,
-	fields map[string]string,
-) error {
-	assert.Assert(adapter != nil, "inertia adapter is required")
-
+func (a *Adapter) ValidationErrors(c fiber.Ctx, back string, fields map[string]string) error {
 	bag := make(map[string][]string, len(fields))
 	for field, message := range fields {
 		bag[field] = []string{message}
 	}
-	if err := adapter.WithErrors(c, "", bag); err != nil {
+	if err := a.WithErrors(c, "", bag); err != nil {
 		return err
 	}
 	if back == "" {
@@ -171,23 +169,58 @@ func ValidationErrors(
 }
 
 // FlashSuccess stores a success flash message for the next page load.
-func FlashSuccess(adapter *fibertia.Fibertia, c fiber.Ctx, message string) error {
-	assert.Assert(adapter != nil, "inertia adapter is required")
+func (a *Adapter) FlashSuccess(c fiber.Ctx, message string) error {
 	if strings.TrimSpace(message) == "" {
 		return nil
 	}
-	return adapter.Flash(c, map[string]any{"success": message})
+	return a.Flash(c, map[string]any{"success": message})
 }
 
 // RedirectWithFlash flashes a success message and redirects (303) to target.
-func RedirectWithFlash(
-	adapter *fibertia.Fibertia,
-	c fiber.Ctx,
-	target string,
-	message string,
-) error {
-	if err := FlashSuccess(adapter, c, message); err != nil {
+func (a *Adapter) RedirectWithFlash(c fiber.Ctx, target string, message string) error {
+	if err := a.FlashSuccess(c, message); err != nil {
 		return err
 	}
 	return c.Redirect().Status(fiber.StatusSeeOther).To(target)
+}
+
+// WantsJSON reports whether the caller expects JSON instead of an Inertia page.
+// Inertia visits always send X-Inertia, so Accept alone is not enough.
+func WantsJSON(c fiber.Ctx) bool {
+	return c.Get("X-Inertia") == "" &&
+		strings.Contains(c.Get(fiber.HeaderAccept), "application/json")
+}
+
+// FlashError stores an error flash for the next page load.
+func (a *Adapter) FlashError(c fiber.Ctx, message string) error {
+	if strings.TrimSpace(message) == "" {
+		return nil
+	}
+	return a.Flash(c, map[string]any{"error": message})
+}
+
+// RedirectWithFlashError flashes an error and redirects (303) to target.
+func (a *Adapter) RedirectWithFlashError(c fiber.Ctx, target string, message string) error {
+	if err := a.FlashError(c, message); err != nil {
+		return err
+	}
+	return c.Redirect().Status(fiber.StatusSeeOther).To(target)
+}
+
+// FailedPayload answers an unreadable body: JSON clients get a 400 envelope,
+// Inertia visits a form error.
+func (a *Adapter) FailedPayload(c fiber.Ctx, back string, message string) error {
+	if WantsJSON(c) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": message})
+	}
+	return a.ValidationErrors(c, back, map[string]string{"form": message})
+}
+
+// FailedAction answers a rejected mutation: JSON clients get the status
+// envelope, Inertia visits an error flash and a redirect.
+func (a *Adapter) FailedAction(c fiber.Ctx, back string, status int, message string) error {
+	if WantsJSON(c) {
+		return c.Status(status).JSON(fiber.Map{"error": message})
+	}
+	return a.RedirectWithFlashError(c, back, message)
 }

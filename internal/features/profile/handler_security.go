@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"kinstack/internal/platform/i18n"
-	platforminertia "kinstack/internal/platform/inertia"
 	platformsession "kinstack/internal/platform/session"
 	"kinstack/internal/platform/sessionregistry"
 	"kinstack/internal/platform/twofactor"
@@ -24,9 +23,7 @@ func (h *Handler) revokeSession(c fiber.Ctx) error {
 		h.logger.Errorw("revoke session", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),
 		i18n.T("profile.session_revoked"),
 	)
@@ -45,9 +42,7 @@ func (h *Handler) revokeOtherSessions(c fiber.Ctx) error {
 		h.logger.Errorw("revoke other sessions", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),
 		i18n.T("profile.other_sessions_revoked"),
 	)
@@ -68,12 +63,8 @@ func (h *Handler) beginTwoFactor(c fiber.Ctx) error {
 	if _, err := h.twoFactor.BeginEnrollment(c.Context(), h.actorPublicID(c), account); err != nil {
 		return h.writeTwoFactorError(c, err, "")
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
-		h.profilePathFor(c),
-		i18n.T("profile.two_factor_scan"),
-	)
+	// The enrollment dialog shows the QR code, so no flash is needed.
+	return c.Redirect().Status(fiber.StatusSeeOther).To(h.profilePathFor(c))
 }
 
 // confirmTwoFactor activates two-factor auth and stores the recovery codes for
@@ -93,9 +84,7 @@ func (h *Handler) confirmTwoFactor(c fiber.Ctx) error {
 	if err := platformsession.SetRecoveryCodes(c, codes); err != nil {
 		h.logger.Errorw("store recovery codes", "request_id", c.RequestID(), "error", err)
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),
 		i18n.T("profile.two_factor_enabled"),
 	)
@@ -120,9 +109,7 @@ func (h *Handler) disableTwoFactor(c fiber.Ctx) error {
 	if err := h.twoFactor.Disable(c.Context(), h.actorPublicID(c)); err != nil {
 		return h.writeTwoFactorError(c, err, "")
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),
 		i18n.T("profile.two_factor_disabled"),
 	)
@@ -151,9 +138,7 @@ func (h *Handler) regenerateRecoveryCodes(c fiber.Ctx) error {
 	if err := platformsession.SetRecoveryCodes(c, codes); err != nil {
 		h.logger.Errorw("store recovery codes", "request_id", c.RequestID(), "error", err)
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),
 		i18n.T("profile.recovery_codes_created"),
 	)
@@ -165,7 +150,11 @@ func (h *Handler) writeTwoFactorError(c fiber.Ctx, err error, field string) erro
 	case errors.Is(err, twofactor.ErrInvalidCode):
 		return h.validationError(c, i18n.T("profile.invalid_code"), "code")
 	case errors.Is(err, twofactor.ErrNotFound):
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+		return h.inertia.FailedAction(c,
+			h.profilePathFor(c),
+			fiber.StatusNotFound,
+			err.Error(),
+		)
 	case errors.Is(err, twofactor.ErrInvalidInput),
 		errors.Is(err, twofactor.ErrNotEnabled),
 		errors.Is(err, twofactor.ErrAlreadyEnabled),

@@ -12,6 +12,7 @@ import { passkeyOptionsSchema, passkeySummarySchema } from "@/lib/contracts/pass
 import { formatDateTime } from "@/lib/formatters";
 import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
+import { useNotify } from "@/lib/notify";
 import { usePageProps } from "@/lib/page-props";
 import { createPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
@@ -28,17 +29,32 @@ const props = defineProps<{ passkeys: Passkey[] }>();
 
 const { csrfToken } = usePageProps();
 const { t } = useI18n();
+const notify = useNotify();
 const passkeys = ref([...props.passkeys]);
 const name = ref("This device");
 const nameError = ref("");
 const saving = ref(false);
 const revoking = ref("");
 const revokeTarget = ref<Passkey | null>(null);
-const message = ref("");
-const error = ref("");
+const addDialogOpen = ref(false);
 const supported = supportsWebAuthn();
 
-async function addPasskey() {
+// A dismissed WebAuthn prompt is a decision, not a failure.
+function isCancellation(caught: unknown): boolean {
+  return caught instanceof DOMException && (caught.name === "NotAllowedError" || caught.name === "AbortError");
+}
+
+function failureMessage(caught: unknown, fallback: string): string {
+  return caught instanceof Error && caught.message ? caught.message : fallback;
+}
+
+function openAddDialog() {
+  if (!supported) return;
+  nameError.value = "";
+  addDialogOpen.value = true;
+}
+
+async function confirmAddPasskey() {
   if (saving.value) return;
   nameError.value = "";
   if (!name.value.trim()) {
@@ -46,8 +62,6 @@ async function addPasskey() {
     return;
   }
   saving.value = true;
-  message.value = "";
-  error.value = "";
   try {
     const options = await requestJson("/passkeys/register/options", passkeyOptionsSchema, {
       method: "POST",
@@ -61,9 +75,15 @@ async function addPasskey() {
       body: credential,
     });
     passkeys.value.push(saved);
-    message.value = "Passkey added. You can now sign in with this device.";
+    notify("success", "Passkey added. You can now sign in with this device.");
+    name.value = "This device";
+    addDialogOpen.value = false;
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : "Passkey registration was cancelled or failed.";
+    if (isCancellation(caught)) {
+      notify("info", "Passkey setup was cancelled.");
+    } else {
+      notify("error", failureMessage(caught, "Passkey registration failed."));
+    }
   } finally {
     saving.value = false;
   }
@@ -78,16 +98,15 @@ async function confirmRevokePasskey() {
   const passkey = revokeTarget.value;
   if (!passkey || revoking.value) return;
   revoking.value = passkey.id;
-  error.value = "";
   try {
     await requestJson(`/passkeys/${encodeURIComponent(passkey.id)}/delete`, z.unknown(), {
       method: "POST",
       csrfToken: csrfToken.value,
     });
     passkeys.value = passkeys.value.filter((item) => item.id !== passkey.id);
-    message.value = "Passkey revoked.";
+    notify("success", "Passkey revoked.");
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : "Failed to revoke passkey.";
+    notify("error", failureMessage(caught, "Failed to revoke passkey."));
   } finally {
     revoking.value = "";
     revokeTarget.value = null;
@@ -96,7 +115,7 @@ async function confirmRevokePasskey() {
 
 const emptyActions = computed(() =>
   supported
-    ? [{ label: "Add your first passkey", icon: icons.passkey, onClick: addPasskey }]
+    ? [{ label: "Add your first passkey", icon: icons.passkey, onClick: openAddDialog }]
     : [{ label: "Back to profile", icon: icons.arrowLeft, to: "/profile" }],
 );
 </script>
@@ -105,8 +124,9 @@ const emptyActions = computed(() =>
   <Head :title="t('shell.settings.sections.passkeys.title')" />
 
   <div class="space-y-6">
-    <UAlert v-if="message" color="success" variant="subtle" :icon="icons.success" :title="message" />
-    <UAlert v-if="error" color="error" variant="subtle" :icon="icons.alert" :title="error" />
+    <div class="flex justify-end">
+      <UButton color="primary" :icon="icons.add" label="Add passkey" :disabled="!supported" @click="openAddDialog" />
+    </div>
 
     <UCard>
       <UEmpty
@@ -142,23 +162,41 @@ const emptyActions = computed(() =>
       </ul>
     </UCard>
 
-    <UCard>
-      <div class="space-y-4">
-        <UFormField label="Passkey name" :error="nameError || undefined">
+    <UAlert
+      v-if="!supported"
+      color="warning"
+      :icon="icons.warning"
+      title="Passkeys are unavailable in this browser"
+      description="Use a browser that supports WebAuthn to add a passkey to this account." />
+  </div>
+
+  <UModal
+    v-model:open="addDialogOpen"
+    title="Add a passkey"
+    description="Name this passkey so you can recognize it later. Your browser then asks for your fingerprint, face, or device PIN."
+    :ui="{ content: 'sm:max-w-md' }">
+    <template #body>
+      <form id="add-passkey" class="space-y-4" @submit.prevent="confirmAddPasskey">
+        <UFormField label="Passkey name" hint="Up to 80 characters" :error="nameError || undefined">
           <UInput v-model="name" maxlength="80" placeholder="e.g. Work laptop" class="w-full" />
         </UFormField>
+        <p class="text-muted text-xs">The passkey is created on this device only and never leaves it.</p>
+      </form>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton color="neutral" variant="outline" label="Cancel" @click="addDialogOpen = false" />
         <UButton
+          type="submit"
+          form="add-passkey"
           color="primary"
           :icon="icons.passkey"
+          label="Continue"
           :loading="saving"
-          :disabled="!supported || saving"
-          @click="addPasskey">
-          Add passkey
-        </UButton>
-        <p v-if="!supported" class="text-muted text-xs">This browser does not support passkeys.</p>
+          :disabled="saving" />
       </div>
-    </UCard>
-  </div>
+    </template>
+  </UModal>
 
   <AppConfirmDialog
     :open="revokeTarget !== null"

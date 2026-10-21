@@ -13,7 +13,6 @@ import (
 	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -23,7 +22,7 @@ type HandlerDependency struct {
 	Service *Service
 	Actor   *actor.Actor
 	Logger  log.Log
-	Inertia *fibertia.Fibertia
+	Inertia *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for user management.
@@ -31,7 +30,7 @@ type Handler struct {
 	service *Service
 	actor   *actor.Actor
 	logger  log.Log
-	inertia *fibertia.Fibertia
+	inertia *platforminertia.Adapter
 }
 
 // NewHandler constructs the users HTTP handler.
@@ -163,7 +162,11 @@ func (h *Handler) writeErrorAt(c fiber.Ctx, back string, err error) error {
 		errors.Is(err, authz.ErrPrivilegeEscalation),
 		errors.Is(err, authz.ErrSelfChange),
 		errors.Is(err, authz.ErrManagementSession):
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		return h.inertia.FailedAction(c,
+			back,
+			fiber.StatusForbidden,
+			err.Error(),
+		)
 	case errors.Is(err, ErrInvalidInput),
 		errors.Is(err, ErrAuthorizationUnavailable),
 		errors.Is(err, authz.ErrRoleCodeTaken),
@@ -174,7 +177,11 @@ func (h *Handler) writeErrorAt(c fiber.Ctx, back string, err error) error {
 		errors.Is(err, authz.ErrUserNotFound):
 		return h.validationFieldsAt(c, back, map[string]string{"form": err.Error()})
 	case errors.Is(err, ErrNotFound), errors.Is(err, authz.ErrRoleNotFound):
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+		return h.inertia.FailedAction(c,
+			back,
+			fiber.StatusNotFound,
+			err.Error(),
+		)
 	default:
 		h.logger.Errorw("user mutation failed", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
@@ -182,22 +189,15 @@ func (h *Handler) writeErrorAt(c fiber.Ctx, back string, err error) error {
 }
 
 func (h *Handler) validationFieldsAt(c fiber.Ctx, back string, fields map[string]string) error {
-	return platforminertia.ValidationErrors(h.inertia, c, back, fields)
+	return h.inertia.ValidationErrors(c, back, fields)
 }
 
 // invalidPagination answers a malformed page request. JSON clients get the
-// usual 422 envelope; browser navigation is redirected back to the first page
-// with a flash message instead of a JSON document.
+// usual 422 envelope; browser navigation returns with a flash message.
 func (h *Handler) invalidPagination(c fiber.Ctx, back string) error {
 	message := i18n.T("common.invalid_page")
-	if wantsJSON(c) {
+	if platforminertia.WantsJSON(c) {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": message})
 	}
-	return platforminertia.RedirectWithFlash(h.inertia, c, back, message)
-}
-
-// wantsJSON reports whether the client asked for a machine-readable error
-// instead of a page navigation.
-func wantsJSON(c fiber.Ctx) bool {
-	return strings.Contains(c.Get(fiber.HeaderAccept), "application/json")
+	return h.inertia.RedirectWithFlash(c, back, message)
 }

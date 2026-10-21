@@ -17,9 +17,9 @@ import (
 func (h *Handler) login(c fiber.Ctx) error {
 	var request LoginRequest
 	if err := c.Bind().Body(&request); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": i18n.T("common.invalid_payload"),
-		})
+		props := h.loginProps()
+		props["errors"] = fiber.Map{"auth": i18n.T("common.invalid_payload")}
+		return c.Status(fiber.StatusBadRequest).Render("auth/LoginView", props)
 	}
 
 	session, err := h.service.LoginFrom(
@@ -100,8 +100,8 @@ func (h *Handler) verifyTwoFactor(c fiber.Ctx) error {
 	}
 	var request TwoFactorRequest
 	if err := c.Bind().Body(&request); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": i18n.T("auth.two_factor_invalid"),
+		return c.Status(fiber.StatusBadRequest).Render("auth/TwoFactorView", fiber.Map{
+			"errors": fiber.Map{"code": i18n.T("auth.two_factor_invalid")},
 		})
 	}
 	verified, err := h.twoFactor.Verify(c.Context(), publicID, request.Code)

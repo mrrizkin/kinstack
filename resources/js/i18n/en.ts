@@ -76,6 +76,8 @@ export const messages = {
       openCenter: "Open notification center",
       loadError: "Could not load notifications.",
       markError: "Could not mark the notification as read.",
+      newOne: "New notification",
+      newMany: "{count} new notifications",
       markAllError: "Could not mark all notifications as read.",
       open: "Open notifications",
     },

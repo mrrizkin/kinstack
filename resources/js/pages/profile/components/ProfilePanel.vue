@@ -20,12 +20,15 @@ const roleLabel = computed(() => {
   return code.charAt(0).toUpperCase() + code.slice(1);
 });
 const roleColor = "neutral" as const;
-const avatarSrc = computed(() => avatarUrl(props.profile.username || props.profile.display_name, 128));
+const avatarSrc = computed(() => avatarUrl(props.profile, 128));
+const lastLogin = computed(() =>
+  props.profile.last_login_at ? formatDateTime(props.profile.last_login_at) : "No sign-in yet",
+);
 </script>
 
 <template>
-  <div class="grid gap-4 lg:grid-cols-3">
-    <UCard class="lg:col-span-2">
+  <div class="max-w-2xl">
+    <UCard>
       <div class="flex items-center gap-3">
         <UAvatar :src="avatarSrc" :alt="profile.display_name" size="lg" />
         <div class="min-w-0">
@@ -33,7 +36,20 @@ const avatarSrc = computed(() => avatarUrl(props.profile.username || props.profi
           <p class="text-muted text-xs">@{{ profile.username }}</p>
         </div>
       </div>
-      <form class="mt-4 space-y-4" @submit.prevent="submitProfile">
+
+      <ul class="text-muted mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
+        <li>
+          <UBadge :color="roleColor" variant="subtle" size="sm">{{ roleLabel }}</UBadge>
+        </li>
+        <li aria-hidden="true" class="text-dimmed">·</li>
+        <li>Joined {{ formatDateTime(profile.created_at) }}</li>
+        <li aria-hidden="true" class="text-dimmed">·</li>
+        <li>Last login {{ lastLogin }}</li>
+      </ul>
+
+      <USeparator class="my-4" />
+
+      <form class="space-y-4" @submit.prevent="submitProfile">
         <UFormField label="Username" description="Username cannot be changed.">
           <UInput :model-value="profile.username" disabled class="w-full" />
         </UFormField>
@@ -52,26 +68,6 @@ const avatarSrc = computed(() => avatarUrl(props.profile.username || props.profi
             :loading="profileForm.processing" />
         </div>
       </form>
-    </UCard>
-
-    <UCard>
-      <h2 class="text-highlighted text-sm font-semibold">Overview</h2>
-      <dl class="mt-4 space-y-3 text-sm">
-        <div class="flex items-center justify-between gap-2">
-          <dt class="text-muted">Role</dt>
-          <dd>
-            <UBadge :color="roleColor" variant="subtle" size="sm">{{ roleLabel }}</UBadge>
-          </dd>
-        </div>
-        <div class="flex items-center justify-between gap-2">
-          <dt class="text-muted">Last login</dt>
-          <dd class="text-highlighted">{{ formatDateTime(profile.last_login_at) }}</dd>
-        </div>
-        <div class="flex items-center justify-between gap-2">
-          <dt class="text-muted">Account created</dt>
-          <dd class="text-highlighted">{{ formatDateTime(profile.created_at) }}</dd>
-        </div>
-      </dl>
     </UCard>
   </div>
 </template>

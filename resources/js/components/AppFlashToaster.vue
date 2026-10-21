@@ -2,41 +2,24 @@
 import { usePage } from "@inertiajs/vue3";
 import { computed, watch } from "vue";
 
-import { icons } from "@/lib/icons";
-import { playNotificationSound } from "@/lib/sound";
+import { useNotify } from "@/lib/notify";
 
 interface FlashPayload {
   success?: string;
   error?: string;
-  info?: string;
 }
 
 const page = usePage();
-const toast = useToast();
+const notify = useNotify();
 
 const flash = computed(() => (page as unknown as { flash?: FlashPayload }).flash ?? undefined);
 
+// One-shot flash: success and error become toasts.
 watch(
   flash,
   (value) => {
-    if (!value) return;
-    if (value.success) {
-      playNotificationSound("success");
-      toast.add({
-        title: value.success,
-        icon: icons.success,
-        color: "success",
-        duration: 4000,
-      });
-    }
-    if (value.error) {
-      playNotificationSound("error");
-      toast.add({ title: value.error, icon: icons.error, color: "error", duration: 6000 });
-    }
-    if (value.info) {
-      playNotificationSound("info");
-      toast.add({ title: value.info, icon: icons.info, color: "info", duration: 5000 });
-    }
+    if (value?.success) notify("success", value.success);
+    if (value?.error) notify("error", value.error);
   },
   { immediate: true, deep: true },
 );

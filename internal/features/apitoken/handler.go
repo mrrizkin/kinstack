@@ -11,7 +11,6 @@ import (
 	platforminertia "kinstack/internal/platform/inertia"
 	platformsession "kinstack/internal/platform/session"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -26,7 +25,7 @@ type HandlerDependency struct {
 	Actor         *actor.Actor
 	Authorization *authz.Service
 	Logger        applog.Log
-	Inertia       *fibertia.Fibertia
+	Inertia       *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for personal API tokens.
@@ -35,7 +34,7 @@ type Handler struct {
 	actor         *actor.Actor
 	authorization *authz.Service
 	logger        applog.Log
-	inertia       *fibertia.Fibertia
+	inertia       *platforminertia.Adapter
 }
 
 // NewHandler constructs the API token HTTP handler.
@@ -94,12 +93,18 @@ func (h *Handler) show(c fiber.Ctx) error {
 
 func (h *Handler) create(c fiber.Ctx) error {
 	if h.isSuperuser(c) {
-		return fiber.ErrForbidden
+		return h.inertia.FailedAction(c,
+			"/api-tokens",
+			fiber.StatusForbidden,
+			i18n.T("apitoken.superuser_only"),
+		)
 	}
 	var request CreateAPITokenRequest
 	if err := c.Bind().Body(&request); err != nil {
-		return c.Status(fiber.StatusBadRequest).
-			JSON(fiber.Map{"error": i18n.T("common.invalid_payload")})
+		return h.inertia.FailedPayload(c,
+			"/api-tokens",
+			i18n.T("common.invalid_payload"),
+		)
 	}
 	if err := h.validateScopes(c, request.Scopes); err != nil {
 		return err
@@ -113,9 +118,7 @@ func (h *Handler) create(c fiber.Ctx) error {
 	)
 	if err != nil {
 		if errors.Is(err, ErrInvalidInput) {
-			return platforminertia.ValidationErrors(
-				h.inertia,
-				c,
+			return h.inertia.ValidationErrors(c,
 				"/api-tokens",
 				map[string]string{"name": err.Error()},
 			)
@@ -157,7 +160,7 @@ func (h *Handler) validateScopes(c fiber.Ctx, scopes []string) error {
 	}
 	for _, scope := range scopes {
 		if _, ok := allowed[scope]; !ok {
-			return platforminertia.ValidationErrors(h.inertia, c, "/api-tokens", map[string]string{
+			return h.inertia.ValidationErrors(c, "/api-tokens", map[string]string{
 				"scopes": i18n.T("auth.scope_exceeded", scope),
 			})
 		}
@@ -167,7 +170,11 @@ func (h *Handler) validateScopes(c fiber.Ctx, scopes []string) error {
 
 func (h *Handler) revoke(c fiber.Ctx) error {
 	if h.isSuperuser(c) {
-		return fiber.ErrForbidden
+		return h.inertia.FailedAction(c,
+			"/api-tokens",
+			fiber.StatusForbidden,
+			i18n.T("apitoken.superuser_only"),
+		)
 	}
 	if err := h.service.Revoke(c.Context(), h.actorPublicID(c), c.Params("publicID")); err != nil {
 		if !errors.Is(err, ErrNotFound) {
@@ -175,9 +182,7 @@ func (h *Handler) revoke(c fiber.Ctx) error {
 			return fiber.ErrInternalServerError
 		}
 	}
-	return platforminertia.RedirectWithFlash(
-		h.inertia,
-		c,
+	return h.inertia.RedirectWithFlash(c,
 		"/api-tokens",
 		i18n.T("apitoken.revoked"),
 	)

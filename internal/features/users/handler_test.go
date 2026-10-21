@@ -70,38 +70,6 @@ func TestAccessRejectsInvalidPagination(t *testing.T) {
 	}
 }
 
-func TestWantsJSONDetectsMachineClients(t *testing.T) {
-	app := fiber.New()
-	app.Get("/", func(c fiber.Ctx) error {
-		if wantsJSON(c) {
-			return c.SendString("json")
-		}
-		return c.SendString("page")
-	})
-
-	cases := map[string]string{
-		"application/json":                "json",
-		"application/json, */*":           "json",
-		"text/html,application/xhtml+xml": "page",
-		"":                                "page",
-	}
-	for accept, want := range cases {
-		request := httptest.NewRequest(http.MethodGet, "/", nil)
-		if accept != "" {
-			request.Header.Set("Accept", accept)
-		}
-		response, err := app.Test(request)
-		if err != nil {
-			t.Fatalf("request failed: %v", err)
-		}
-		body, _ := io.ReadAll(response.Body)
-		response.Body.Close()
-		if string(body) != want {
-			t.Errorf("accept %q -> %q, want %q", accept, body, want)
-		}
-	}
-}
-
 func TestAccessPathForPreservesValidPage(t *testing.T) {
 	handler := &Handler{}
 	app := fiber.New()

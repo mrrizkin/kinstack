@@ -14,7 +14,6 @@ import (
 	"kinstack/internal/platform/sessionregistry"
 	"kinstack/internal/platform/twofactor"
 
-	"codeberg.org/mrrizkin/fibertia"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -24,7 +23,7 @@ type HandlerDependency struct {
 	Service   *Service
 	Actor     *actor.Actor
 	Logger    log.Log
-	Inertia   *fibertia.Fibertia
+	Inertia   *platforminertia.Adapter
 	Sessions  *sessionregistry.Service
 	TwoFactor *twofactor.Service
 }
@@ -34,7 +33,7 @@ type Handler struct {
 	service   *Service
 	actor     *actor.Actor
 	logger    log.Log
-	inertia   *fibertia.Fibertia
+	inertia   *platforminertia.Adapter
 	sessions  *sessionregistry.Service
 	twoFactor *twofactor.Service
 }
@@ -205,7 +204,11 @@ func (h *Handler) writeError(c fiber.Ctx, err error, field string) error {
 	case errors.Is(err, ErrPasswordMismatch):
 		return h.validationError(c, i18n.T("profile.confirm_mismatch"), "confirm_password")
 	case errors.Is(err, ErrNotFound):
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+		return h.inertia.FailedAction(c,
+			h.profilePathFor(c),
+			fiber.StatusNotFound,
+			err.Error(),
+		)
 	default:
 		h.logger.Errorw("profile request failed", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
@@ -230,5 +233,5 @@ func (h *Handler) validationError(c fiber.Ctx, message string, field string) err
 	if field != "" && field != "form" {
 		fields[field] = message
 	}
-	return platforminertia.ValidationErrors(h.inertia, c, h.profilePathFor(c), fields)
+	return h.inertia.ValidationErrors(c, h.profilePathFor(c), fields)
 }

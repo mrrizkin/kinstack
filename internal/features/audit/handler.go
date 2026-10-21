@@ -6,6 +6,7 @@ import (
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
+	platforminertia "kinstack/internal/platform/inertia"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -14,20 +15,23 @@ import (
 type HandlerDependency struct {
 	Service *Service
 	Logger  log.Log
+	Inertia *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for the audit viewer.
 type Handler struct {
 	service *Service
 	logger  log.Log
+	inertia *platforminertia.Adapter
 }
 
 // NewHandler constructs the audit HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "audit service is required")
 	assert.Assert(d.Logger != nil, "audit logger is required")
+	assert.Assert(d.Inertia != nil, "audit inertia adapter is required")
 
-	return &Handler{service: d.Service, logger: d.Logger}
+	return &Handler{service: d.Service, logger: d.Logger, inertia: d.Inertia}
 }
 
 // Mount registers the audit viewer routes on the guarded group.
@@ -48,7 +52,11 @@ func (h *Handler) index(c fiber.Ctx) error {
 	})
 	if err != nil {
 		if errors.Is(err, ErrInvalidInput) {
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+			return h.inertia.FailedAction(c,
+				"/audit",
+				fiber.StatusUnprocessableEntity,
+				err.Error(),
+			)
 		}
 		h.logger.Errorw("list audit events", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError

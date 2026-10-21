@@ -13,8 +13,8 @@ import (
 func (h *Handler) requestMagicLink(c fiber.Ctx) error {
 	var request MagicLinkRequest
 	if err := c.Bind().Body(&request); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": i18n.T("common.invalid_payload"),
+		return c.Status(fiber.StatusBadRequest).Render("auth/LoginView", fiber.Map{
+			"errors": fiber.Map{"email": i18n.T("common.invalid_payload")},
 		})
 	}
 	if err := h.service.RequestMagicLink(c.Context(), request.Email); err != nil {
