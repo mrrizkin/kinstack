@@ -96,6 +96,18 @@ func (s *Service) UpdatePreferences(
 	return PreferencesDTO{Theme: result.ThemePreference, SoundEnabled: result.SoundEnabled}, nil
 }
 
+// UpdateTheme stores the theme without changing other personalization.
+func (s *Service) UpdateTheme(ctx context.Context, publicID, theme string) (PreferencesDTO, error) {
+	current, err := s.repository.FindProfile(ctx, publicID)
+	if err != nil {
+		return PreferencesDTO{}, err
+	}
+	return s.UpdatePreferences(ctx, publicID, UpdatePreferencesRequest{
+		Theme:        theme,
+		SoundEnabled: current.SoundEnabled,
+	})
+}
+
 // VerifyCurrentPassword confirms the supplied password for sensitive changes.
 func (s *Service) VerifyCurrentPassword(
 	ctx context.Context,

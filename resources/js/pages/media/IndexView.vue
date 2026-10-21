@@ -6,6 +6,7 @@ import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { fieldMessage } from "@/lib/errors";
 import { formatDateTime } from "@/lib/formatters";
 import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
@@ -145,7 +146,7 @@ function isImage(contentType: string) {
 
     <template #body>
       <div class="space-y-6">
-        <UFormField v-if="canManage" label="Upload file" :error="clientError || String(form.errors.file || '')">
+        <UFormField v-if="canManage" label="Upload file" :error="clientError || fieldMessage(form.errors.file)">
           <div
             class="border-default bg-elevated/20 hover:border-primary/50 w-full rounded-lg border border-dashed p-6 text-center transition-colors"
             :class="dragging ? 'border-primary bg-primary/5' : ''"

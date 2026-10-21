@@ -25,7 +25,7 @@ const homeLabel = computed(() => (actor.value ? "Go to dashboard" : "Go to home"
       </p>
       <a
         :href="homeHref"
-        class="bg-primary hover:bg-primary/90 mt-6 inline-block rounded-md px-4 py-2 text-sm font-semibold text-white">
+        class="bg-primary text-inverted hover:bg-primary/90 mt-6 inline-block rounded-md px-4 py-2 text-sm font-semibold">
         {{ homeLabel }}
       </a>
     </div>

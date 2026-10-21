@@ -153,8 +153,11 @@ var routePolicy = authz.RoutePolicy{
 	// Credential and session management is browser-only. See authz.BrowserSession:
 	// API tokens cannot rotate the credentials they authenticate with.
 	"GET /profile":                            authz.BrowserSession,
+	"GET /profile/security":                   authz.BrowserSession,
+	"GET /profile/preferences":                authz.BrowserSession,
 	"POST /profile":                           authz.BrowserSession,
 	"POST /profile/preferences":               authz.Authenticated,
+	"POST /profile/theme":                     authz.Authenticated,
 	"POST /profile/password":                  authz.BrowserSession,
 	"POST /profile/sessions/:publicID/revoke": authz.BrowserSession,
 	"POST /profile/sessions/revoke-others":    authz.BrowserSession,

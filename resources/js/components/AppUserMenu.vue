@@ -3,8 +3,11 @@ import { router } from "@inertiajs/vue3";
 import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { z } from "zod";
 
+import { avatarUrl } from "@/lib/avatar";
 import { notificationsOpen } from "@/lib/dashboard";
+import { requestJson } from "@/lib/http";
 import { usePageProps } from "@/lib/page-props";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 
@@ -12,18 +15,10 @@ const props = defineProps<{ collapsed?: boolean }>();
 
 const { t } = useI18n();
 const { preference, setPreference } = useTheme();
-const { actor, authMethods } = usePageProps();
+const { actor, csrfToken } = usePageProps();
 
-const isSuperuser = computed(() => Boolean(actor.value?.superuser));
 const displayName = computed(() => actor.value?.display_name || actor.value?.username || "User");
-const initials = computed(() =>
-  displayName.value
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join(""),
-);
+const avatarSrc = computed(() => avatarUrl(actor.value?.username || actor.value?.public_id || displayName.value));
 
 const appearanceOptions = computed<{ label: string; value: ThemePreference; icon: string }[]>(() => [
   { label: t("shell.userMenu.light"), value: "light", icon: "i-material-symbols:light-mode-outline-rounded" },
@@ -31,44 +26,34 @@ const appearanceOptions = computed<{ label: string; value: ThemePreference; icon
   { label: t("shell.userMenu.system"), value: "system", icon: "i-material-symbols:desktop-windows-outline-rounded" },
 ]);
 
+// The menu applies the theme instantly, then persists it for the account. The
+// break-glass super admin has no profile row, so it stays browser-local.
+function persistTheme(next: ThemePreference) {
+  if (actor.value?.superuser) return;
+  void requestJson("/profile/theme", z.unknown(), {
+    method: "POST",
+    body: { theme: next },
+    csrfToken: csrfToken.value,
+  }).catch(() => undefined);
+}
+
 const items = computed<DropdownMenuItem[][]>(() => {
   const groups: DropdownMenuItem[][] = [
     [
       {
         type: "label",
         label: displayName.value,
-        avatar: { alt: initials.value, size: "sm" },
+        avatar: { src: avatarSrc.value, alt: displayName.value, size: "sm" },
+      },
+    ],
+    [
+      {
+        label: t("shell.userMenu.settings"),
+        icon: "i-material-symbols:settings-outline-rounded",
+        to: "/profile",
       },
     ],
   ];
-
-  if (!isSuperuser.value) {
-    groups.push([
-      {
-        label: t("shell.userMenu.profile"),
-        icon: "i-material-symbols:person-outline-rounded",
-        to: "/profile",
-      },
-      ...(authMethods.value.api_token
-        ? [
-            {
-              label: t("shell.userMenu.apiTokens"),
-              icon: "i-material-symbols:key-outline-rounded",
-              to: "/api-tokens",
-            },
-          ]
-        : []),
-      ...(authMethods.value.passkey
-        ? [
-            {
-              label: t("shell.userMenu.passkeys"),
-              icon: "i-material-symbols:passkey-rounded",
-              to: "/passkeys",
-            },
-          ]
-        : []),
-    ]);
-  }
 
   groups.push([
     {
@@ -82,6 +67,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
         onSelect: (event: Event) => {
           event.preventDefault();
           setPreference(option.value);
+          persistTheme(option.value);
         },
       })),
     },
@@ -107,7 +93,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
       label: t("shell.userMenu.logout"),
       icon: "i-material-symbols:logout-rounded",
       color: "error" as const,
-      onSelect: () => router.post("/logout"),
+      onSelect: () => router.post("/logout", {}, { onSuccess: () => router.clearHistory() }),
     },
   ]);
 
@@ -121,7 +107,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
     :content="{ align: 'center', collisionPadding: 12 }"
     :ui="{ content: props.collapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)' }">
     <UButton
-      :avatar="{ alt: initials, size: 'sm' }"
+      :avatar="{ src: avatarSrc, alt: displayName, size: 'sm' }"
       :label="props.collapsed ? undefined : displayName"
       :trailing-icon="props.collapsed ? undefined : 'i-material-symbols:unfold-more-rounded'"
       color="neutral"

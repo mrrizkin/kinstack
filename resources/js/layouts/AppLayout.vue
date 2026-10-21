@@ -130,6 +130,14 @@ const links = computed<NavigationMenuItem[][]>(() => {
     main,
     [
       {
+        label: t("shell.settings.title"),
+        icon: "i-material-symbols:settings-outline-rounded",
+        to: "/profile",
+        onSelect: () => {
+          sidebarOpen.value = false;
+        },
+      },
+      {
         label: t("shell.help"),
         icon: "i-material-symbols:help-outline-rounded",
         to: "/help",

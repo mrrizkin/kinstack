@@ -1,6 +1,8 @@
 package profile
 
 import (
+	"errors"
+
 	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
 	platformsession "kinstack/internal/platform/session"
@@ -19,7 +21,7 @@ func (h *Handler) updateProfile(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.updated"),
 	)
 }
@@ -35,9 +37,30 @@ func (h *Handler) updatePreferences(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.preferences_saved"),
 	)
+}
+
+func (h *Handler) updateTheme(c fiber.Ctx) error {
+	var request UpdateThemeRequest
+	if err := c.Bind().Body(&request); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": i18n.T("common.invalid_payload"),
+		})
+	}
+	if _, err := h.service.UpdateTheme(c.Context(), h.actorPublicID(c), request.Theme); err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidInput):
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+		case errors.Is(err, ErrNotFound):
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+		default:
+			h.logger.Errorw("update theme", "request_id", c.RequestID(), "error", err)
+			return fiber.ErrInternalServerError
+		}
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func (h *Handler) changePassword(c fiber.Ctx) error {
@@ -72,7 +95,7 @@ func (h *Handler) changePassword(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.password_changed"),
 	)
 }

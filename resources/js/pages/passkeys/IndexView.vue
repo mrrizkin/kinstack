@@ -4,16 +4,16 @@ import { computed, ref } from "vue";
 import { z } from "zod";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
-import AppNotificationBell from "@/components/AppNotificationBell.vue";
-import AppLayout from "@/layouts/AppLayout.vue";
+import AppPageHeader from "@/components/AppPageHeader.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import SettingsLayout from "@/layouts/SettingsLayout.vue";
 import { passkeyOptionsSchema, passkeySummarySchema } from "@/lib/contracts/passkeys";
 import { formatDateTime } from "@/lib/formatters";
 import { requestJson } from "@/lib/http";
 import { usePageProps } from "@/lib/page-props";
 import { createPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
-defineOptions({ layout: [BaseLayout, AppLayout] });
+defineOptions({ layout: [BaseLayout, SettingsLayout] });
 
 interface Passkey {
   id: string;
@@ -102,17 +102,9 @@ const emptyActions = computed(() =>
   <Head title="Passkeys" />
   <UDashboardPanel id="passkeys">
     <template #header>
-      <UDashboardNavbar title="Passkeys">
-        <template #leading>
-          <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
-        </template>
-        <span class="text-muted hidden text-sm lg:block">
-          Sign in without a password using your fingerprint, face, or device PIN.
-        </span>
-        <template #right>
-          <AppNotificationBell />
-        </template>
-      </UDashboardNavbar>
+      <AppPageHeader
+        title="Passkeys"
+        description="Sign in without a password using your fingerprint, face, or device PIN." />
     </template>
 
     <template #body>
@@ -156,7 +148,7 @@ const emptyActions = computed(() =>
 
         <UCard>
           <div class="space-y-4">
-            <UFormField label="Passkey name" :error="nameError">
+            <UFormField label="Passkey name" :error="nameError || undefined">
               <UInput v-model="name" maxlength="80" placeholder="e.g. Work laptop" class="w-full" />
             </UFormField>
             <UButton

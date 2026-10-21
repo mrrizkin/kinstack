@@ -10,7 +10,7 @@ defineProps<{
   overrideForm: OverrideForm;
   permissionOptions: { label: string; value: string }[];
   submitting: boolean;
-  fieldError: (field: string) => string;
+  fieldError: (field: string) => string | undefined;
   submitOverride: () => void;
   requestRemoveOverride: (user: UserAccess, override: Override) => void;
 }>();

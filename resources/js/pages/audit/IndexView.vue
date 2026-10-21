@@ -166,7 +166,7 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
       <div class="space-y-6">
         <UCard>
           <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" @submit.prevent="applyFilters">
-            <UFormField label="Search" :error="filterErrors.search">
+            <UFormField label="Search" :error="filterErrors.search || undefined">
               <UInput v-model="form.search" class="w-full" placeholder="Search activity or user details" />
             </UFormField>
             <UFormField label="User">
@@ -178,10 +178,10 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
             <UFormField label="Outcome">
               <USelect v-model="form.outcome" :items="outcomeOptions" class="w-full" />
             </UFormField>
-            <UFormField label="From date" :error="filterErrors.from">
+            <UFormField label="From date" :error="filterErrors.from || undefined">
               <AppInputDate v-model="form.from" placeholder="2026-01-01" class="w-full" />
             </UFormField>
-            <UFormField label="To date" :error="filterErrors.to">
+            <UFormField label="To date" :error="filterErrors.to || undefined">
               <AppInputDate v-model="form.to" placeholder="2026-01-01" class="w-full" />
             </UFormField>
             <div class="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-3">

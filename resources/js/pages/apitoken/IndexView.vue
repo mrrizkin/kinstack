@@ -3,14 +3,15 @@ import { Head, router, useForm } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
-import AppNotificationBell from "@/components/AppNotificationBell.vue";
-import AppLayout from "@/layouts/AppLayout.vue";
+import AppPageHeader from "@/components/AppPageHeader.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import SettingsLayout from "@/layouts/SettingsLayout.vue";
+import { fieldMessage } from "@/lib/errors";
 import { formatDateTime } from "@/lib/formatters";
 import { usePageProps } from "@/lib/page-props";
 import { permissionLabel } from "@/lib/permissions";
 
-defineOptions({ layout: [BaseLayout, AppLayout] });
+defineOptions({ layout: [BaseLayout, SettingsLayout] });
 
 interface APIToken {
   public_id: string;
@@ -94,18 +95,11 @@ async function copyToken() {
   <Head title="API tokens" />
   <UDashboardPanel id="api-tokens">
     <template #header>
-      <UDashboardNavbar title="API tokens">
-        <template #leading>
-          <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
-        </template>
-        <span class="text-muted hidden text-sm lg:block">
-          Tokens for connecting integrations without a browser session.
-        </span>
-        <template #right>
-          <AppNotificationBell />
+      <AppPageHeader title="API tokens" description="Tokens for connecting integrations without a browser session.">
+        <template #actions>
           <UButton color="primary" icon="i-bi-plus" @click="showCreate = !showCreate"> New token </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppPageHeader>
     </template>
 
     <template #body>
@@ -182,13 +176,13 @@ async function copyToken() {
         :ui="{ content: 'sm:max-w-md' }">
         <template #body>
           <form class="space-y-4" @submit.prevent="submitCreate">
-            <UFormField label="Name" :error="createForm.errors.name">
+            <UFormField label="Name" :error="fieldMessage(createForm.errors.name)">
               <UInput v-model="createForm.name" class="w-full" placeholder="e.g. CI pipeline" />
             </UFormField>
-            <UFormField label="Expiry" :error="createForm.errors.expires_in_days">
+            <UFormField label="Expiry" :error="fieldMessage(createForm.errors.expires_in_days)">
               <USelect v-model="createForm.expires_in_days" :items="expiryOptions" class="w-full" />
             </UFormField>
-            <UFormField label="Permissions" :error="createForm.errors.scopes">
+            <UFormField label="Permissions" :error="fieldMessage(createForm.errors.scopes)">
               <div class="space-y-2">
                 <UCheckbox
                   v-for="permission in permissions"

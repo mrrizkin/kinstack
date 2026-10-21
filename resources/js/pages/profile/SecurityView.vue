@@ -2,30 +2,23 @@
 import { Head } from "@inertiajs/vue3";
 
 import AppPageHeader from "@/components/AppPageHeader.vue";
-import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import SettingsLayout from "@/layouts/SettingsLayout.vue";
 
-import AccountPanel from "./components/AccountPanel.vue";
 import SecurityPanel from "./components/SecurityPanel.vue";
-import { useProfileForms } from "./composables/useProfileForms";
-import type { ActiveSession, Preferences, Profile, Session, TwoFactor } from "./types";
+import { useSecurityForms } from "./composables/useSecurityForms";
+import type { ActiveSession, Profile, TwoFactor } from "./types";
 
-defineOptions({ layout: [BaseLayout, AppLayout] });
+defineOptions({ layout: [BaseLayout, SettingsLayout] });
 
 const props = defineProps<{
   profile: Profile;
-  preferences: Preferences;
-  session: Session;
   sessions: ActiveSession[];
   two_factor: TwoFactor;
 }>();
 
 const {
-  activeTab,
-  profileForm,
   passwordForm,
-  preferencesForm,
-  themeOptions,
   fieldError,
   formError,
   pendingSession,
@@ -38,8 +31,6 @@ const {
   twoFactorForm,
   twoFactorPasswordForm,
   qrDataUrl,
-  submitProfile,
-  submitPreferences,
   submitPassword,
   beginTwoFactor,
   confirmTwoFactor,
@@ -49,32 +40,20 @@ const {
   confirmRevokeSession,
   revokeOtherSessions,
   confirmRevokeOtherSessions,
-} = useProfileForms(props);
+} = useSecurityForms(props);
 </script>
 
 <template>
-  <Head title="My profile" />
-  <UDashboardPanel id="profile">
+  <Head title="Security" />
+  <UDashboardPanel id="settings-security">
     <template #header>
-      <AppPageHeader :title="profile.display_name">
-        <span class="text-muted hidden text-sm lg:block">Your profile and account preferences.</span>
-      </AppPageHeader>
+      <AppPageHeader title="Security" description="Password, two-step verification, and active sessions." />
     </template>
 
     <template #body>
       <UAlert v-if="formError" color="error" variant="subtle" icon="i-bi-x-circle" :title="formError" class="mb-4" />
 
-      <UTabs
-        v-model="activeTab"
-        :items="[
-          { label: 'Profile', value: 'profile', icon: 'i-bi-person-badge' },
-          { label: 'Security', value: 'security', icon: 'i-bi-shield-lock' },
-          { label: 'Preferences', value: 'preferences', icon: 'i-bi-sliders' },
-        ]"
-        :content="false" />
-
       <SecurityPanel
-        v-if="activeTab === 'security'"
         v-model:pending-session="pendingSession"
         :profile="profile"
         :password-form="passwordForm"
@@ -99,16 +78,6 @@ const {
         :revoke-other-sessions="revokeOtherSessions"
         :confirm-revoke-session="confirmRevokeSession"
         :confirm-revoke-other-sessions="confirmRevokeOtherSessions" />
-      <AccountPanel
-        v-else
-        :tab="activeTab"
-        :profile="profile"
-        :profile-form="profileForm"
-        :preferences-form="preferencesForm"
-        :theme-options="themeOptions"
-        :field-error="fieldError"
-        :submit-profile="submitProfile"
-        :submit-preferences="submitPreferences" />
     </template>
   </UDashboardPanel>
 </template>

@@ -3,6 +3,7 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed, ref } from "vue";
 
 import { useServerErrors } from "@/lib/errors";
+import { queryString } from "@/lib/query";
 
 import type { Override, OverrideForm, Permission, PermissionCategory, Role, UserAccess } from "../types";
 
@@ -20,7 +21,7 @@ export function useAccessForms(props: AccessProps) {
   // mutations live on the roles tab and do not need it.
   const pageQuery = computed(() => {
     const current = props.page?.page ?? 1;
-    return current > 1 ? `?page=${current}` : "";
+    return queryString({ page: current > 1 ? current : undefined });
   });
   const tab = ref("roles");
   const { message } = useServerErrors();
@@ -150,7 +151,7 @@ export function useAccessForms(props: AccessProps) {
 
   const roleOptions = computed(() => props.roles.map((role) => ({ label: role.name, value: role.code })));
 
-  function overrideFieldError(field: string): string {
+  function overrideFieldError(field: string): string | undefined {
     return overrideLocalErrors.value[field] || message(field);
   }
 

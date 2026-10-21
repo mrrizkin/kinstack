@@ -17,13 +17,6 @@ type PreferencesDTO struct {
 	SoundEnabled bool   `json:"sound_enabled"`
 }
 
-// SessionDTO describes the current browser session.
-type SessionDTO struct {
-	IP        string `json:"ip"`
-	UserAgent string `json:"user_agent"`
-	LoginAt   string `json:"login_at"`
-}
-
 // ActiveSessionDTO describes one signed-in browser session of the account.
 type ActiveSessionDTO struct {
 	PublicID   string `json:"public_id"`
@@ -46,7 +39,6 @@ type TwoFactorDTO struct {
 type ProfilePageProps struct {
 	Profile     ProfileDTO     `json:"profile"`
 	Preferences PreferencesDTO `json:"preferences"`
-	Session     SessionDTO     `json:"session"`
 }
 
 // UpdateProfileRequest is the payload accepted when renaming the profile.
@@ -58,6 +50,12 @@ type UpdateProfileRequest struct {
 type UpdatePreferencesRequest struct {
 	Theme        string `json:"theme"`
 	SoundEnabled bool   `json:"sound_enabled"`
+}
+
+// UpdateThemeRequest is the payload accepted from the quick theme menu, which
+// changes the theme without touching the notification-sound preference.
+type UpdateThemeRequest struct {
+	Theme string `json:"theme"`
 }
 
 // ChangePasswordRequest is the payload accepted when changing the password.

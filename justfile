@@ -31,9 +31,9 @@ format:
     just format-go
 
 format-go:
-    go tool goimports -w .
-    go tool gofumpt -w .
-    go tool golines -w .
+    git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go' | xargs -0 -r go tool goimports -w
+    git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go' | xargs -0 -r go tool gofumpt -w
+    go tool golines -w --ignore-generated .
 
 # vite build generates auto-imports.d.ts + components.d.ts (gitignored) which
 # vue-tsc needs after a fresh clone / in CI.

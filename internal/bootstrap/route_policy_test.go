@@ -13,6 +13,8 @@ func TestRoutePolicyCoversWorkspaceRoutes(t *testing.T) {
 	required := []string{
 		"GET /dashboard",
 		"GET /profile",
+		"GET /profile/security",
+		"GET /profile/preferences",
 		"GET /users",
 		"POST /users",
 		"POST /users/invite",
@@ -89,6 +91,8 @@ func TestSensitiveRoutesRequirePermission(t *testing.T) {
 func TestCredentialRoutesRequireBrowserSession(t *testing.T) {
 	credentialRoutes := []string{
 		"GET /profile",
+		"GET /profile/security",
+		"GET /profile/preferences",
 		"POST /profile",
 		"POST /profile/password",
 		"POST /profile/sessions/:publicID/revoke",

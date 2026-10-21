@@ -6,6 +6,7 @@ import { computed, ref } from "vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { passkeyCredentialSchema, passkeyOptionsSchema } from "@/lib/contracts/passkeys";
+import { fieldMessage } from "@/lib/errors";
 import { requestJson } from "@/lib/http";
 import { usePageProps } from "@/lib/page-props";
 import { getPasskey, supportsWebAuthn } from "@/lib/webauthn";
@@ -208,7 +209,7 @@ function submitMagicLink() {
             v-if="magic_link_enabled"
             class="flex flex-col gap-2 pt-2 sm:flex-row"
             @submit.prevent="submitMagicLink">
-            <UFormField name="email" :error="magicForm.errors.email" class="flex-1">
+            <UFormField name="email" :error="fieldMessage(magicForm.errors.email)" class="flex-1">
               <UInput
                 v-model="magicForm.email"
                 type="email"

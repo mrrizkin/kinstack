@@ -39,7 +39,7 @@ defineProps<{
   revokingOthers: boolean;
   beginningTwoFactor: boolean;
   disablingTwoFactor: boolean;
-  fieldError: (field: string, local?: Record<string, unknown>) => string;
+  fieldError: (field: string, local?: Record<string, unknown>) => string | undefined;
   submitPassword: () => void;
   beginTwoFactor: () => void;
   confirmTwoFactor: () => void;
@@ -53,7 +53,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="mt-4 grid gap-4 lg:grid-cols-3">
+  <div class="grid gap-4 lg:grid-cols-3">
     <UCard class="lg:col-span-2">
       <h2 class="text-highlighted text-sm font-semibold">Change password</h2>
       <p class="text-muted mt-1 text-xs">

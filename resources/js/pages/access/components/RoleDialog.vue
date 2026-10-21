@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fieldMessage } from "@/lib/errors";
+
 import type { PermissionCategory, Role, RoleCreateForm, RoleEditForm } from "../types";
 
 const createOpen = defineModel<boolean>("createOpen", { required: true });
@@ -22,16 +24,16 @@ defineProps<{
   <UModal v-model:open="createOpen" title="New role" description="A custom role with configurable permissions.">
     <template #body>
       <div class="space-y-4">
-        <UFormField label="Code" :error="createForm.errors.code">
+        <UFormField label="Code" :error="fieldMessage(createForm.errors.code)">
           <UInput v-model="createForm.code" placeholder="e.g. supervisor" class="w-full" />
         </UFormField>
-        <UFormField label="Name" :error="createForm.errors.name">
+        <UFormField label="Name" :error="fieldMessage(createForm.errors.name)">
           <UInput v-model="createForm.name" placeholder="e.g. Supervisor" class="w-full" />
         </UFormField>
-        <UFormField label="Description" :error="createForm.errors.description">
+        <UFormField label="Description" :error="fieldMessage(createForm.errors.description)">
           <UInput v-model="createForm.description" class="w-full" />
         </UFormField>
-        <UFormField label="Priority" :error="createForm.errors.rank">
+        <UFormField label="Priority" :error="fieldMessage(createForm.errors.rank)">
           <UInput v-model.number="createForm.rank" type="number" min="0" max="1000" class="w-full" />
         </UFormField>
       </div>
@@ -54,13 +56,13 @@ defineProps<{
         <UFormField label="Code (fixed)">
           <UInput :model-value="editTarget?.code ?? ''" disabled class="w-full" />
         </UFormField>
-        <UFormField label="Name" :error="editForm.errors.name">
+        <UFormField label="Name" :error="fieldMessage(editForm.errors.name)">
           <UInput v-model="editForm.name" class="w-full" />
         </UFormField>
-        <UFormField label="Description" :error="editForm.errors.description">
+        <UFormField label="Description" :error="fieldMessage(editForm.errors.description)">
           <UInput v-model="editForm.description" class="w-full" />
         </UFormField>
-        <UFormField label="Priority" :error="editForm.errors.rank">
+        <UFormField label="Priority" :error="fieldMessage(editForm.errors.rank)">
           <UInput v-model.number="editForm.rank" type="number" min="0" max="1000" class="w-full" />
         </UFormField>
       </div>

@@ -56,8 +56,32 @@ func NewHandler(d HandlerDependency) *Handler {
 	}
 }
 
-func (h *Handler) profilePath() string {
-	return "/profile"
+// profilePathFor keeps the settings navigation on the section that submitted a
+// form, so validation errors and flash messages do not jump back to the profile
+// tab.
+func (h *Handler) profilePathFor(c fiber.Ctx) string {
+	switch path := c.Path(); {
+	case strings.HasSuffix(path, "/preferences"):
+		return "/profile/preferences"
+	case strings.HasPrefix(path, "/profile/password"),
+		strings.Contains(path, "/sessions/"),
+		strings.Contains(path, "/two-factor/"):
+		return "/profile/security"
+	default:
+		return "/profile"
+	}
+}
+
+// profileSection maps a dedicated settings route to the panel the page renders.
+func profileSection(path string) string {
+	switch path {
+	case "/profile/security":
+		return "security"
+	case "/profile/preferences":
+		return "preferences"
+	default:
+		return "profile"
+	}
 }
 
 func (h *Handler) dashboardPath() string {
@@ -74,8 +98,11 @@ func (h *Handler) actorPublicID(c fiber.Ctx) string {
 // Mount registers profile routes on the authenticated workspace group.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/profile", h.show)
+	router.Get("/profile/security", h.show)
+	router.Get("/profile/preferences", h.show)
 	router.Post("/profile", h.updateProfile)
 	router.Post("/profile/preferences", h.updatePreferences)
+	router.Post("/profile/theme", h.updateTheme)
 	router.Post("/profile/password", h.changePassword)
 	router.Post("/profile/sessions/:publicID/revoke", h.revokeSession)
 	router.Post("/profile/sessions/revoke-others", h.revokeOtherSessions)
@@ -86,6 +113,14 @@ func (h *Handler) Mount(router fiber.Router) {
 }
 
 func (h *Handler) show(c fiber.Ctx) error {
+	// Keep old tab URLs working after moving the settings tabs onto dedicated
+	// routes.
+	if c.Path() == "/profile" {
+		switch section := c.Query("section"); section {
+		case "security", "preferences":
+			return c.Redirect().Status(fiber.StatusSeeOther).To("/profile/" + section)
+		}
+	}
 	// The ephemeral break-glass super admin has no database profile; send it to
 	// the dashboard instead.
 	if session := h.actor.ActorFromContext(c); session != nil && session.Superuser {
@@ -95,18 +130,22 @@ func (h *Handler) show(c fiber.Ctx) error {
 	if err != nil {
 		return h.writeError(c, err, "form")
 	}
-	props.Session = SessionDTO{
-		IP:        c.IP(),
-		UserAgent: c.Get(fiber.HeaderUserAgent),
-		LoginAt:   props.Profile.LastLoginAt,
+	switch profileSection(c.Path()) {
+	case "security":
+		return c.Render("profile/SecurityView", fiber.Map{
+			"profile":    props.Profile,
+			"sessions":   h.activeSessions(c),
+			"two_factor": h.twoFactorState(c, props),
+		})
+	case "preferences":
+		return c.Render("profile/PreferencesView", fiber.Map{
+			"preferences": props.Preferences,
+		})
+	default:
+		return c.Render("profile/ProfileView", fiber.Map{
+			"profile": props.Profile,
+		})
 	}
-	return c.Render("profile/IndexView", fiber.Map{
-		"profile":     props.Profile,
-		"preferences": props.Preferences,
-		"session":     props.Session,
-		"sessions":    h.activeSessions(c),
-		"two_factor":  h.twoFactorState(c, props),
-	})
 }
 
 // twoFactorState builds the security-tab contract, including the one-time
@@ -191,5 +230,5 @@ func (h *Handler) validationError(c fiber.Ctx, message string, field string) err
 	if field != "" && field != "form" {
 		fields[field] = message
 	}
-	return platforminertia.ValidationErrors(h.inertia, c, h.profilePath(), fields)
+	return platforminertia.ValidationErrors(h.inertia, c, h.profilePathFor(c), fields)
 }

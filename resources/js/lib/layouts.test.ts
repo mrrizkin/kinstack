@@ -74,18 +74,29 @@ describe("layout structure", () => {
   test("app pages use BaseLayout and AppLayout", () => {
     for (const name of [
       "access/IndexView.vue",
-      "apitoken/IndexView.vue",
       "audit/IndexView.vue",
       "dashboard/IndexView.vue",
       "media/IndexView.vue",
       "notifications/IndexView.vue",
-      "passkeys/IndexView.vue",
-      "profile/IndexView.vue",
       "users/IndexView.vue",
     ]) {
       const declaration = layoutDeclaration(page(name));
       expect(declaration, name).toContain("BaseLayout");
       expect(declaration, name).toContain("AppLayout");
+    }
+  });
+
+  test("settings pages use BaseLayout and SettingsLayout", () => {
+    for (const name of [
+      "apitoken/IndexView.vue",
+      "passkeys/IndexView.vue",
+      "profile/ProfileView.vue",
+      "profile/SecurityView.vue",
+      "profile/PreferencesView.vue",
+    ]) {
+      const declaration = layoutDeclaration(page(name));
+      expect(declaration, name).toContain("BaseLayout");
+      expect(declaration, name).toContain("SettingsLayout");
     }
   });
 
@@ -106,7 +117,7 @@ describe("layout structure", () => {
 
   test("no page wraps a layout component in its template", () => {
     const offenders = vueFiles(pagesDir)
-      .filter((file) => /<(AppLayout|AuthLayout|PublicLayout)\b/.test(source(file)))
+      .filter((file) => /<(AppLayout|AuthLayout|PublicLayout|SettingsLayout)\b/.test(source(file)))
       .map(relativeToResources);
 
     expect(offenders).toEqual([]);

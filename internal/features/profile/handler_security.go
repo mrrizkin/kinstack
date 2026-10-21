@@ -27,7 +27,7 @@ func (h *Handler) revokeSession(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.session_revoked"),
 	)
 }
@@ -48,7 +48,7 @@ func (h *Handler) revokeOtherSessions(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.other_sessions_revoked"),
 	)
 }
@@ -71,7 +71,7 @@ func (h *Handler) beginTwoFactor(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.two_factor_scan"),
 	)
 }
@@ -96,7 +96,7 @@ func (h *Handler) confirmTwoFactor(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.two_factor_enabled"),
 	)
 }
@@ -123,7 +123,7 @@ func (h *Handler) disableTwoFactor(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.two_factor_disabled"),
 	)
 }
@@ -154,7 +154,7 @@ func (h *Handler) regenerateRecoveryCodes(c fiber.Ctx) error {
 	return platforminertia.RedirectWithFlash(
 		h.inertia,
 		c,
-		h.profilePath(),
+		h.profilePathFor(c),
 		i18n.T("profile.recovery_codes_created"),
 	)
 }

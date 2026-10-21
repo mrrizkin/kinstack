@@ -21,10 +21,23 @@ export const messages = {
       dashboard: "Dashboard",
       help: "Help & support",
     },
+    settings: {
+      title: "Settings",
+      back: "Back to dashboard",
+      groups: {
+        account: "Account",
+        access: "Access",
+      },
+      nav: {
+        profile: "Profile",
+        security: "Security",
+        preferences: "Preferences",
+        passkeys: "Passkeys",
+        apiTokens: "API tokens",
+      },
+    },
     userMenu: {
-      profile: "My profile",
-      apiTokens: "API tokens",
-      passkeys: "Passkeys",
+      settings: "Settings",
       appearance: "Appearance",
       light: "Light",
       dark: "Dark",

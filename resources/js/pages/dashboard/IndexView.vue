@@ -30,7 +30,7 @@ interface Metrics {
 const props = defineProps<{ metrics: Metrics }>();
 
 const { can } = usePermissions();
-const { actor, authMethods } = usePageProps();
+const { actor } = usePageProps();
 
 const displayName = computed(() => actor.value?.display_name || actor.value?.username || "User");
 const isSuperuser = computed(() => Boolean(actor.value?.superuser));
@@ -145,31 +145,6 @@ const metricCards = computed(() => {
   }
   return cards.filter((card) => !card.permission || can(card.permission));
 });
-
-const accountLinks = computed(() => {
-  const links = [
-    {
-      label: "Profile",
-      to: "/profile",
-      icon: "i-material-symbols:person-outline-rounded",
-    },
-  ];
-  if (authMethods.value.passkey) {
-    links.push({
-      label: "Passkey",
-      to: "/passkeys",
-      icon: "i-material-symbols:passkey-rounded",
-    });
-  }
-  if (authMethods.value.api_token) {
-    links.push({
-      label: "API tokens",
-      to: "/api-tokens",
-      icon: "i-material-symbols:key-outline-rounded",
-    });
-  }
-  return links;
-});
 </script>
 
 <template>
@@ -262,30 +237,8 @@ const accountLinks = computed(() => {
           </div>
         </section>
 
-        <UCard v-if="!isSuperuser">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h3 class="text-highlighted text-sm font-semibold">Account security</h3>
-              <p class="text-muted mt-1 text-xs leading-5">
-                Manage your profile, passkeys, and API tokens in one place.
-              </p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="link in accountLinks"
-                :key="link.to"
-                :to="link.to"
-                :icon="link.icon"
-                :label="link.label"
-                color="neutral"
-                variant="outline"
-                size="sm" />
-            </div>
-          </div>
-        </UCard>
-
         <UAlert
-          v-else
+          v-if="isSuperuser"
           color="warning"
           variant="subtle"
           icon="i-material-symbols:shield-outline-rounded"

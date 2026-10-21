@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
+import { fieldMessage } from "@/lib/errors";
 
 import type { CreateUserForm, InviteUserForm, PasswordForm, User } from "../columns";
 
@@ -29,19 +30,19 @@ defineProps<{
     :ui="{ content: 'sm:max-w-md' }">
     <template #body>
       <form class="space-y-4" @submit.prevent="submitCreate">
-        <UFormField label="Username" :error="createForm.errors.username">
+        <UFormField label="Username" :error="fieldMessage(createForm.errors.username)">
           <UInput v-model="createForm.username" class="w-full" placeholder="e.g. alex" />
         </UFormField>
-        <UFormField label="Email" hint="Optional, for magic links" :error="createForm.errors.email">
+        <UFormField label="Email" hint="Optional, for magic links" :error="fieldMessage(createForm.errors.email)">
           <UInput v-model="createForm.email" type="email" class="w-full" placeholder="e.g. alex@example.com" />
         </UFormField>
-        <UFormField label="Display name" :error="createForm.errors.display_name">
+        <UFormField label="Display name" :error="fieldMessage(createForm.errors.display_name)">
           <UInput v-model="createForm.display_name" class="w-full" placeholder="e.g. Alex Johnson" />
         </UFormField>
-        <UFormField label="Password" hint="At least 8 characters" :error="createForm.errors.password">
+        <UFormField label="Password" hint="At least 8 characters" :error="fieldMessage(createForm.errors.password)">
           <UInput v-model="createForm.password" type="password" class="w-full" />
         </UFormField>
-        <UFormField label="Role" :error="createForm.errors.role">
+        <UFormField label="Role" :error="fieldMessage(createForm.errors.role)">
           <USelect v-model="createForm.role" :items="roleOptions" class="w-full" />
         </UFormField>
         <div class="flex justify-end">
@@ -58,19 +59,19 @@ defineProps<{
     :ui="{ content: 'sm:max-w-md' }">
     <template #body>
       <form class="space-y-4" @submit.prevent="submitInvite">
-        <UFormField label="Email" hint="Invitation recipient" :error="inviteForm.errors.email">
+        <UFormField label="Email" hint="Invitation recipient" :error="fieldMessage(inviteForm.errors.email)">
           <UInput v-model="inviteForm.email" type="email" class="w-full" placeholder="e.g. alex@example.com" />
         </UFormField>
         <UFormField
           label="Username"
           hint="Optional, defaults to the email if empty"
-          :error="inviteForm.errors.username">
+          :error="fieldMessage(inviteForm.errors.username)">
           <UInput v-model="inviteForm.username" class="w-full" placeholder="e.g. alex" />
         </UFormField>
-        <UFormField label="Display name" :error="inviteForm.errors.display_name">
+        <UFormField label="Display name" :error="fieldMessage(inviteForm.errors.display_name)">
           <UInput v-model="inviteForm.display_name" class="w-full" placeholder="e.g. Alex Johnson" />
         </UFormField>
-        <UFormField label="Role" :error="inviteForm.errors.role">
+        <UFormField label="Role" :error="fieldMessage(inviteForm.errors.role)">
           <USelect v-model="inviteForm.role" :items="roleOptions" class="w-full" />
         </UFormField>
         <div class="flex justify-end">
@@ -91,7 +92,7 @@ defineProps<{
       }
     ">
     <template #body>
-      <UFormField label="New password" hint="At least 8 characters" :error="passwordForm.errors.password">
+      <UFormField label="New password" hint="At least 8 characters" :error="fieldMessage(passwordForm.errors.password)">
         <UInput v-model="passwordForm.password" type="password" placeholder="••••••••" class="w-full" />
       </UFormField>
     </template>

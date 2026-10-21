@@ -15,12 +15,6 @@ export interface Preferences {
   sound_enabled: boolean;
 }
 
-export interface Session {
-  ip: string;
-  user_agent: string;
-  login_at: string;
-}
-
 export interface ActiveSession {
   public_id: string;
   ip: string;

@@ -94,6 +94,37 @@ func TestUpdatePreferencesValidatesTheme(t *testing.T) {
 	}
 }
 
+func TestUpdateThemeKeepsSoundPreference(t *testing.T) {
+	service, _, publicID := newService(t)
+
+	if _, err := service.UpdatePreferences(
+		context.Background(),
+		publicID,
+		UpdatePreferencesRequest{Theme: "light", SoundEnabled: false},
+	); err != nil {
+		t.Fatalf("seed preferences: %v", err)
+	}
+
+	saved, err := service.UpdateTheme(context.Background(), publicID, "Dark")
+	if err != nil {
+		t.Fatalf("update theme: %v", err)
+	}
+	if saved.Theme != "dark" || saved.SoundEnabled {
+		t.Fatalf("unexpected saved preferences: %#v", saved)
+	}
+
+	if _, err := service.UpdateTheme(
+		context.Background(),
+		publicID,
+		"neon",
+	); !errors.Is(
+		err,
+		ErrInvalidInput,
+	) {
+		t.Fatalf("expected ErrInvalidInput for unknown theme, got %v", err)
+	}
+}
+
 func TestChangePasswordRules(t *testing.T) {
 	service, repository, publicID := newService(t)
 
