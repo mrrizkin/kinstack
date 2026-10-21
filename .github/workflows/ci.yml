@@ -50,7 +50,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun audit
+      # FIXME: see the justfile audit recipe for why this advisory is ignored.
+      - run: bun audit --ignore=GHSA-hp3w-g68c-fv3c
       # vite build generates auto-imports.d.ts + components.d.ts (gitignored)
       # which vue-tsc needs before it can resolve auto-imported components.
       - run: bun x vite build

@@ -89,8 +89,10 @@ shape:
     ./scripts/shape.sh
 
 # Dependency vulnerability scans.
+# FIXME: sprintf-js has no patched release and is reachable only through
+# js-yaml's CLI, which the build never runs. Drop the ignore when a fix ships.
 audit:
-    bun audit
+    bun audit --ignore=GHSA-hp3w-g68c-fv3c
     go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 migrate:
