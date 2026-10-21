@@ -1,13 +1,12 @@
 import { router } from "@inertiajs/vue3";
 import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
-import { computed, type ComputedRef, isRef, reactive } from "vue";
+import { computed, type ComputedRef, isRef, ref } from "vue";
 
 /**
  * Client-side table view state (hidden columns and page size).
  *
- * The page and the table card share one module-level reactive state keyed by
- * page key, so both stay in sync. Column visibility lives only for the current
- * browser session; per-user persistence is a future general-preference feature.
+ * The page and the table card share one module-level state keyed by page key, so
+ * both stay in sync. Column visibility lives for the current browser session.
  */
 export interface TableViewItem {
   id: string;
@@ -15,12 +14,11 @@ export interface TableViewItem {
   visible: boolean;
 }
 
-// `any` is intentional: this helper is row-agnostic and TanStack's column type
-// is invariant, so a generic parameter here would reject every concrete column
-// definition used by the pages.
+// The stored view is row-agnostic. Concrete column definitions are converted at
+// the single boundary below, because TanStack's column type is invariant.
 export interface TableView {
   key: string;
-  columns: TableColumn<any>[];
+  columns: TableColumn<unknown>[];
   items: TableViewItem[];
   perPage: number | null;
   paged: boolean;
@@ -39,50 +37,60 @@ interface StoredState {
   perPage: number | null;
 }
 
-const states = reactive<Record<string, StoredState>>({});
+const states = ref<Record<string, StoredState>>({});
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-function columnID(column: TableColumn<any>): string {
-  const candidate = column as { id?: string; accessorKey?: string };
+interface ColumnShape {
+  id?: string;
+  accessorKey?: string;
+  header?: unknown;
+}
+
+function asColumnShape(column: TableColumn<unknown>): ColumnShape {
+  return column as unknown as ColumnShape;
+}
+
+function columnID(column: TableColumn<unknown>): string {
+  const candidate = asColumnShape(column);
   return String(candidate.id ?? candidate.accessorKey ?? "");
 }
 
-function columnLabel(column: TableColumn<any>): string {
-  const { header } = column as { header?: unknown };
+function columnLabel(column: TableColumn<unknown>): string {
+  const { header } = asColumnShape(column);
   if (typeof header === "string") {
     return header;
   }
   return columnID(column);
 }
 
-function isHideable(column: TableColumn<any>): boolean {
+function isHideable(column: TableColumn<unknown>): boolean {
   const id = columnID(column);
   return id !== "" && id !== "actions";
 }
 
 function ensureState(key: string): StoredState {
-  const existing = states[key];
+  const existing = states.value[key];
   if (existing) {
     return existing;
   }
-  const created = reactive<StoredState>({ hidden: [], perPage: null });
-  states[key] = created;
-  return created;
+  states.value[key] = { hidden: [], perPage: null };
+  return states.value[key]!;
 }
 
-export function useTableView(
+export function useTableView<T>(
   key: string,
-  columns: TableColumn<any>[] | ComputedRef<TableColumn<any>[]>,
+  columns: TableColumn<T>[] | ComputedRef<TableColumn<T>[]>,
   options: TableViewOptions = {},
 ): TableView {
   const paged = options.paged ?? true;
   const defaultPerPage = options.defaultPerPage ?? 25;
   const state = ensureState(key);
 
-  const allColumns = computed(() =>
-    (isRef(columns) ? columns.value : columns).filter((column) => columnID(column) !== ""),
+  const sourceColumns = computed<TableColumn<unknown>[]>(
+    () => (isRef(columns) ? columns.value : columns) as unknown as TableColumn<unknown>[],
   );
+  const allColumns = computed(() => sourceColumns.value.filter((column) => columnID(column) !== ""));
   const visibleColumns = computed(() =>
     allColumns.value.filter((column) => !isHideable(column) || !state.hidden.includes(columnID(column))),
   );

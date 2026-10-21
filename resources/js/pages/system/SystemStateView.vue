@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
 
+import BaseLayout from "@/layouts/BaseLayout.vue";
+
 interface Shortcut {
   key: string;
   action: string;
 }
 
 defineProps<{ surface: string; topics: string[]; shortcuts: Shortcut[] }>();
+defineOptions({ layout: [BaseLayout] });
 </script>
 
 <template>

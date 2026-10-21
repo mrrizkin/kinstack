@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from "@inertiajs/vue3";
-import { computed, reactive, ref } from "vue";
+import { computed, ref } from "vue";
 
 import AppInputDate from "@/components/AppInputDate.vue";
 import AppMobileList from "@/components/AppMobileList.vue";
@@ -36,7 +36,7 @@ const props = defineProps<{
 
 const ALL_FILTER = "all";
 
-const form = reactive<Filters>({
+const form = ref<Filters>({
   actor_key: props.filters.actor_key ?? "",
   action: props.filters.action || ALL_FILTER,
   outcome: props.filters.outcome || ALL_FILTER,
@@ -71,12 +71,12 @@ const pageInfo = computed<PageInfo>(() => ({
 
 const activeFilters = computed<Record<string, string>>(() => {
   const query: Record<string, string> = {};
-  if (form.actor_key) query.actor_key = form.actor_key;
-  if (form.action !== ALL_FILTER) query.action = form.action;
-  if (form.outcome !== ALL_FILTER) query.outcome = form.outcome;
-  if (form.search) query.search = form.search;
-  if (form.from) query.from = form.from;
-  if (form.to) query.to = form.to;
+  if (form.value.actor_key) query.actor_key = form.value.actor_key;
+  if (form.value.action !== ALL_FILTER) query.action = form.value.action;
+  if (form.value.outcome !== ALL_FILTER) query.outcome = form.value.outcome;
+  if (form.value.search) query.search = form.value.search;
+  if (form.value.from) query.from = form.value.from;
+  if (form.value.to) query.to = form.value.to;
   return query;
 });
 
@@ -85,16 +85,23 @@ const hasFilters = computed(() => Object.keys(activeFilters.value).length > 0);
 
 const MAX_SEARCH = 200;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const filterErrors = reactive({ search: "", from: "", to: "" });
+const filterErrors = ref({ search: "", from: "", to: "" });
 
 function validateFilters(): boolean {
-  filterErrors.search = form.search.length > MAX_SEARCH ? `Search is limited to ${MAX_SEARCH} characters.` : "";
-  filterErrors.from = form.from && !DATE_PATTERN.test(form.from) ? "Enter a valid start date." : "";
-  filterErrors.to = form.to && !DATE_PATTERN.test(form.to) ? "Enter a valid end date." : "";
-  if (!filterErrors.from && !filterErrors.to && form.from && form.to && form.to < form.from) {
-    filterErrors.to = "End date must be on or after the start date.";
+  filterErrors.value.search =
+    form.value.search.length > MAX_SEARCH ? `Search is limited to ${MAX_SEARCH} characters.` : "";
+  filterErrors.value.from = form.value.from && !DATE_PATTERN.test(form.value.from) ? "Enter a valid start date." : "";
+  filterErrors.value.to = form.value.to && !DATE_PATTERN.test(form.value.to) ? "Enter a valid end date." : "";
+  if (
+    !filterErrors.value.from &&
+    !filterErrors.value.to &&
+    form.value.from &&
+    form.value.to &&
+    form.value.to < form.value.from
+  ) {
+    filterErrors.value.to = "End date must be on or after the start date.";
   }
-  return !filterErrors.search && !filterErrors.from && !filterErrors.to;
+  return !filterErrors.value.search && !filterErrors.value.from && !filterErrors.value.to;
 }
 
 const emptyActions = computed(() =>
@@ -115,15 +122,15 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  form.actor_key = "";
-  form.action = ALL_FILTER;
-  form.outcome = ALL_FILTER;
-  form.search = "";
-  form.from = "";
-  form.to = "";
-  filterErrors.search = "";
-  filterErrors.from = "";
-  filterErrors.to = "";
+  form.value.actor_key = "";
+  form.value.action = ALL_FILTER;
+  form.value.outcome = ALL_FILTER;
+  form.value.search = "";
+  form.value.from = "";
+  form.value.to = "";
+  filterErrors.value.search = "";
+  filterErrors.value.from = "";
+  filterErrors.value.to = "";
   router.get(
     "/audit",
     {},
