@@ -53,6 +53,10 @@ lint-go:
 check-feature-slices:
     ./scripts/check-feature-slices.sh
 
+# Icon names must live in resources/js/lib/icons.ts, never in components.
+check-icons:
+    ./scripts/check-icons.sh
+
 # Requires a production build and no running Vite dev server.
 smoke-csp:
     ./scripts/smoke-csp.sh
@@ -78,7 +82,7 @@ coverage:
     @go tool cover -func=/tmp/kinstack-cover.out | tail -n 1
 
 # Full gate before committing: types, tests, lint, format, feature slices.
-verify: type-check format-go-check test-go test-frontend lint-go lint-check format-check check-feature-slices
+verify: type-check format-go-check test-go test-frontend lint-go lint-check format-check check-feature-slices check-icons
 
 # Structural drift report. Informational only; never fails.
 shape:
