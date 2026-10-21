@@ -47,7 +47,7 @@ set_value() {
 should_replace() {
 	case "${1}" in
 	"" | kinstack | kinstack-secret | kinstack-local-password | superadmin | rustfsadmin | \
-		ganti-dengan-* | local-* | replace-* | change-me* | your-* | *minimal-32*)
+		local-* | replace-* | change-me* | your-* | *minimal-32*)
 		return 0
 		;;
 	esac

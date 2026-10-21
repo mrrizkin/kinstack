@@ -135,7 +135,7 @@ func TestDenyOverrideWinsOverRole(t *testing.T) {
 		"staff-1",
 		PermissionUsersView,
 		EffectDeny,
-		"tidak boleh lihat pengguna",
+		"not allowed to view users",
 		nil,
 	); err != nil {
 		t.Fatalf("set override: %v", err)

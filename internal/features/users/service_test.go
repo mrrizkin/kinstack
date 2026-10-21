@@ -87,7 +87,7 @@ func TestCreateValidatesRole(t *testing.T) {
 		Username:    "staf1",
 		DisplayName: "Staf",
 		Password:    "rahasia123",
-		Role:        "role-yang-tidak-ada",
+		Role:        "missing-role",
 	})
 	if !errors.Is(err, ErrInvalidRole) {
 		t.Fatalf("expected invalid role, got %v", err)
@@ -215,7 +215,7 @@ func TestInviteRejectsUnknownRole(t *testing.T) {
 	service := newTestService()
 	_, err := service.Invite(testContext(), InviteUserRequest{
 		Email: "staf@contoh.com",
-		Role:  "role-yang-tidak-ada",
+		Role:  "missing-role",
 	})
 	if !errors.Is(err, ErrInvalidRole) {
 		t.Fatalf("expected invalid role, got %v", err)

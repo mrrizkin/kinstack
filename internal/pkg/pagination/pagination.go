@@ -1,7 +1,7 @@
 // Package pagination owns the shared page-request/page-result contract used by
 // every list endpoint. Features keep their own filters; this package only
 // normalizes page numbers and reports the visible window so the UI can render
-// "menampilkan X–Y dari Z".
+// "showing X of Y".
 package pagination
 
 const (

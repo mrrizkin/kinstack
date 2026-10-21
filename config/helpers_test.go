@@ -23,7 +23,7 @@ func TestPlaceholderSecretRejectsExampleValues(t *testing.T) {
 	examples := map[string]string{
 		"valkey example password": "kinstack-local-password",
 		"break glass username":    "superadmin",
-		"break glass secret":      "ganti-dengan-secret-acak-minimal-32-karakter",
+		"break glass secret":      "replace-with-random-secret-at-least-32-characters",
 		"rustfs access key":       "rustfsadmin",
 		"rustfs secret key":       "rustfsadmin",
 		"glitchtip secret":        "local-glitchtip-secret-change-me",
@@ -32,7 +32,7 @@ func TestPlaceholderSecretRejectsExampleValues(t *testing.T) {
 		"openobserve password":    "KinStack!2026",
 		"database password":       "kinstack",
 		"template value":          "replace-with-a-secret",
-		"long template value":     "ganti-dengan-secret-acak-minimal-32-karakter",
+		"long template value":     "replace-with-random-secret-at-least-32-characters",
 	}
 	for name, value := range examples {
 		if !placeholderSecret(value) {
@@ -120,7 +120,7 @@ func TestProductionRejectsExampleBreakGlassSecret(t *testing.T) {
 		Env:                 "production",
 		URL:                 "https://app.example.test",
 		AccessKey:           "superadmin",
-		SecretKey:           "ganti-dengan-secret-acak-minimal-32-karakter",
+		SecretKey:           "replace-with-random-secret-at-least-32-characters",
 		Port:                3000,
 		SessionIdleTimeout:  time.Hour,
 		AuthRateLimitMax:    10,
