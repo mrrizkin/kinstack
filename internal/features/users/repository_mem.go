@@ -33,16 +33,13 @@ func (r *MemoryRepository) Seed(user UserResult) {
 }
 
 func (r *MemoryRepository) ListUsers(_ context.Context, query pagination.Query) ([]UserResult, error) {
-	items, err := r.ListAllUsers(context.Background())
-	if err != nil {
-		return nil, err
-	}
+	items := r.allUsers()
 	start := min(query.Offset(), len(items))
 	end := min(start+query.Limit(), len(items))
 	return items[start:end], nil
 }
 
-func (r *MemoryRepository) ListAllUsers(_ context.Context) ([]UserResult, error) {
+func (r *MemoryRepository) allUsers() []UserResult {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	items := make([]UserResult, 0, len(r.users))
@@ -55,7 +52,7 @@ func (r *MemoryRepository) ListAllUsers(_ context.Context) ([]UserResult, error)
 		}
 		return items[i].CreatedAt.Before(items[j].CreatedAt)
 	})
-	return items, nil
+	return items
 }
 
 func (r *MemoryRepository) CountUsers(_ context.Context) (UserCounts, error) {

@@ -46,7 +46,6 @@ type UserCounts struct {
 // Repository is the persistence contract owned by the users slice.
 type Repository interface {
 	ListUsers(context.Context, pagination.Query) ([]UserResult, error)
-	ListAllUsers(context.Context) ([]UserResult, error)
 	CountUsers(context.Context) (UserCounts, error)
 	FindUserByPublicID(context.Context, string) (UserResult, error)
 	CreateUser(context.Context, CreateUserInput) (UserResult, error)

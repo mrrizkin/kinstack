@@ -80,19 +80,6 @@ func (s *Service) List(ctx context.Context, query pagination.Query) (UserList, e
 	return UserList{Users: items, Page: pagination.NewPage(query, counts.Total)}, nil
 }
 
-// ListAll returns every account for access management views.
-func (s *Service) ListAll(ctx context.Context) ([]UserDTO, error) {
-	results, err := s.repository.ListAllUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	items := make([]UserDTO, 0, len(results))
-	for _, result := range results {
-		items = append(items, userToDTO(result))
-	}
-	return items, nil
-}
-
 // Count returns total and active account counts.
 func (s *Service) Count(ctx context.Context) (UserCounts, error) {
 	return s.repository.CountUsers(ctx)
