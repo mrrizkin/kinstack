@@ -24,6 +24,11 @@ createInertiaApp({
 
   resolve: (name: string) => resolvePageComponent(`./pages/${name}.vue`, pages),
 
+  progress: {
+    color: "var(--ui-primary)",
+    showSpinner: false,
+  },
+
   setup({ el, App, props, plugin }) {
     const pageProps = sharedPagePropsSchema.parse(props.initialPage.props);
     if (pageProps.csrf_token) {
@@ -40,9 +45,9 @@ createInertiaApp({
     };
 
     installUmami(pageProps.analytics?.umami);
-    installGlitchTip(app, pageProps.observability?.glitchtip);
-
-    app.mount(el);
+    // The Sentry SDK is imported lazily, so mount after it initializes; Vue
+    // integrations must be installed before the app is mounted.
+    void installGlitchTip(app, pageProps.observability?.glitchtip).finally(() => app.mount(el));
   },
 
   defaults: {
