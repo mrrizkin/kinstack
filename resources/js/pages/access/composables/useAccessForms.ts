@@ -3,6 +3,7 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed, ref } from "vue";
 
 import { useServerErrors } from "@/lib/errors";
+import { icons } from "@/lib/icons";
 import { queryString } from "@/lib/query";
 
 import type { Override, OverrideForm, Permission, PermissionCategory, Role, UserAccess } from "../types";
@@ -239,7 +240,7 @@ export function useAccessForms(props: AccessProps) {
       return [
         {
           label: "Built-in roles are read-only",
-          icon: "i-bi-lock",
+          icon: icons.lock,
           disabled: true,
         },
       ];
@@ -247,17 +248,17 @@ export function useAccessForms(props: AccessProps) {
     return [
       {
         label: "Edit",
-        icon: "i-bi-pencil-square",
+        icon: icons.edit,
         onSelect: () => openEditRole(role),
       },
       {
         label: "Manage permissions",
-        icon: "i-bi-sliders",
+        icon: icons.sliders,
         onSelect: () => openRolePermissions(role),
       },
       {
         label: "Delete",
-        icon: "i-bi-trash",
+        icon: icons.delete,
         color: "error",
         onSelect: () => requestDeleteRole(role),
       },
@@ -268,7 +269,7 @@ export function useAccessForms(props: AccessProps) {
     return [
       {
         label: "Manage permissions",
-        icon: "i-bi-sliders",
+        icon: icons.sliders,
         onSelect: () => openUserOverrides(user),
       },
     ];

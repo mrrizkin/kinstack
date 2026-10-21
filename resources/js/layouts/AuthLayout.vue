@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 import AuthBrandPanel from "@/components/auth/AuthBrandPanel.vue";
+import { icons } from "@/lib/icons";
 
 defineProps<{ title?: string; subtitle?: string }>();
 
@@ -26,7 +27,7 @@ const greeting = computed(() => {
       <header class="flex items-center justify-between gap-4 px-5 pt-5 sm:px-8 lg:px-10 xl:px-14">
         <UButton
           to="/"
-          icon="i-material-symbols:arrow-back-rounded"
+          :icon="icons.arrowLeft"
           :label="t('shell.auth.back')"
           color="neutral"
           variant="ghost"

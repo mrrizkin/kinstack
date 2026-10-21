@@ -3,6 +3,7 @@ import { onMounted, watch } from "vue";
 
 import { parseThemePreference } from "@/lib/contracts/preferences";
 import { useServerErrors } from "@/lib/errors";
+import { icons } from "@/lib/icons";
 import { useNotificationSound } from "@/lib/sound";
 import { useTheme } from "@/lib/theme";
 
@@ -24,9 +25,9 @@ export function usePreferencesForm(props: PreferencesFormProps) {
   });
 
   const themeOptions: ThemeOption[] = [
-    { label: "Light", value: "light", icon: "i-bi-sun" },
-    { label: "Dark", value: "dark", icon: "i-bi-moon" },
-    { label: "Follow system", value: "system", icon: "i-bi-display" },
+    { label: "Light", value: "light", icon: icons.light },
+    { label: "Dark", value: "dark", icon: icons.dark },
+    { label: "Follow system", value: "system", icon: icons.system },
   ];
 
   // A quick theme choice in the user menu is browser-local. Do not replace it

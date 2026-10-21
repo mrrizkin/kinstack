@@ -6,6 +6,7 @@ import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { formatDateTime } from "@/lib/formatters";
+import { icons } from "@/lib/icons";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
@@ -66,7 +67,7 @@ function markAllRead() {
             v-if="props.unread > 0"
             color="neutral"
             variant="outline"
-            icon="i-bi-check2-all"
+            :icon="icons.markAllRead"
             label="Mark all as read"
             :loading="markingAll"
             @click="markAllRead" />
@@ -78,11 +79,11 @@ function markAllRead() {
       <div class="space-y-3">
         <UEmpty
           v-if="props.notifications.length === 0"
-          icon="i-bi-bell-slash"
+          :icon="icons.bellOff"
           title="No notifications yet."
           description="Account and workspace updates will appear here."
           variant="naked"
-          :actions="[{ label: 'Back to dashboard', icon: 'i-bi-arrow-left', to: '/dashboard' }]"
+          :actions="[{ label: 'Back to dashboard', icon: icons.arrowLeft, to: '/dashboard' }]"
           class="py-12" />
 
         <UCard
@@ -104,7 +105,7 @@ function markAllRead() {
               size="xs"
               color="neutral"
               variant="outline"
-              icon="i-bi-check2"
+              :icon="icons.check"
               label="Mark as read"
               :loading="markingId === notification.public_id"
               @click="markRead(notification)" />

@@ -7,6 +7,7 @@ import { notificationFeedSchema, type NotificationItem } from "@/lib/contracts/n
 import { notificationsOpen, unreadCount } from "@/lib/dashboard";
 import { formatRelativeTime } from "@/lib/formatters";
 import { requestJson } from "@/lib/http";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 
 const { t } = useI18n();
@@ -20,15 +21,15 @@ const error = ref("");
 
 const kindIcon = (kind: string) => {
   if (kind.includes("security") || kind.includes("auth")) {
-    return "i-material-symbols:shield-outline-rounded";
+    return icons.security;
   }
   if (kind.includes("media")) {
-    return "i-material-symbols:image-outline-rounded";
+    return icons.media;
   }
   if (kind.includes("user")) {
-    return "i-material-symbols:person-outline-rounded";
+    return icons.account;
   }
-  return "i-material-symbols:notifications-outline-rounded";
+  return icons.notifications;
 };
 
 async function load() {
@@ -105,24 +106,19 @@ watch(notificationsOpen, (open) => {
             color="neutral"
             variant="ghost"
             size="xs"
-            icon="i-material-symbols:done-all-rounded"
+            :icon="icons.markAllRead"
             :loading="marking"
             @click="markAllRead" />
         </div>
 
-        <UAlert
-          v-if="error"
-          color="error"
-          variant="subtle"
-          icon="i-material-symbols:cancel-outline-rounded"
-          :title="error" />
+        <UAlert v-if="error" color="error" variant="subtle" :icon="icons.error" :title="error" />
 
         <div v-if="loading" class="space-y-2">
           <USkeleton v-for="index in 3" :key="index" class="h-16 w-full" />
         </div>
 
         <div v-else-if="notifications.length === 0" class="py-12 text-center">
-          <UIcon name="i-material-symbols:notifications-off-outline-rounded" class="text-dimmed mx-auto size-8" />
+          <UIcon :name="icons.bellOff" class="text-dimmed mx-auto size-8" />
           <p class="text-muted mt-3 text-sm">{{ t("shell.notifications.none") }}</p>
         </div>
 

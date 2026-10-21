@@ -3,6 +3,7 @@ import type { NavigationMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { useI18n } from "vue-i18n";
 
 import AppLogo from "@/components/AppLogo.vue";
+import { icons } from "@/lib/icons";
 
 const { t } = useI18n();
 
@@ -32,7 +33,7 @@ const year = new Date().getFullYear();
           to="/login"
           label="Sign in"
           color="neutral"
-          trailing-icon="i-material-symbols:arrow-forward-rounded"
+          :trailing-icon="icons.arrowRight"
           class="hidden lg:inline-flex" />
       </template>
 

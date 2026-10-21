@@ -8,6 +8,7 @@ import BaseLayout from "@/layouts/BaseLayout.vue";
 import { passkeyCredentialSchema, passkeyOptionsSchema } from "@/lib/contracts/passkeys";
 import { fieldMessage } from "@/lib/errors";
 import { requestJson } from "@/lib/http";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { getPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
@@ -58,7 +59,7 @@ const fields = computed<AuthFormField[]>(() => [
     type: "text",
     label: "Username",
     placeholder: "Enter username",
-    icon: "i-material-symbols:person-outline-rounded",
+    icon: icons.account,
     autocomplete: "username",
     required: true,
     size: "lg",
@@ -131,24 +132,9 @@ function submitMagicLink() {
 <template>
   <Head title="Sign in" />
   <div class="space-y-4">
-    <UAlert
-      v-if="notice"
-      color="success"
-      variant="subtle"
-      icon="i-material-symbols:mark-email-read-outline-rounded"
-      :title="notice" />
-    <UAlert
-      v-if="oauth_error"
-      color="error"
-      variant="subtle"
-      icon="i-material-symbols:cancel-outline-rounded"
-      :title="oauth_error" />
-    <UAlert
-      v-if="credentialsError"
-      color="error"
-      variant="subtle"
-      icon="i-material-symbols:cancel-outline-rounded"
-      :title="credentialsError" />
+    <UAlert v-if="notice" color="success" variant="subtle" :icon="icons.markRead" :title="notice" />
+    <UAlert v-if="oauth_error" color="error" variant="subtle" :icon="icons.error" :title="oauth_error" />
+    <UAlert v-if="credentialsError" color="error" variant="subtle" :icon="icons.error" :title="credentialsError" />
 
     <UAuthForm
       :fields="fields"
@@ -175,7 +161,7 @@ function submitMagicLink() {
           <UButton
             v-if="passkey_enabled && passkeySupported"
             label="Sign in with passkey"
-            icon="i-material-symbols:passkey-rounded"
+            :icon="icons.passkey"
             color="neutral"
             variant="outline"
             size="lg"
@@ -188,7 +174,7 @@ function submitMagicLink() {
             v-for="provider in oauth_providers ?? []"
             :key="provider.name"
             :label="`Sign in with ${provider.label}`"
-            icon="i-material-symbols:login-rounded"
+            :icon="icons.login"
             color="neutral"
             variant="outline"
             size="lg"
@@ -198,7 +184,7 @@ function submitMagicLink() {
           <UButton
             v-if="saml_enabled"
             label="Sign in with SAML"
-            icon="i-material-symbols:domain-rounded"
+            :icon="icons.domain"
             color="neutral"
             variant="outline"
             size="lg"
@@ -213,7 +199,7 @@ function submitMagicLink() {
               <UInput
                 v-model="magicForm.email"
                 type="email"
-                icon="i-material-symbols:mail-outline-rounded"
+                :icon="icons.mail"
                 placeholder="name@example.com"
                 autocomplete="email"
                 size="lg"
@@ -229,12 +215,7 @@ function submitMagicLink() {
               :disabled="magicForm.processing" />
           </form>
 
-          <UAlert
-            v-if="passkeyError"
-            color="error"
-            variant="subtle"
-            icon="i-material-symbols:cancel-outline-rounded"
-            :title="passkeyError" />
+          <UAlert v-if="passkeyError" color="error" variant="subtle" :icon="icons.error" :title="passkeyError" />
         </div>
       </template>
     </UAuthForm>

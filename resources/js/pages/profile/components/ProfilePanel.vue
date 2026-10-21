@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import { avatarUrl } from "@/lib/avatar";
 import { formatDateTime } from "@/lib/formatters";
+import { icons } from "@/lib/icons";
 
 import type { Profile, ProfileForm } from "../types";
 
@@ -47,7 +48,7 @@ const avatarSrc = computed(() => avatarUrl(props.profile.username || props.profi
             type="submit"
             color="primary"
             label="Save profile"
-            icon="i-bi-check2"
+            :icon="icons.check"
             :loading="profileForm.processing" />
         </div>
       </form>

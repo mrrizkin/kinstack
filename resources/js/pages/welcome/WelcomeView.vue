@@ -3,37 +3,38 @@ import { Head } from "@inertiajs/vue3";
 
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import PublicLayout from "@/layouts/PublicLayout.vue";
+import { icons } from "@/lib/icons";
 
 defineOptions({ layout: [BaseLayout, PublicLayout] });
 
 const features = [
   {
-    icon: "i-material-symbols:group-outline-rounded",
+    icon: icons.users,
     title: "Users & invitations",
     description: "Manage accounts, invitations, activity status, and password resets without leaving the same panel.",
   },
   {
-    icon: "i-material-symbols:shield-lock-outline-rounded",
+    icon: icons.access,
     title: "Fine-grained access",
     description: "Roles, permissions, and custom per-user permissions checked on every request.",
   },
   {
-    icon: "i-material-symbols:history-rounded",
+    icon: icons.audit,
     title: "Audit trail",
     description: "Every important change is recorded with who made it, when, and what changed.",
   },
   {
-    icon: "i-material-symbols:image-outline-rounded",
+    icon: icons.media,
     title: "Centralized media",
     description: "Upload and manage files from one central media library.",
   },
   {
-    icon: "i-material-symbols:notifications-outline-rounded",
+    icon: icons.notifications,
     title: "Notifications",
     description: "A notification center and slide-over that stay in sync with recent activity.",
   },
   {
-    icon: "i-material-symbols:passkey-rounded",
+    icon: icons.passkey,
     title: "Account security",
     description: "Two-step verification, passkeys, active sessions, API tokens, and account recovery in one place.",
   },
@@ -41,17 +42,17 @@ const features = [
 
 const securityPoints = [
   {
-    icon: "i-material-symbols:lock-outline-rounded",
+    icon: icons.lock,
     title: "Controlled sessions",
     description: "View and revoke active sessions from your profile page.",
   },
   {
-    icon: "i-material-symbols:verified-user-outline-rounded",
+    icon: icons.shieldCheck,
     title: "Layered authorization",
     description: "Effective permissions combine your role with any custom permissions.",
   },
   {
-    icon: "i-material-symbols:visibility-outline-rounded",
+    icon: icons.eye,
     title: "Transparent",
     description: "Audit history and system status are available from the same panel.",
   },
@@ -61,7 +62,7 @@ const links = [
   {
     label: "Sign in to your account",
     to: "/login",
-    trailingIcon: "i-material-symbols:arrow-forward-rounded",
+    trailingIcon: icons.arrowRight,
     size: "lg" as const,
   },
   {
@@ -187,7 +188,7 @@ const links = [
   <UPageCTA
     title="Ready to sign in?"
     description="Use the account provided by your administrator. Don't have access yet? Contact your organization admin."
-    :links="[{ label: 'Sign in', to: '/login', trailingIcon: 'i-material-symbols:arrow-forward-rounded', size: 'lg' }]"
+    :links="[{ label: 'Sign in', to: '/login', trailingIcon: icons.arrowRight, size: 'lg' }]"
     variant="naked"
     class="overflow-hidden py-10 sm:py-14" />
 </template>

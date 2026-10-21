@@ -5,6 +5,7 @@ import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { icons } from "@/lib/icons";
 
 defineOptions({
   layout: [BaseLayout, [AuthLayout, { title: "Reset password", subtitle: "Set a new password for your account." }]],
@@ -57,7 +58,7 @@ function submit(payload: FormSubmitEvent<Record<string, unknown>>) {
       <UAlert
         color="success"
         variant="subtle"
-        icon="i-material-symbols:verified-user-outline-rounded"
+        :icon="icons.shieldCheck"
         title="Password changed successfully"
         description="You can now sign in with your new password." />
       <UButton to="/login" color="primary" size="lg" block label="Sign in" />

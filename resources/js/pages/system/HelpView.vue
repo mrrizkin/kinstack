@@ -6,6 +6,7 @@ import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import PublicLayout from "@/layouts/PublicLayout.vue";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 
 defineOptions({
@@ -43,7 +44,7 @@ const isAuthenticated = computed(() => Boolean(actor.value));
         <UCard>
           <div class="flex items-start gap-3">
             <span class="bg-elevated text-toned ring-default grid size-10 shrink-0 place-items-center rounded-lg ring">
-              <UIcon name="i-material-symbols:menu-book-outline-rounded" class="size-5" />
+              <UIcon :name="icons.docs" class="size-5" />
             </span>
             <div>
               <h1 class="text-highlighted text-lg font-semibold">Help center</h1>
@@ -59,7 +60,7 @@ const isAuthenticated = computed(() => Boolean(actor.value));
           <div class="grid gap-3 sm:grid-cols-2">
             <UCard v-for="topic in topics" :key="topic" variant="subtle">
               <div class="flex items-start gap-3">
-                <UIcon name="i-material-symbols:arrow-forward-rounded" class="text-dimmed mt-0.5 size-4 shrink-0" />
+                <UIcon :name="icons.arrowRight" class="text-dimmed mt-0.5 size-4 shrink-0" />
                 <p class="text-toned text-sm leading-6">{{ topic }}</p>
               </div>
             </UCard>
@@ -84,7 +85,7 @@ const isAuthenticated = computed(() => Boolean(actor.value));
         <UAlert
           color="neutral"
           variant="subtle"
-          icon="i-material-symbols:support-agent-outline-rounded"
+          :icon="icons.support"
           title="Need more help?"
           description="Contact your organization administrator. Activity audit and system status remain available from this panel." />
       </div>
@@ -95,7 +96,7 @@ const isAuthenticated = computed(() => Boolean(actor.value));
     <UCard>
       <div class="flex items-start gap-3">
         <span class="bg-elevated text-toned ring-default grid size-10 shrink-0 place-items-center rounded-lg ring">
-          <UIcon name="i-material-symbols:menu-book-outline-rounded" class="size-5" />
+          <UIcon :name="icons.docs" class="size-5" />
         </span>
         <div>
           <h1 class="text-highlighted text-lg font-semibold">Help center</h1>
@@ -111,7 +112,7 @@ const isAuthenticated = computed(() => Boolean(actor.value));
       <div class="grid gap-3 sm:grid-cols-2">
         <UCard v-for="topic in topics" :key="topic" variant="subtle">
           <div class="flex items-start gap-3">
-            <UIcon name="i-material-symbols:arrow-forward-rounded" class="text-dimmed mt-0.5 size-4 shrink-0" />
+            <UIcon :name="icons.arrowRight" class="text-dimmed mt-0.5 size-4 shrink-0" />
             <p class="text-toned text-sm leading-6">{{ topic }}</p>
           </div>
         </UCard>
@@ -134,8 +135,8 @@ const isAuthenticated = computed(() => Boolean(actor.value));
     </UCard>
 
     <div class="mt-6 flex flex-wrap gap-2">
-      <UButton to="/" color="neutral" variant="outline" icon="i-material-symbols:arrow-back-rounded" label="Back" />
-      <UButton to="/login" color="primary" icon="i-material-symbols:login-rounded" label="Sign in" />
+      <UButton to="/" color="neutral" variant="outline" :icon="icons.arrowLeft" label="Back" />
+      <UButton to="/login" color="primary" :icon="icons.login" label="Sign in" />
     </div>
   </div>
 </template>

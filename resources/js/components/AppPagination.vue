@@ -2,6 +2,8 @@
 import { router } from "@inertiajs/vue3";
 import { computed } from "vue";
 
+import { icons } from "@/lib/icons";
+
 export interface PageInfo {
   page: number;
   per_page: number;
@@ -45,7 +47,7 @@ function go(target: number) {
         size="xs"
         color="neutral"
         variant="outline"
-        icon="i-bi-chevron-left"
+        :icon="icons.chevronLeft"
         label="Previous"
         :disabled="!page.has_prev"
         @click="go(page.page - 1)" />
@@ -55,7 +57,7 @@ function go(target: number) {
         size="xs"
         color="neutral"
         variant="outline"
-        trailing-icon="i-bi-chevron-right"
+        :trailing-icon="icons.chevronRight"
         label="Next"
         :disabled="!page.has_next"
         @click="go(page.page + 1)" />

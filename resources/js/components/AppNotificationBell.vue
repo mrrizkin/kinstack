@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { notificationFeedSchema } from "@/lib/contracts/notifications";
 import { notificationsOpen, unreadCount } from "@/lib/dashboard";
 import { requestJson } from "@/lib/http";
+import { icons } from "@/lib/icons";
 
 const { t } = useI18n();
 
@@ -23,7 +24,7 @@ onMounted(refresh);
 <template>
   <div class="relative">
     <UButton
-      icon="i-material-symbols:notifications-outline-rounded"
+      :icon="icons.notifications"
       color="neutral"
       variant="ghost"
       square

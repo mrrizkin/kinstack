@@ -2,6 +2,7 @@
 import { usePage } from "@inertiajs/vue3";
 import { computed, watch } from "vue";
 
+import { icons } from "@/lib/icons";
 import { playNotificationSound } from "@/lib/sound";
 
 interface FlashPayload {
@@ -23,18 +24,18 @@ watch(
       playNotificationSound("success");
       toast.add({
         title: value.success,
-        icon: "i-bi-check-circle",
+        icon: icons.success,
         color: "success",
         duration: 4000,
       });
     }
     if (value.error) {
       playNotificationSound("error");
-      toast.add({ title: value.error, icon: "i-bi-x-circle", color: "error", duration: 6000 });
+      toast.add({ title: value.error, icon: icons.error, color: "error", duration: 6000 });
     }
     if (value.info) {
       playNotificationSound("info");
-      toast.add({ title: value.info, icon: "i-bi-info-circle", color: "info", duration: 5000 });
+      toast.add({ title: value.info, icon: icons.info, color: "info", duration: 5000 });
     }
   },
   { immediate: true, deep: true },

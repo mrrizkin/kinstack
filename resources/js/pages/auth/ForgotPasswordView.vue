@@ -5,6 +5,7 @@ import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { icons } from "@/lib/icons";
 
 defineProps<{
   notice?: string;
@@ -25,7 +26,7 @@ const fields = computed<AuthFormField[]>(() => [
     type: "email",
     label: "Email",
     placeholder: "name@example.com",
-    icon: "i-material-symbols:mail-outline-rounded",
+    icon: icons.mail,
     autocomplete: "email",
     required: true,
     size: "lg",
@@ -42,12 +43,7 @@ function submit(payload: FormSubmitEvent<Record<string, unknown>>) {
 <template>
   <Head title="Forgot password" />
   <div class="space-y-4">
-    <UAlert
-      v-if="notice"
-      color="success"
-      variant="subtle"
-      icon="i-material-symbols:mark-email-read-outline-rounded"
-      :title="notice" />
+    <UAlert v-if="notice" color="success" variant="subtle" :icon="icons.markRead" :title="notice" />
 
     <UAuthForm
       :fields="fields"

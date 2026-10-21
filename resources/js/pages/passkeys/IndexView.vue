@@ -10,6 +10,7 @@ import SettingsLayout from "@/layouts/SettingsLayout.vue";
 import { passkeyOptionsSchema, passkeySummarySchema } from "@/lib/contracts/passkeys";
 import { formatDateTime } from "@/lib/formatters";
 import { requestJson } from "@/lib/http";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { createPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
@@ -93,8 +94,8 @@ async function confirmRevokePasskey() {
 
 const emptyActions = computed(() =>
   supported
-    ? [{ label: "Add your first passkey", icon: "i-bi-fingerprint", onClick: addPasskey }]
-    : [{ label: "Back to profile", icon: "i-bi-arrow-left", to: "/profile" }],
+    ? [{ label: "Add your first passkey", icon: icons.passkey, onClick: addPasskey }]
+    : [{ label: "Back to profile", icon: icons.arrowLeft, to: "/profile" }],
 );
 </script>
 
@@ -109,13 +110,13 @@ const emptyActions = computed(() =>
 
     <template #body>
       <div class="space-y-6">
-        <UAlert v-if="message" color="success" variant="subtle" icon="i-bi-check-circle" :title="message" />
-        <UAlert v-if="error" color="error" variant="subtle" icon="i-bi-exclamation-circle" :title="error" />
+        <UAlert v-if="message" color="success" variant="subtle" :icon="icons.success" :title="message" />
+        <UAlert v-if="error" color="error" variant="subtle" :icon="icons.alert" :title="error" />
 
         <UCard>
           <UEmpty
             v-if="passkeys.length === 0"
-            icon="i-bi-fingerprint"
+            :icon="icons.passkey"
             title="No passkeys yet."
             description="Add a passkey to sign in with your fingerprint, face, or device PIN."
             variant="naked"
@@ -137,7 +138,7 @@ const emptyActions = computed(() =>
                 color="error"
                 variant="outline"
                 size="xs"
-                icon="i-bi-trash"
+                :icon="icons.delete"
                 :loading="revoking === passkey.id"
                 @click="revokePasskey(passkey)">
                 Revoke
@@ -153,7 +154,7 @@ const emptyActions = computed(() =>
             </UFormField>
             <UButton
               color="primary"
-              icon="i-bi-fingerprint"
+              :icon="icons.passkey"
               :loading="saving"
               :disabled="!supported || saving"
               @click="addPasskey">

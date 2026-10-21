@@ -7,6 +7,7 @@ import AppPageHeader from "@/components/AppPageHeader.vue";
 import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { icons } from "@/lib/icons";
 import { useTableView } from "@/lib/table-view";
 
 import { createRoleColumns, createUserColumns } from "./columns";
@@ -84,7 +85,7 @@ const userView = useTableView(
 );
 
 const emptyRoleActions = computed(() => [
-  { label: "Create a role", icon: "i-bi-plus", onClick: () => (showCreateRole.value = true) },
+  { label: "Create a role", icon: icons.add, onClick: () => (showCreateRole.value = true) },
 ]);
 
 const overrideOpen = computed({
@@ -101,7 +102,7 @@ const overrideOpen = computed({
     <template #header>
       <AppPageHeader title="Access" description="Manage roles, permissions, and custom user permissions">
         <template #actions>
-          <UButton icon="i-bi-plus" label="New role" color="primary" size="sm" @click="showCreateRole = true" />
+          <UButton :icon="icons.add" label="New role" color="primary" size="sm" @click="showCreateRole = true" />
         </template>
       </AppPageHeader>
     </template>
@@ -111,14 +112,14 @@ const overrideOpen = computed({
         v-if="actionError"
         color="error"
         variant="subtle"
-        icon="i-bi-exclamation-triangle"
+        :icon="icons.warning"
         :description="actionError"
         class="mb-4" />
 
       <UAlert
         color="neutral"
         variant="subtle"
-        icon="i-bi-info-circle"
+        :icon="icons.info"
         title="Roles are managed from this page"
         description="Each role has permissions you can configure. Create custom roles or add custom permissions for a single user."
         class="mb-4" />
@@ -126,8 +127,8 @@ const overrideOpen = computed({
       <UTabs
         v-model="tab"
         :items="[
-          { label: 'Roles & Permissions', value: 'roles', icon: 'i-bi-shield-check' },
-          { label: 'User Permissions', value: 'users', icon: 'i-bi-person-lock' },
+          { label: 'Roles & Permissions', value: 'roles', icon: icons.shieldCheck },
+          { label: 'User Permissions', value: 'users', icon: icons.userPermissions },
         ]"
         class="w-full">
         <template #content="{ item }">

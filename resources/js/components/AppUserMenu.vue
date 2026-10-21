@@ -8,6 +8,7 @@ import { z } from "zod";
 import { avatarUrl } from "@/lib/avatar";
 import { notificationsOpen } from "@/lib/dashboard";
 import { requestJson } from "@/lib/http";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 
@@ -21,9 +22,9 @@ const displayName = computed(() => actor.value?.display_name || actor.value?.use
 const avatarSrc = computed(() => avatarUrl(actor.value?.username || actor.value?.public_id || displayName.value));
 
 const appearanceOptions = computed<{ label: string; value: ThemePreference; icon: string }[]>(() => [
-  { label: t("shell.userMenu.light"), value: "light", icon: "i-material-symbols:light-mode-outline-rounded" },
-  { label: t("shell.userMenu.dark"), value: "dark", icon: "i-material-symbols:dark-mode-outline-rounded" },
-  { label: t("shell.userMenu.system"), value: "system", icon: "i-material-symbols:desktop-windows-outline-rounded" },
+  { label: t("shell.userMenu.light"), value: "light", icon: icons.light },
+  { label: t("shell.userMenu.dark"), value: "dark", icon: icons.dark },
+  { label: t("shell.userMenu.system"), value: "system", icon: icons.system },
 ]);
 
 // The menu applies the theme instantly, then persists it for the account. The
@@ -49,7 +50,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
     [
       {
         label: t("shell.userMenu.settings"),
-        icon: "i-material-symbols:settings-outline-rounded",
+        icon: icons.settings,
         to: "/profile",
       },
     ],
@@ -58,7 +59,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
   groups.push([
     {
       label: t("shell.userMenu.appearance"),
-      icon: "i-material-symbols:palette-outline-rounded",
+      icon: icons.palette,
       children: appearanceOptions.value.map((option) => ({
         label: option.label,
         icon: option.icon,
@@ -76,14 +77,14 @@ const items = computed<DropdownMenuItem[][]>(() => {
   groups.push([
     {
       label: t("shell.userMenu.notifications"),
-      icon: "i-material-symbols:notifications-outline-rounded",
+      icon: icons.notifications,
       onSelect: () => {
         notificationsOpen.value = true;
       },
     },
     {
       label: t("shell.userMenu.help"),
-      icon: "i-material-symbols:help-outline-rounded",
+      icon: icons.help,
       to: "/help",
     },
   ]);
@@ -91,7 +92,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
   groups.push([
     {
       label: t("shell.userMenu.logout"),
-      icon: "i-material-symbols:logout-rounded",
+      icon: icons.logout,
       color: "error" as const,
       onSelect: () => router.post("/logout", {}, { onSuccess: () => router.clearHistory() }),
     },
@@ -109,7 +110,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
     <UButton
       :avatar="{ src: avatarSrc, alt: displayName, size: 'sm' }"
       :label="props.collapsed ? undefined : displayName"
-      :trailing-icon="props.collapsed ? undefined : 'i-material-symbols:unfold-more-rounded'"
+      :trailing-icon="props.collapsed ? undefined : icons.unfoldMore"
       color="neutral"
       variant="ghost"
       block

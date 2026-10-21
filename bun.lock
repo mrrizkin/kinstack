@@ -19,7 +19,6 @@
         "zod": "^4.6.7",
       },
       "devDependencies": {
-        "@iconify-json/bi": "^1.2.7",
         "@iconify-json/material-symbols": "^1.2.95",
         "@inertiajs/vite": "^3.9.1",
         "@tailwindcss/vite": "^4.3.3",
@@ -175,8 +174,6 @@
     "@fontsource-variable/geist": ["@fontsource-variable/geist@5.3.0", "", {}, "sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA=="],
 
     "@fontsource-variable/geist-mono": ["@fontsource-variable/geist-mono@5.3.0", "", {}, "sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw=="],
-
-    "@iconify-json/bi": ["@iconify-json/bi@1.2.7", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-IPz8WNxmLkH1I9msl+0Q4OnmjjvP4uU0Z61a4i4sqonB6vKSbMGUWuGn8/YuuszlReVj8rf+3gNv5JU8Xoljyg=="],
 
     "@iconify-json/material-symbols": ["@iconify-json/material-symbols@1.2.95", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-n34GNbwe8We3LPXK2N8JuQewEQkITJiRsmX/0UYJsOyKzviVl22mNfLUiGGtXLKDPqxZa17q1Hg57zdA3BYa0w=="],
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppInputDate from "@/components/AppInputDate.vue";
+import { icons } from "@/lib/icons";
 
 import type { Override, OverrideForm, UserAccess } from "../types";
 
@@ -31,10 +32,10 @@ function focusPermissionForm() {
           <p class="text-muted text-xs font-semibold tracking-wide uppercase">Active permissions</p>
           <UEmpty
             v-if="user.overrides.length === 0"
-            icon="i-bi-slash-circle"
+            :icon="icons.deny"
             title="No custom permissions yet"
             description="This user only uses permissions from their role."
-            :actions="[{ label: 'Add custom permission', icon: 'i-bi-plus', onClick: focusPermissionForm }]" />
+            :actions="[{ label: 'Add custom permission', icon: icons.add, onClick: focusPermissionForm }]" />
           <div v-else class="space-y-2">
             <div
               v-for="override in user.overrides"

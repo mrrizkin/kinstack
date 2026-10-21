@@ -5,6 +5,7 @@ import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { icons } from "@/lib/icons";
 
 defineOptions({
   layout: [
@@ -29,7 +30,7 @@ const fields = computed<AuthFormField[]>(() => [
     type: "text",
     label: "Verification code",
     placeholder: "123456 or recovery code",
-    icon: "i-material-symbols:shield-outline-rounded",
+    icon: icons.security,
     autocomplete: "one-time-code",
     required: true,
     size: "lg",

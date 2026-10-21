@@ -4,6 +4,7 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
 import AppCellStack from "@/components/cells/AppCellStack.vue";
+import { icons } from "@/lib/icons";
 import type { TableView } from "@/lib/table-view";
 
 import type { Role } from "../types";
@@ -22,7 +23,7 @@ defineProps<{
       <UTable :data="roles" :columns="view.columns" class="w-full">
         <template #empty>
           <UEmpty
-            icon="i-bi-shield-lock"
+            :icon="icons.access"
             title="No roles yet."
             description="Create a role to group permissions for your team."
             variant="naked"
@@ -46,7 +47,7 @@ defineProps<{
             </div>
             <UDropdownMenu :items="[menuItems(role)]" :content="{ align: 'end', collisionPadding: 12 }">
               <UButton
-                icon="i-material-symbols:more-vert"
+                :icon="icons.more"
                 color="neutral"
                 variant="ghost"
                 size="xs"
@@ -68,7 +69,7 @@ defineProps<{
       </AppMobileList>
       <UEmpty
         v-else
-        icon="i-bi-shield-lock"
+        :icon="icons.access"
         title="No roles yet."
         description="Create a role to group permissions for your team."
         variant="naked"

@@ -8,6 +8,7 @@ import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
 import { fieldMessage } from "@/lib/errors";
 import { formatDateTime } from "@/lib/formatters";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { permissionLabel } from "@/lib/permissions";
 
@@ -97,24 +98,20 @@ async function copyToken() {
     <template #header>
       <AppPageHeader title="API tokens" description="Tokens for connecting integrations without a browser session.">
         <template #actions>
-          <UButton color="primary" icon="i-bi-plus" @click="showCreate = !showCreate"> New token </UButton>
+          <UButton color="primary" :icon="icons.add" @click="showCreate = !showCreate"> New token </UButton>
         </template>
       </AppPageHeader>
     </template>
 
     <template #body>
       <div class="space-y-6">
-        <UAlert v-if="hasCreated" color="success" variant="subtle" icon="i-bi-key" title="Token created">
+        <UAlert v-if="hasCreated" color="success" variant="subtle" :icon="icons.key" title="Token created">
           <template #description>
             <p class="mb-2">Copy it now. This token is only shown once.</p>
             <div class="space-y-1">
               <div class="flex items-center gap-2">
                 <UInput :model-value="props.created_token" readonly class="w-full font-mono text-xs" />
-                <UButton
-                  :icon="copied ? 'i-bi-check' : 'i-bi-clipboard'"
-                  color="neutral"
-                  variant="outline"
-                  @click="copyToken">
+                <UButton :icon="copied ? icons.check : icons.copy" color="neutral" variant="outline" @click="copyToken">
                   {{ copied ? "Copied" : "Copy" }}
                 </UButton>
               </div>
@@ -125,16 +122,14 @@ async function copyToken() {
 
         <UCard>
           <div v-if="props.tokens.length === 0" class="flex flex-col items-center gap-3 py-10 text-center">
-            <UIcon name="i-material-symbols:key-outline-rounded" class="text-dimmed size-8" />
+            <UIcon :name="icons.key" class="text-dimmed size-8" />
             <div>
               <p class="text-highlighted text-sm font-medium">No API tokens yet.</p>
               <p class="text-muted mt-1 text-xs">
                 Create a token for integrations that need to access the API without a browser session.
               </p>
             </div>
-            <UButton color="primary" size="sm" icon="i-material-symbols:add-rounded" @click="showCreate = true">
-              New token
-            </UButton>
+            <UButton color="primary" size="sm" :icon="icons.add" @click="showCreate = true"> New token </UButton>
           </div>
           <ul v-else class="divide-default divide-y">
             <li
@@ -159,7 +154,7 @@ async function copyToken() {
                 color="error"
                 variant="outline"
                 size="xs"
-                icon="i-bi-trash"
+                :icon="icons.delete"
                 :loading="revoking && revokeTarget?.public_id === token.public_id"
                 @click="revoke(token)">
                 Revoke

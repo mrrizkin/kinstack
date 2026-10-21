@@ -6,6 +6,7 @@
  */
 import { computed } from "vue";
 
+import { icons } from "@/lib/icons";
 import { PAGE_SIZE_OPTIONS, type TableView } from "@/lib/table-view";
 
 const props = defineProps<{ view: TableView }>();
@@ -23,7 +24,7 @@ const perPage = computed({
 
 <template>
   <UPopover :ui="{ content: 'p-0' }">
-    <UButton type="button" size="xs" color="neutral" variant="outline" icon="i-bi-sliders" label="View" />
+    <UButton type="button" size="xs" color="neutral" variant="outline" :icon="icons.sliders" label="View" />
     <template #content>
       <div class="w-64 space-y-3 p-3">
         <div v-if="view.paged">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { icons } from "@/lib/icons";
+
 import type { PreferencesForm, ThemeOption } from "../types";
 
 defineProps<{
@@ -33,7 +35,7 @@ defineProps<{
             type="submit"
             color="primary"
             label="Save preferences"
-            icon="i-bi-check2"
+            :icon="icons.check"
             :loading="preferencesForm.processing" />
         </div>
       </form>

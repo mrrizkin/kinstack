@@ -4,6 +4,8 @@
   "include": ["vite.config.*"],
   "compilerOptions": {
     "module": "preserve",
+    // Vite's native config loader requires explicit file extensions.
+    "allowImportingTsExtensions": true,
     "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {

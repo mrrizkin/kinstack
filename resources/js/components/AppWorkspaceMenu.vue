@@ -3,6 +3,8 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { icons } from "@/lib/icons";
+
 const props = defineProps<{ collapsed?: boolean }>();
 const { t } = useI18n();
 
@@ -22,14 +24,14 @@ const items = computed<DropdownMenuItem[][]>(() => {
     [
       {
         label: t("shell.workspace.dashboard"),
-        icon: "i-material-symbols:dashboard-outline-rounded",
+        icon: icons.dashboard,
         to: "/dashboard",
       },
     ],
     [
       {
         label: t("shell.workspace.help"),
-        icon: "i-material-symbols:help-outline-rounded",
+        icon: icons.help,
         to: "/help",
       },
     ],
@@ -48,7 +50,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
       v-bind="{
         ...workspace,
         label: props.collapsed ? undefined : workspace.label,
-        trailingIcon: props.collapsed ? undefined : 'i-material-symbols:unfold-more-rounded',
+        trailingIcon: props.collapsed ? undefined : icons.unfoldMore,
       }"
       color="neutral"
       variant="ghost"

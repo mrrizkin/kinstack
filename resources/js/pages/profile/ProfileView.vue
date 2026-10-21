@@ -4,6 +4,7 @@ import { Head } from "@inertiajs/vue3";
 import AppPageHeader from "@/components/AppPageHeader.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
+import { icons } from "@/lib/icons";
 
 import ProfilePanel from "./components/ProfilePanel.vue";
 import { useProfileForm } from "./composables/useProfileForm";
@@ -26,7 +27,7 @@ const { profileForm, fieldError, formError, submitProfile } = useProfileForm(pro
     </template>
 
     <template #body>
-      <UAlert v-if="formError" color="error" variant="subtle" icon="i-bi-x-circle" :title="formError" class="mb-4" />
+      <UAlert v-if="formError" color="error" variant="subtle" :icon="icons.error" :title="formError" class="mb-4" />
 
       <ProfilePanel
         :profile="profile"

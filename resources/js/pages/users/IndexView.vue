@@ -6,6 +6,7 @@ import AppPageHeader from "@/components/AppPageHeader.vue";
 import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { icons } from "@/lib/icons";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 import { useTableView } from "@/lib/table-view";
 
@@ -59,13 +60,13 @@ const view = useTableView(
 const emptyActions = computed(() => {
   const actions: { label: string; icon: string; onClick: () => void }[] = [];
   if (can(PERMISSIONS.usersManage)) {
-    actions.push({ label: "Add user", icon: "i-bi-person-plus", onClick: () => (showCreate.value = true) });
-    actions.push({ label: "Invite user", icon: "i-bi-envelope-plus", onClick: () => (showInvite.value = true) });
+    actions.push({ label: "Add user", icon: icons.userAdd, onClick: () => (showCreate.value = true) });
+    actions.push({ label: "Invite user", icon: icons.invite, onClick: () => (showInvite.value = true) });
   } else if (can(PERMISSIONS.accessManage)) {
-    actions.push({ label: "Open access", icon: "i-bi-shield-lock", onClick: () => router.visit("/access") });
+    actions.push({ label: "Open access", icon: icons.access, onClick: () => router.visit("/access") });
   }
   if (actions.length === 0) {
-    actions.push({ label: "Back to dashboard", icon: "i-bi-arrow-left", onClick: () => router.visit("/dashboard") });
+    actions.push({ label: "Back to dashboard", icon: icons.arrowLeft, onClick: () => router.visit("/dashboard") });
   }
   return actions;
 });
@@ -84,7 +85,7 @@ const emptyActions = computed(() => {
               :to="`/access`"
               color="neutral"
               variant="outline"
-              icon="i-bi-shield-lock"
+              :icon="icons.access"
               size="sm"
               label="Access" />
             <UButton
@@ -92,7 +93,7 @@ const emptyActions = computed(() => {
               @click="showInvite = !showInvite"
               color="neutral"
               variant="outline"
-              icon="i-bi-envelope-plus"
+              :icon="icons.invite"
               size="sm">
               Invite
             </UButton>
@@ -109,13 +110,7 @@ const emptyActions = computed(() => {
             class="md:hidden"
             :items="[headerActions]"
             :content="{ align: 'end', collisionPadding: 12 }">
-            <UButton
-              icon="i-material-symbols:more-vert"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              square
-              aria-label="User actions" />
+            <UButton :icon="icons.more" color="neutral" variant="outline" size="sm" square aria-label="User actions" />
           </UDropdownMenu>
           <UButton
             v-else-if="headerActions.length === 1"

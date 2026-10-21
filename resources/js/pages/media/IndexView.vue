@@ -8,6 +8,7 @@ import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { fieldMessage } from "@/lib/errors";
 import { formatDateTime } from "@/lib/formatters";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
@@ -135,7 +136,7 @@ function isImage(contentType: string) {
           <div v-if="canManage">
             <UButton
               color="primary"
-              icon="i-bi-cloud-arrow-up"
+              :icon="icons.upload"
               label="Upload file"
               :loading="form.processing"
               @click="pickFile" />
@@ -155,7 +156,7 @@ function isImage(contentType: string) {
             @dragleave.prevent="dragging = false"
             @drop.prevent="onDrop">
             <input ref="fileInput" type="file" class="hidden" :accept="ACCEPTED" @change="onFile" />
-            <UIcon name="i-material-symbols:cloud-upload-outline-rounded" class="text-muted mx-auto size-8" />
+            <UIcon :name="icons.cloudUpload" class="text-muted mx-auto size-8" />
             <p class="text-highlighted mt-3 text-sm font-medium">Drag a file here or click to choose one</p>
             <p class="text-muted mt-1 text-xs">{{ ACCEPTED_LABEL }}</p>
             <div
@@ -170,7 +171,7 @@ function isImage(contentType: string) {
 
         <UEmpty
           v-if="props.assets.length === 0"
-          icon="i-bi-images"
+          :icon="icons.media"
           title="No files yet."
           :description="
             canManage ? 'Upload an image, PDF, text, or CSV file to get started.' : 'No files have been uploaded yet.'
@@ -178,8 +179,8 @@ function isImage(contentType: string) {
           variant="naked"
           :actions="
             canManage
-              ? [{ label: 'Upload a file', icon: 'i-bi-cloud-arrow-up', onClick: pickFile }]
-              : [{ label: 'Back to dashboard', icon: 'i-bi-arrow-left', to: '/dashboard' }]
+              ? [{ label: 'Upload a file', icon: icons.upload, onClick: pickFile }]
+              : [{ label: 'Back to dashboard', icon: icons.arrowLeft, to: '/dashboard' }]
           "
           class="py-12" />
 
@@ -191,7 +192,7 @@ function isImage(contentType: string) {
                 :src="asset.url"
                 :alt="asset.filename"
                 class="h-full w-full object-cover" />
-              <UIcon v-else name="i-bi-file-earmark-text" class="text-muted size-10" />
+              <UIcon v-else :name="icons.file" class="text-muted size-10" />
             </div>
             <div class="space-y-1 p-4">
               <p class="text-highlighted truncate text-sm font-medium" :title="asset.filename">
@@ -206,14 +207,14 @@ function isImage(contentType: string) {
                   size="xs"
                   color="neutral"
                   variant="outline"
-                  icon="i-bi-download"
+                  :icon="icons.download"
                   label="Open" />
                 <UButton
                   v-if="canManage"
                   size="xs"
                   color="error"
                   variant="outline"
-                  icon="i-bi-trash"
+                  :icon="icons.delete"
                   label="Delete"
                   :loading="deleting && deleteTarget?.public_id === asset.public_id"
                   @click="remove(asset)" />

@@ -12,6 +12,7 @@ import AppCellStack from "@/components/cells/AppCellStack.vue";
 import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { icons } from "@/lib/icons";
 import { useTableView } from "@/lib/table-view";
 
 import { actionLabel, createAuditColumns, type Entry, outcomeColor, outcomeLabel, statusColor } from "./columns";
@@ -108,8 +109,8 @@ function validateFilters(): boolean {
 
 const emptyActions = computed(() =>
   hasFilters.value
-    ? [{ label: "Reset filters", icon: "i-bi-arrow-counterclockwise", onClick: resetFilters }]
-    : [{ label: "Back to dashboard", icon: "i-bi-arrow-left", to: "/dashboard" }],
+    ? [{ label: "Reset filters", icon: icons.reset, onClick: resetFilters }]
+    : [{ label: "Back to dashboard", icon: icons.arrowLeft, to: "/dashboard" }],
 );
 
 function applyFilters() {
@@ -194,7 +195,7 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
                 label="Reset"
                 :disabled="applying"
                 @click="resetFilters" />
-              <UButton type="submit" color="primary" icon="i-bi-funnel" label="Apply" :loading="applying" />
+              <UButton type="submit" color="primary" :icon="icons.filter" label="Apply" :loading="applying" />
             </div>
           </form>
         </UCard>
@@ -203,7 +204,7 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
           <UTable :data="entries" :columns="view.columns" class="w-full">
             <template #empty>
               <UEmpty
-                icon="i-bi-journal-text"
+                :icon="icons.audit"
                 :title="hasFilters ? 'No matching audit entries.' : 'No audit entries yet.'"
                 :description="
                   hasFilters
@@ -251,7 +252,7 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
           </AppMobileList>
           <UEmpty
             v-else
-            icon="i-bi-journal-text"
+            :icon="icons.audit"
             :title="hasFilters ? 'No matching audit entries.' : 'No audit entries yet.'"
             :description="
               hasFilters ? 'Try a different search or reset the filters.' : 'Activity will appear here as users work.'

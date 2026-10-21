@@ -4,6 +4,7 @@ import { computed, useTemplateRef } from "vue";
 
 import type { DateRangeInput } from "@/lib/date";
 import { fromCalendarDate, toCalendarDate } from "@/lib/date";
+import { icons } from "@/lib/icons";
 
 interface Props {
   /** When `true`, the model is a `{ start, end }` range instead of a single date. */
@@ -33,7 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   readonly: false,
   required: false,
-  icon: "i-bi-calendar",
+  icon: icons.calendar,
   locale: "en-US",
 });
 

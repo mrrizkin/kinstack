@@ -6,6 +6,7 @@ import { useI18n } from "vue-i18n";
 
 import AppLogo from "@/components/AppLogo.vue";
 import AppUserMenu from "@/components/AppUserMenu.vue";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 
 interface SettingsNavItem {
@@ -35,17 +36,17 @@ const groups = computed<SettingsNavGroup[]>(() => {
     {
       label: t("shell.settings.nav.profile"),
       to: "/profile",
-      icon: "i-material-symbols:person-outline-rounded",
+      icon: icons.account,
     },
     {
       label: t("shell.settings.nav.security"),
       to: "/profile/security",
-      icon: "i-material-symbols:shield-lock-outline-rounded",
+      icon: icons.access,
     },
     {
       label: t("shell.settings.nav.preferences"),
       to: "/profile/preferences",
-      icon: "i-material-symbols:tune-rounded",
+      icon: icons.preferences,
     },
   ];
 
@@ -54,14 +55,14 @@ const groups = computed<SettingsNavGroup[]>(() => {
     access.push({
       label: t("shell.settings.nav.passkeys"),
       to: "/passkeys",
-      icon: "i-material-symbols:passkey-rounded",
+      icon: icons.passkey,
     });
   }
   if (authMethods.value.api_token) {
     access.push({
       label: t("shell.settings.nav.apiTokens"),
       to: "/api-tokens",
-      icon: "i-material-symbols:key-outline-rounded",
+      icon: icons.key,
     });
   }
 
@@ -79,7 +80,7 @@ const links = computed<NavigationMenuItem[]>(() => {
   const items: NavigationMenuItem[] = [
     {
       label: t("shell.settings.back"),
-      icon: "i-material-symbols:arrow-back-rounded",
+      icon: icons.arrowLeft,
       to: "/dashboard",
       onSelect: () => {
         sidebarOpen.value = false;

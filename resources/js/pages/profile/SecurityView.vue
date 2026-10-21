@@ -4,6 +4,7 @@ import { Head } from "@inertiajs/vue3";
 import AppPageHeader from "@/components/AppPageHeader.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
+import { icons } from "@/lib/icons";
 
 import SecurityPanel from "./components/SecurityPanel.vue";
 import { useSecurityForms } from "./composables/useSecurityForms";
@@ -51,7 +52,7 @@ const {
     </template>
 
     <template #body>
-      <UAlert v-if="formError" color="error" variant="subtle" icon="i-bi-x-circle" :title="formError" class="mb-4" />
+      <UAlert v-if="formError" color="error" variant="subtle" :icon="icons.error" :title="formError" class="mb-4" />
 
       <SecurityPanel
         v-model:pending-session="pendingSession"

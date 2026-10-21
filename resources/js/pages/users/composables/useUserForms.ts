@@ -3,6 +3,7 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed, ref } from "vue";
 
 import { useServerErrors } from "@/lib/errors";
+import { icons } from "@/lib/icons";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 import type { Role, User } from "../columns";
@@ -45,21 +46,21 @@ export function useUserForms(props: UsersProps) {
     if (can(PERMISSIONS.accessManage)) {
       actions.push({
         label: "Access",
-        icon: "i-bi-shield-lock",
+        icon: icons.access,
         to: "/access",
       });
     }
     if (can(PERMISSIONS.usersManage)) {
       actions.push({
         label: "Invite",
-        icon: "i-bi-envelope-plus",
+        icon: icons.invite,
         onSelect: () => {
           showInvite.value = !showInvite.value;
         },
       });
       actions.push({
         label: showCreate.value ? "Close" : "Add user",
-        icon: showCreate.value ? "i-bi-x-lg" : "i-bi-person-plus",
+        icon: showCreate.value ? icons.close : icons.userAdd,
         onSelect: () => {
           showCreate.value = !showCreate.value;
         },
@@ -150,13 +151,13 @@ export function useUserForms(props: UsersProps) {
     return [
       {
         label: "Reset password",
-        icon: "i-bi-key",
+        icon: icons.key,
         disabled: busy,
         onSelect: () => resetPassword(user),
       },
       {
         label: user.is_active ? "Deactivate" : "Activate",
-        icon: user.is_active ? "i-bi-person-x" : "i-bi-person-check",
+        icon: user.is_active ? icons.userDeactivate : icons.userActivate,
         color: user.is_active ? "error" : "success",
         loading: busy,
         disabled: busy,

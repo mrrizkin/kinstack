@@ -5,6 +5,7 @@ import { computed } from "vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
@@ -53,35 +54,35 @@ const quickLinks: QuickLink[] = [
     label: "Users",
     description: "Accounts, invitations, roles, and user activity status.",
     to: "/users",
-    icon: "i-material-symbols:group-outline-rounded",
+    icon: icons.users,
     permission: PERMISSIONS.usersView,
   },
   {
     label: "Access",
     description: "Roles, permissions, and custom permissions for individual users.",
     to: "/access",
-    icon: "i-material-symbols:shield-lock-outline-rounded",
+    icon: icons.access,
     permission: PERMISSIONS.accessManage,
   },
   {
     label: "Audit",
     description: "Activity trail and system changes.",
     to: "/audit",
-    icon: "i-material-symbols:history-rounded",
+    icon: icons.audit,
     permission: PERMISSIONS.auditView,
   },
   {
     label: "Media",
     description: "Files and images uploaded to storage.",
     to: "/media",
-    icon: "i-material-symbols:image-outline-rounded",
+    icon: icons.media,
     permission: PERMISSIONS.mediaView,
   },
   {
     label: "Notifications",
     description: "Notification center and recent activity.",
     to: "/notifications",
-    icon: "i-material-symbols:notifications-outline-rounded",
+    icon: icons.notifications,
   },
 ];
 
@@ -102,7 +103,7 @@ const metricCards = computed(() => {
       label: "Users",
       value: String(props.metrics.users_total ?? 0),
       hint: `${props.metrics.users_active ?? 0} active`,
-      icon: "i-material-symbols:group-outline-rounded",
+      icon: icons.users,
       to: "/users",
       permission: PERMISSIONS.usersView,
     },
@@ -110,7 +111,7 @@ const metricCards = computed(() => {
       label: "Access roles",
       value: String(props.metrics.roles_total ?? 0),
       hint: "registered roles",
-      icon: "i-material-symbols:shield-lock-outline-rounded",
+      icon: icons.access,
       to: "/access",
       permission: PERMISSIONS.accessManage,
     },
@@ -118,7 +119,7 @@ const metricCards = computed(() => {
       label: "Audit (24h)",
       value: String(props.metrics.audit_24h ?? 0),
       hint: "recent activity",
-      icon: "i-material-symbols:history-rounded",
+      icon: icons.audit,
       to: "/audit",
       permission: PERMISSIONS.auditView,
     },
@@ -129,7 +130,7 @@ const metricCards = computed(() => {
         label: "My media",
         value: String(props.metrics.media_total ?? 0),
         hint: "stored files",
-        icon: "i-material-symbols:image-outline-rounded",
+        icon: icons.media,
         to: "/media",
         permission: PERMISSIONS.mediaView,
       },
@@ -137,7 +138,7 @@ const metricCards = computed(() => {
         label: "Notifications",
         value: String(props.metrics.notifications_unread ?? 0),
         hint: "unread",
-        icon: "i-material-symbols:notifications-outline-rounded",
+        icon: icons.notifications,
         to: "/notifications",
         permission: "",
       },
@@ -172,22 +173,10 @@ const metricCards = computed(() => {
             </div>
             <div class="flex flex-wrap items-center gap-2">
               <UBadge color="neutral" variant="subtle" size="sm">{{ roleLabel }}</UBadge>
-              <UBadge
-                v-if="isSuperuser"
-                color="warning"
-                variant="subtle"
-                size="sm"
-                icon="i-material-symbols:shield-outline-rounded">
+              <UBadge v-if="isSuperuser" color="warning" variant="subtle" size="sm" :icon="icons.security">
                 Super admin access
               </UBadge>
-              <UBadge
-                v-else
-                color="success"
-                variant="subtle"
-                size="sm"
-                icon="i-material-symbols:check-circle-outline-rounded">
-                Active session
-              </UBadge>
+              <UBadge v-else color="success" variant="subtle" size="sm" :icon="icons.success"> Active session </UBadge>
             </div>
           </div>
         </UCard>
@@ -230,7 +219,7 @@ const metricCards = computed(() => {
                     <p class="text-highlighted font-medium">{{ link.label }}</p>
                     <p class="text-muted mt-1 text-xs leading-5">{{ link.description }}</p>
                   </div>
-                  <UIcon name="i-material-symbols:arrow-outward-rounded" class="text-dimmed size-4 shrink-0" />
+                  <UIcon :name="icons.external" class="text-dimmed size-4 shrink-0" />
                 </div>
               </UCard>
             </ULink>
@@ -241,7 +230,7 @@ const metricCards = computed(() => {
           v-if="isSuperuser"
           color="warning"
           variant="subtle"
-          icon="i-material-symbols:shield-outline-rounded"
+          :icon="icons.security"
           title="Super admin mode"
           description="This super admin account is not linked to a user profile. Profile settings, passkeys, and API tokens are unavailable; use the Users menu to manage other accounts." />
       </div>

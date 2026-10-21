@@ -7,6 +7,7 @@ import AppCellSelect from "@/components/cells/AppCellSelect.vue";
 import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
 import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
+import { icons } from "@/lib/icons";
 import type { TableView } from "@/lib/table-view";
 
 import type { User } from "../columns";
@@ -27,7 +28,7 @@ defineProps<{
     <UTable :data="users" :columns="view.columns" class="w-full">
       <template #empty>
         <UEmpty
-          icon="i-bi-people"
+          :icon="icons.users"
           title="No users yet."
           description="Add a user or send an invitation to get started."
           variant="naked"
@@ -52,7 +53,7 @@ defineProps<{
             <AppStatusBadgeCell :active="user.is_active" />
             <UDropdownMenu :items="[menuItems(user)]" :content="{ align: 'end', collisionPadding: 12 }">
               <UButton
-                icon="i-material-symbols:more-vert"
+                :icon="icons.more"
                 color="neutral"
                 variant="ghost"
                 size="xs"
@@ -83,7 +84,7 @@ defineProps<{
     </AppMobileList>
     <UEmpty
       v-else
-      icon="i-bi-people"
+      :icon="icons.users"
       title="No users yet."
       description="Add a user or send an invitation to get started."
       variant="naked"

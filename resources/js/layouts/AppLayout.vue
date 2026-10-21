@@ -8,6 +8,7 @@ import AppNotificationsSlideover from "@/components/AppNotificationsSlideover.vu
 import AppUserMenu from "@/components/AppUserMenu.vue";
 import AppWorkspaceMenu from "@/components/AppWorkspaceMenu.vue";
 import { notificationsOpen } from "@/lib/dashboard";
+import { icons } from "@/lib/icons";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 interface NavigationItem {
@@ -34,7 +35,7 @@ const primaryNavigation = computed<NavigationGroup[]>(() => [
       {
         label: t("shell.nav.dashboard"),
         path: "/dashboard",
-        icon: "i-material-symbols:dashboard-outline-rounded",
+        icon: icons.dashboard,
       },
     ],
   },
@@ -44,13 +45,13 @@ const primaryNavigation = computed<NavigationGroup[]>(() => [
       {
         label: t("shell.nav.users"),
         path: "/users",
-        icon: "i-material-symbols:group-outline-rounded",
+        icon: icons.users,
         permission: PERMISSIONS.usersView,
       },
       {
         label: t("shell.nav.access"),
         path: "/access",
-        icon: "i-material-symbols:shield-lock-outline-rounded",
+        icon: icons.access,
         permission: PERMISSIONS.accessManage,
       },
     ],
@@ -61,19 +62,19 @@ const primaryNavigation = computed<NavigationGroup[]>(() => [
       {
         label: t("shell.nav.audit"),
         path: "/audit",
-        icon: "i-material-symbols:history-rounded",
+        icon: icons.audit,
         permission: PERMISSIONS.auditView,
       },
       {
         label: t("shell.nav.media"),
         path: "/media",
-        icon: "i-material-symbols:image-outline-rounded",
+        icon: icons.media,
         permission: PERMISSIONS.mediaView,
       },
       {
         label: t("shell.nav.notifications"),
         path: "/notifications",
-        icon: "i-material-symbols:notifications-outline-rounded",
+        icon: icons.notifications,
       },
     ],
   },
@@ -131,7 +132,7 @@ const links = computed<NavigationMenuItem[][]>(() => {
     [
       {
         label: t("shell.settings.title"),
-        icon: "i-material-symbols:settings-outline-rounded",
+        icon: icons.settings,
         to: "/profile",
         onSelect: () => {
           sidebarOpen.value = false;
@@ -139,7 +140,7 @@ const links = computed<NavigationMenuItem[][]>(() => {
       },
       {
         label: t("shell.help"),
-        icon: "i-material-symbols:help-outline-rounded",
+        icon: icons.help,
         to: "/help",
         onSelect: () => {
           sidebarOpen.value = false;
@@ -172,7 +173,7 @@ const searchGroups = computed<{ id: string; label: string; items: CommandGroupIt
       items: [
         {
           label: t("shell.help"),
-          icon: "i-material-symbols:help-outline-rounded",
+          icon: icons.help,
           to: "/help",
         },
       ],

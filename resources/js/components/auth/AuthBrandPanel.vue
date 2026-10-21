@@ -2,6 +2,8 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { icons } from "@/lib/icons";
+
 const { t } = useI18n();
 const features = computed(() => [
   t("shell.brand.featureRbac"),
@@ -40,7 +42,7 @@ const year = new Date().getFullYear();
         <ul class="mt-8 space-y-3">
           <li v-for="feature in features" :key="feature" class="flex items-center gap-3 text-sm">
             <span class="grid size-5 shrink-0 place-items-center rounded-full bg-white/10">
-              <UIcon name="i-material-symbols:check-rounded" class="size-3.5" />
+              <UIcon :name="icons.check" class="size-3.5" />
             </span>
             <span class="text-neutral-300">{{ feature }}</span>
           </li>

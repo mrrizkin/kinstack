@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import { formatDateTime } from "@/lib/formatters";
+import { icons } from "@/lib/icons";
 
 import type {
   ActiveSession,
@@ -68,7 +69,7 @@ defineProps<{
         class="mt-4"
         color="info"
         variant="subtle"
-        icon="i-bi-envelope-check"
+        :icon="icons.invite"
         title="Invited account"
         description="You have been invited to join. Set a password to fully activate your account." />
       <form class="mt-4 space-y-4" @submit.prevent="submitPassword">
@@ -91,7 +92,7 @@ defineProps<{
             type="submit"
             color="primary"
             label="Save password"
-            icon="i-bi-shield-lock"
+            :icon="icons.access"
             :loading="passwordForm.processing" />
         </div>
       </form>
@@ -101,7 +102,7 @@ defineProps<{
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 class="text-highlighted flex items-center gap-2 text-sm font-semibold">
-            <UIcon name="i-bi-shield-check" />
+            <UIcon :name="icons.shieldCheck" />
             Two-step verification (2FA)
             <UBadge :color="twoFactor.enabled ? 'success' : 'neutral'" variant="subtle" size="sm">
               {{ twoFactor.enabled ? "Active" : "Inactive" }}
@@ -116,7 +117,7 @@ defineProps<{
           type="button"
           color="primary"
           size="xs"
-          icon="i-bi-qr-code"
+          :icon="icons.qrCode"
           label="Enable 2FA"
           :loading="beginningTwoFactor"
           @click="beginTwoFactor" />
@@ -126,7 +127,7 @@ defineProps<{
         <UAlert
           color="warning"
           variant="subtle"
-          icon="i-bi-exclamation-triangle"
+          :icon="icons.warning"
           title="Save these recovery codes now"
           description="Each code can only be used once and will not be shown again." />
         <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
@@ -165,7 +166,7 @@ defineProps<{
             type="submit"
             color="primary"
             size="sm"
-            icon="i-bi-check2"
+            :icon="icons.check"
             label="Confirm"
             :loading="twoFactorForm.processing" />
         </form>
@@ -182,7 +183,7 @@ defineProps<{
             color="neutral"
             variant="outline"
             size="sm"
-            icon="i-bi-arrow-repeat"
+            :icon="icons.loading"
             label="Regenerate"
             :loading="twoFactorPasswordForm.processing" />
         </form>
@@ -196,7 +197,7 @@ defineProps<{
             color="error"
             variant="outline"
             size="sm"
-            icon="i-bi-shield-slash"
+            :icon="icons.shieldOff"
             label="Disable"
             :loading="disablingTwoFactor || twoFactorPasswordForm.processing" />
         </form>
@@ -215,7 +216,7 @@ defineProps<{
           size="xs"
           color="error"
           variant="outline"
-          icon="i-bi-box-arrow-right"
+          :icon="icons.logout"
           label="Sign out other sessions"
           @click="revokeOtherSessions" />
       </div>
@@ -226,7 +227,7 @@ defineProps<{
           class="flex flex-wrap items-center justify-between gap-3 py-3">
           <div class="min-w-0">
             <p class="text-highlighted flex items-center gap-2 text-sm font-medium">
-              <UIcon name="i-bi-display" class="text-muted shrink-0" />
+              <UIcon :name="icons.system" class="text-muted shrink-0" />
               <span class="truncate">{{ item.user_agent || "Unknown device" }}</span>
               <UBadge v-if="item.current" color="primary" variant="subtle" size="sm">This session</UBadge>
             </p>

@@ -6,6 +6,7 @@ import AppTableCard from "@/components/AppTableCard.vue";
 import AppCellSelect from "@/components/cells/AppCellSelect.vue";
 import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
 import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
+import { icons } from "@/lib/icons";
 import type { TableView } from "@/lib/table-view";
 
 import type { UserAccess } from "../types";
@@ -26,17 +27,17 @@ defineProps<{
     <UAlert
       color="neutral"
       variant="subtle"
-      icon="i-bi-info-circle"
+      :icon="icons.info"
       description="Custom permissions add (allow) or remove (deny) a single permission for a specific user. Deny always takes precedence over roles." />
     <AppTableCard :view="view" class="hidden md:block">
       <UTable :data="users" :columns="view.columns" class="w-full">
         <template #empty>
           <UEmpty
-            icon="i-bi-people"
+            :icon="icons.users"
             title="No users yet."
             description="Create a user account before adding custom permissions."
             variant="naked"
-            :actions="[{ label: 'Open users', to: '/users', icon: 'i-bi-people' }]"
+            :actions="[{ label: 'Open users', to: '/users', icon: icons.users }]"
             class="py-6" />
         </template>
       </UTable>
@@ -53,7 +54,7 @@ defineProps<{
               <AppStatusBadgeCell :active="user.is_active" />
               <UDropdownMenu :items="[menuItems(user)]" :content="{ align: 'end', collisionPadding: 12 }">
                 <UButton
-                  icon="i-material-symbols:more-vert"
+                  :icon="icons.more"
                   color="neutral"
                   variant="ghost"
                   size="xs"
@@ -81,11 +82,11 @@ defineProps<{
       </AppMobileList>
       <UEmpty
         v-else
-        icon="i-bi-people"
+        :icon="icons.users"
         title="No users yet."
         description="Create a user account before adding custom permissions."
         variant="naked"
-        :actions="[{ label: 'Open users', to: '/users', icon: 'i-bi-people' }]"
+        :actions="[{ label: 'Open users', to: '/users', icon: icons.users }]"
         class="py-10" />
     </div>
   </div>
