@@ -26,6 +26,7 @@ jobs:
       # Database-backed tests (identity bindings, batched authorization
       # queries, audit pruning) run against the migrated service above.
       DATABASE_URL: postgres://kinstack:kinstack@localhost:5433/kinstack?sslmode=disable
+      KINSTACK_MIGRATION_ROLLBACK_DATABASE_URL: postgres://kinstack:kinstack@localhost:5433/kinstack_rollback?sslmode=disable
       APP_ENV: test
     steps:
       - uses: actions/checkout@v7
@@ -33,7 +34,7 @@ jobs:
         with:
           go-version: "1.27.x"
       - uses: oven-sh/setup-bun@v2
-      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - run: sudo apt-get update && sudo apt-get install -y ripgrep postgresql-client
       # The Go build embeds assets/emails/dist, which vite build generates.
       - run: bun install --frozen-lockfile
       - run: bun x vite build
@@ -43,6 +44,8 @@ jobs:
       - name: go format
         run: ./scripts/check-go-format.sh
       - run: go run ./cmd/migrate up
+      - name: create rollback database
+        run: PGPASSWORD=kinstack psql -h localhost -p 5433 -U kinstack -d postgres -c 'CREATE DATABASE kinstack_rollback'
       - run: go test -race ./...
 
       - run: ./scripts/check-feature-slices.sh

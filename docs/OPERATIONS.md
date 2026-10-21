@@ -54,6 +54,20 @@ After restoring, run `just migrate-status` and test login and `/dashboard`.
 Valkey stores sessions, lockouts, and temporary state. Losing it forces users to
 sign in again.
 
+## Migration rollback test
+
+`TestMigrationLatestRollbackRoundTrip` applies and reverses every migration. It
+is skipped unless `KINSTACK_MIGRATION_ROLLBACK_DATABASE_URL` points at a
+disposable database:
+
+```bash
+PGPASSWORD=kinstack createdb -h localhost -p 5433 -U kinstack kinstack_rollback
+export KINSTACK_MIGRATION_ROLLBACK_DATABASE_URL="postgres://kinstack:kinstack@localhost:5433/kinstack_rollback?sslmode=disable"
+just test-go
+```
+
+The test drops and recreates the schema; never point it at data you want to keep.
+
 ## Observability
 
 Error tracking, analytics, and server telemetry are opt-in. Each integration
