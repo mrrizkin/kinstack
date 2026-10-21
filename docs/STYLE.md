@@ -91,7 +91,7 @@ guarantee.
 - Reuse existing components. Wrap a Nuxt UI component only when the wrapper adds
   behavior or removes duplication.
 - Around 300 lines per component is a review signal, not a gate.
-- Route user-facing copy through the i18n boundary, in English.
+- Server messages and flashes go through `internal/platform/i18n`; client shell copy lives in `resources/js/i18n`; page copy is written in English.
 
 ## Documentation
 
