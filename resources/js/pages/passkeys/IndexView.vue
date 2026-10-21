@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { z } from "zod";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
-import AppPageHeader from "@/components/AppPageHeader.vue";
+import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
 import { passkeyOptionsSchema, passkeySummarySchema } from "@/lib/contracts/passkeys";
@@ -14,7 +15,7 @@ import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { createPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
-defineOptions({ layout: [BaseLayout, SettingsLayout] });
+defineOptions({ layout: [BaseLayout, AppLayout, SettingsLayout] });
 
 interface Passkey {
   id: string;
@@ -26,6 +27,7 @@ interface Passkey {
 const props = defineProps<{ passkeys: Passkey[] }>();
 
 const { csrfToken } = usePageProps();
+const { t } = useI18n();
 const passkeys = ref([...props.passkeys]);
 const name = ref("This device");
 const nameError = ref("");
@@ -100,72 +102,63 @@ const emptyActions = computed(() =>
 </script>
 
 <template>
-  <Head title="Passkeys" />
-  <UDashboardPanel id="passkeys">
-    <template #header>
-      <AppPageHeader
-        title="Passkeys"
-        description="Sign in without a password using your fingerprint, face, or device PIN." />
-    </template>
+  <Head :title="t('shell.settings.sections.passkeys.title')" />
 
-    <template #body>
-      <div class="space-y-6">
-        <UAlert v-if="message" color="success" variant="subtle" :icon="icons.success" :title="message" />
-        <UAlert v-if="error" color="error" variant="subtle" :icon="icons.alert" :title="error" />
+  <div class="space-y-6">
+    <UAlert v-if="message" color="success" variant="subtle" :icon="icons.success" :title="message" />
+    <UAlert v-if="error" color="error" variant="subtle" :icon="icons.alert" :title="error" />
 
-        <UCard>
-          <UEmpty
-            v-if="passkeys.length === 0"
-            :icon="icons.passkey"
-            title="No passkeys yet."
-            description="Add a passkey to sign in with your fingerprint, face, or device PIN."
-            variant="naked"
-            :actions="emptyActions"
-            class="py-8" />
-          <ul v-else class="divide-default divide-y">
-            <li
-              v-for="passkey in passkeys"
-              :key="passkey.id"
-              class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div class="min-w-0">
-                <p class="text-highlighted truncate font-medium">{{ passkey.name }}</p>
-                <p class="text-muted mt-1 text-xs">
-                  Added {{ formatDateTime(passkey.created_at) }}
-                  <span v-if="passkey.last_used_at"> · Last used {{ formatDateTime(passkey.last_used_at) }}</span>
-                </p>
-              </div>
-              <UButton
-                color="error"
-                variant="outline"
-                size="xs"
-                :icon="icons.delete"
-                :loading="revoking === passkey.id"
-                @click="revokePasskey(passkey)">
-                Revoke
-              </UButton>
-            </li>
-          </ul>
-        </UCard>
-
-        <UCard>
-          <div class="space-y-4">
-            <UFormField label="Passkey name" :error="nameError || undefined">
-              <UInput v-model="name" maxlength="80" placeholder="e.g. Work laptop" class="w-full" />
-            </UFormField>
-            <UButton
-              color="primary"
-              :icon="icons.passkey"
-              :loading="saving"
-              :disabled="!supported || saving"
-              @click="addPasskey">
-              Add passkey
-            </UButton>
-            <p v-if="!supported" class="text-muted text-xs">This browser does not support passkeys.</p>
+    <UCard>
+      <UEmpty
+        v-if="passkeys.length === 0"
+        :icon="icons.passkey"
+        title="No passkeys yet."
+        description="Add a passkey to sign in with your fingerprint, face, or device PIN."
+        variant="naked"
+        :actions="emptyActions"
+        class="py-8" />
+      <ul v-else class="divide-default divide-y">
+        <li
+          v-for="passkey in passkeys"
+          :key="passkey.id"
+          class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0">
+            <p class="text-highlighted truncate font-medium">{{ passkey.name }}</p>
+            <p class="text-muted mt-1 text-xs">
+              Added {{ formatDateTime(passkey.created_at) }}
+              <span v-if="passkey.last_used_at"> · Last used {{ formatDateTime(passkey.last_used_at) }}</span>
+            </p>
           </div>
-        </UCard>
+          <UButton
+            color="error"
+            variant="outline"
+            size="xs"
+            :icon="icons.delete"
+            :loading="revoking === passkey.id"
+            @click="revokePasskey(passkey)">
+            Revoke
+          </UButton>
+        </li>
+      </ul>
+    </UCard>
+
+    <UCard>
+      <div class="space-y-4">
+        <UFormField label="Passkey name" :error="nameError || undefined">
+          <UInput v-model="name" maxlength="80" placeholder="e.g. Work laptop" class="w-full" />
+        </UFormField>
+        <UButton
+          color="primary"
+          :icon="icons.passkey"
+          :loading="saving"
+          :disabled="!supported || saving"
+          @click="addPasskey">
+          Add passkey
+        </UButton>
+        <p v-if="!supported" class="text-muted text-xs">This browser does not support passkeys.</p>
       </div>
-    </template>
-  </UDashboardPanel>
+    </UCard>
+  </div>
 
   <AppConfirmDialog
     :open="revokeTarget !== null"

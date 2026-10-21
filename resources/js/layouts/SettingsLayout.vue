@@ -1,135 +1,82 @@
 <script setup lang="ts">
+/**
+ * Settings section shell. Owns the settings `UDashboardPanel` so nested pages
+ * stay content-only and the section navigation never duplicates the main
+ * sidebar.
+ */
 import { usePage } from "@inertiajs/vue3";
 import type { NavigationMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
-import AppLogo from "@/components/AppLogo.vue";
-import AppUserMenu from "@/components/AppUserMenu.vue";
+import AppPageHeader from "@/components/AppPageHeader.vue";
 import { icons } from "@/lib/icons";
-import { usePageProps } from "@/lib/page-props";
-
-interface SettingsNavItem {
-  label: string;
-  to: string;
-  icon: string;
-}
-
-interface SettingsNavGroup {
-  label: string;
-  items: SettingsNavItem[];
-}
+import { normalizeSettingsPath, settingsNavOpen, useSettingsNav } from "@/lib/settings-nav";
 
 const page = usePage();
 const { t } = useI18n();
-const { authMethods } = usePageProps();
-const sidebarOpen = ref(false);
+const { groups, items } = useSettingsNav();
 
-const location = computed(() => {
-  const url = page.url ?? "/";
-  const [pathname = "/"] = url.split("?");
-  return pathname.replace(/\/+$/, "") || "/";
-});
+const location = computed(() => normalizeSettingsPath(page.url));
 
-const groups = computed<SettingsNavGroup[]>(() => {
-  const account: SettingsNavItem[] = [
-    {
-      label: t("shell.settings.nav.profile"),
-      to: "/profile",
-      icon: icons.account,
-    },
-    {
-      label: t("shell.settings.nav.security"),
-      to: "/profile/security",
-      icon: icons.access,
-    },
-    {
-      label: t("shell.settings.nav.preferences"),
-      to: "/profile/preferences",
-      icon: icons.preferences,
-    },
-  ];
+const current = computed(
+  () => items.value.find((item) => normalizeSettingsPath(item.to) === location.value) ?? items.value[0],
+);
 
-  const access: SettingsNavItem[] = [];
-  if (authMethods.value.passkey) {
-    access.push({
-      label: t("shell.settings.nav.passkeys"),
-      to: "/passkeys",
-      icon: icons.passkey,
-    });
-  }
-  if (authMethods.value.api_token) {
-    access.push({
-      label: t("shell.settings.nav.apiTokens"),
-      to: "/api-tokens",
-      icon: icons.key,
-    });
-  }
-
-  return [
-    { label: t("shell.settings.groups.account"), items: account },
-    ...(access.length > 0 ? [{ label: t("shell.settings.groups.access"), items: access }] : []),
-  ];
-});
-
-function isActive(item: SettingsNavItem): boolean {
-  return location.value === item.to;
-}
-
-const links = computed<NavigationMenuItem[]>(() => {
-  const items: NavigationMenuItem[] = [
-    {
-      label: t("shell.settings.back"),
-      icon: icons.arrowLeft,
-      to: "/dashboard",
+const links = computed<NavigationMenuItem[]>(() =>
+  groups.value.flatMap((group) => [
+    { type: "label", label: group.label },
+    ...group.items.map((item) => ({
+      label: item.label,
+      icon: item.icon,
+      to: item.to,
+      active: normalizeSettingsPath(item.to) === location.value,
       onSelect: () => {
-        sidebarOpen.value = false;
+        settingsNavOpen.value = false;
       },
-    },
-  ];
-  for (const group of groups.value) {
-    items.push({ type: "label", label: group.label });
-    items.push(
-      ...group.items.map((item) => ({
-        label: item.label,
-        icon: item.icon,
-        to: item.to,
-        active: isActive(item),
-        onSelect: () => {
-          sidebarOpen.value = false;
-        },
-      })),
-    );
-  }
-  return items;
-});
+    })),
+  ]),
+);
 </script>
 
 <template>
-  <UDashboardGroup id="settings" unit="rem" storage="local">
-    <UDashboardSidebar
-      id="settings"
-      v-model:open="sidebarOpen"
-      collapsible
-      resizable
-      :default-size="16"
-      :min-size="14"
-      :max-size="20"
-      class="bg-elevated/25"
-      :ui="{ footer: 'lg:border-t lg:border-default' }">
-      <template #header="{ collapsed }">
-        <AppLogo :compact="collapsed" />
-      </template>
+  <UDashboardPanel id="settings">
+    <template #header>
+      <AppPageHeader :title="current?.title ?? t('shell.settings.title')" :description="current?.description">
+        <template #leading>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :icon="icons.settings"
+            :aria-label="t('shell.settings.title')"
+            :title="t('shell.settings.title')"
+            class="lg:hidden"
+            @click="settingsNavOpen = true" />
+        </template>
+      </AppPageHeader>
+    </template>
 
-      <template #default="{ collapsed }">
-        <UNavigationMenu :collapsed="collapsed" :items="links" orientation="vertical" tooltip />
-      </template>
+    <template #body>
+      <div class="flex flex-col gap-6 lg:flex-row lg:gap-8">
+        <nav class="hidden lg:block lg:w-56 lg:shrink-0" :aria-label="t('shell.settings.title')">
+          <UNavigationMenu :items="links" orientation="vertical" />
+        </nav>
 
-      <template #footer="{ collapsed }">
-        <AppUserMenu :collapsed="collapsed" />
-      </template>
-    </UDashboardSidebar>
+        <div class="min-w-0 flex-1">
+          <slot />
+        </div>
+      </div>
+    </template>
+  </UDashboardPanel>
 
-    <slot />
-  </UDashboardGroup>
+  <UDrawer
+    v-model:open="settingsNavOpen"
+    direction="bottom"
+    :title="t('shell.settings.title')"
+    close
+    :ui="{ content: 'lg:hidden', body: 'p-0' }">
+    <template #body>
+      <UNavigationMenu :items="links" orientation="vertical" />
+    </template>
+  </UDrawer>
 </template>

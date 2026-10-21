@@ -6,7 +6,7 @@ import { join, relative } from "node:path";
  * Structural regression tests for the Inertia layout migration:
  *
  * - `UApp` lives only in `BaseLayout.vue`.
- * - each page declares the layout pair it needs via `defineOptions`.
+ * - each page declares the layout chain it needs via `defineOptions`.
  */
 const root = join(import.meta.dir, "..");
 const pagesDir = join(root, "pages");
@@ -86,7 +86,7 @@ describe("layout structure", () => {
     }
   });
 
-  test("settings pages use BaseLayout and SettingsLayout", () => {
+  test("settings pages nest under BaseLayout, AppLayout and SettingsLayout in that order", () => {
     for (const name of [
       "apitoken/IndexView.vue",
       "passkeys/IndexView.vue",
@@ -95,8 +95,10 @@ describe("layout structure", () => {
       "profile/PreferencesView.vue",
     ]) {
       const declaration = layoutDeclaration(page(name));
-      expect(declaration, name).toContain("BaseLayout");
-      expect(declaration, name).toContain("SettingsLayout");
+      const order = ["BaseLayout", "AppLayout", "SettingsLayout"].map((layout) => declaration.indexOf(layout));
+
+      expect(order, name).not.toContain(-1);
+      expect(order, name).toEqual([...order].sort((a, b) => a - b));
     }
   });
 
@@ -112,6 +114,34 @@ describe("layout structure", () => {
       expect(declaration, name).toContain("BaseLayout");
       expect(declaration, name).not.toContain("AppLayout");
       expect(declaration, name).not.toContain("PublicLayout");
+    }
+  });
+
+  test("only AppLayout renders the dashboard group and primary sidebar", () => {
+    const offenders = vueFiles(root)
+      .filter((file) => !relativeToResources(file).startsWith("pages/"))
+      .filter((file) => relativeToResources(file) !== "layouts/AppLayout.vue")
+      .filter((file) => /<UDashboard(Group|Sidebar)\b/.test(source(file)))
+      .map(relativeToResources);
+
+    expect(offenders).toEqual([]);
+  });
+
+  test("SettingsLayout owns the settings panel and its vertical navigation", () => {
+    const settings = source(join(layoutsDir, "SettingsLayout.vue"));
+    expect(settings).toMatch(/<UDashboardPanel\b/);
+    expect(settings).toContain('id="settings"');
+    expect(settings).toMatch(/<UNavigationMenu[^>]*orientation="vertical"/s);
+
+    for (const name of [
+      "apitoken/IndexView.vue",
+      "passkeys/IndexView.vue",
+      "profile/ProfileView.vue",
+      "profile/SecurityView.vue",
+      "profile/PreferencesView.vue",
+    ]) {
+      expect(source(page(name)), name).not.toMatch(/<UDashboardPanel\b/);
+      expect(source(page(name)), name).not.toMatch(/<AppPageHeader\b/);
     }
   });
 

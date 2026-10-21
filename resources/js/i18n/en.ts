@@ -23,10 +23,31 @@ export const messages = {
     },
     settings: {
       title: "Settings",
-      back: "Back to dashboard",
       groups: {
         account: "Account",
         access: "Access",
+      },
+      sections: {
+        profile: {
+          title: "Profile",
+          description: "Your account details and public profile.",
+        },
+        security: {
+          title: "Security",
+          description: "Password, two-step verification, and active sessions.",
+        },
+        preferences: {
+          title: "Preferences",
+          description: "Theme and notification preferences for your account.",
+        },
+        passkeys: {
+          title: "Passkeys",
+          description: "Sign in without a password using your fingerprint, face, or device PIN.",
+        },
+        apiTokens: {
+          title: "API tokens",
+          description: "Tokens for connecting integrations without a browser session.",
+        },
       },
       nav: {
         profile: "Profile",

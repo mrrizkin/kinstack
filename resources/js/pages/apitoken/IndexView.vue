@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, router, useForm } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
-import AppPageHeader from "@/components/AppPageHeader.vue";
+import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
 import { fieldMessage } from "@/lib/errors";
@@ -12,7 +13,7 @@ import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { permissionLabel } from "@/lib/permissions";
 
-defineOptions({ layout: [BaseLayout, SettingsLayout] });
+defineOptions({ layout: [BaseLayout, AppLayout, SettingsLayout] });
 
 interface APIToken {
   public_id: string;
@@ -27,6 +28,7 @@ interface APIToken {
 const props = defineProps<{ tokens: APIToken[]; created_token?: string }>();
 
 const { permissions } = usePageProps();
+const { t } = useI18n();
 
 const showCreate = ref(false);
 const copied = ref(false);
@@ -93,118 +95,108 @@ async function copyToken() {
 </script>
 
 <template>
-  <Head title="API tokens" />
-  <UDashboardPanel id="api-tokens">
-    <template #header>
-      <AppPageHeader title="API tokens" description="Tokens for connecting integrations without a browser session.">
-        <template #actions>
-          <UButton color="primary" :icon="icons.add" @click="showCreate = !showCreate"> New token </UButton>
-        </template>
-      </AppPageHeader>
-    </template>
+  <Head :title="t('shell.settings.sections.apiTokens.title')" />
 
-    <template #body>
-      <div class="space-y-6">
-        <UAlert v-if="hasCreated" color="success" variant="subtle" :icon="icons.key" title="Token created">
-          <template #description>
-            <p class="mb-2">Copy it now. This token is only shown once.</p>
-            <div class="space-y-1">
-              <div class="flex items-center gap-2">
-                <UInput :model-value="props.created_token" readonly class="w-full font-mono text-xs" />
-                <UButton :icon="copied ? icons.check : icons.copy" color="neutral" variant="outline" @click="copyToken">
-                  {{ copied ? "Copied" : "Copy" }}
-                </UButton>
-              </div>
-              <p v-if="copyError" class="text-error text-xs">{{ copyError }}</p>
-            </div>
-          </template>
-        </UAlert>
+  <div class="mb-4 flex justify-end">
+    <UButton color="primary" :icon="icons.add" @click="showCreate = !showCreate"> New token </UButton>
+  </div>
 
-        <UCard>
-          <div v-if="props.tokens.length === 0" class="flex flex-col items-center gap-3 py-10 text-center">
-            <UIcon :name="icons.key" class="text-dimmed size-8" />
-            <div>
-              <p class="text-highlighted text-sm font-medium">No API tokens yet.</p>
-              <p class="text-muted mt-1 text-xs">
-                Create a token for integrations that need to access the API without a browser session.
-              </p>
-            </div>
-            <UButton color="primary" size="sm" :icon="icons.add" @click="showCreate = true"> New token </UButton>
+  <div class="space-y-6">
+    <UAlert v-if="hasCreated" color="success" variant="subtle" :icon="icons.key" title="Token created">
+      <template #description>
+        <p class="mb-2">Copy it now. This token is only shown once.</p>
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <UInput :model-value="props.created_token" readonly class="w-full font-mono text-xs" />
+            <UButton :icon="copied ? icons.check : icons.copy" color="neutral" variant="outline" @click="copyToken">
+              {{ copied ? "Copied" : "Copy" }}
+            </UButton>
           </div>
-          <ul v-else class="divide-default divide-y">
-            <li
-              v-for="token in props.tokens"
-              :key="token.public_id"
-              class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div class="min-w-0">
-                <p class="text-highlighted truncate font-medium">{{ token.name }}</p>
-                <p class="text-muted font-mono text-xs">{{ token.prefix }}…</p>
-                <p class="text-muted mt-1 text-xs">
-                  Created {{ formatDateTime(token.created_at) }}
-                  <span v-if="token.last_used_at"> · Last used {{ formatDateTime(token.last_used_at) }}</span>
-                  <span v-else> · Never used</span>
-                  <span v-if="token.expires_at"> · Expires {{ formatDateTime(token.expires_at) }}</span>
-                </p>
-                <p v-if="token.scopes?.length" class="text-muted mt-1 text-xs">
-                  Permissions: {{ token.scopes.map(permissionLabel).join(", ") }}
-                </p>
-                <p v-else class="text-muted mt-1 text-xs">No permissions · no access</p>
-              </div>
-              <UButton
-                color="error"
-                variant="outline"
-                size="xs"
-                :icon="icons.delete"
-                :loading="revoking && revokeTarget?.public_id === token.public_id"
-                @click="revoke(token)">
-                Revoke
-              </UButton>
-            </li>
-          </ul>
-        </UCard>
-      </div>
+          <p v-if="copyError" class="text-error text-xs">{{ copyError }}</p>
+        </div>
+      </template>
+    </UAlert>
 
-      <USlideover
-        v-model:open="showCreate"
-        title="New token"
-        description="Give it a name so it is easy to recognize."
-        :ui="{ content: 'sm:max-w-md' }">
-        <template #body>
-          <form class="space-y-4" @submit.prevent="submitCreate">
-            <UFormField label="Name" :error="fieldMessage(createForm.errors.name)">
-              <UInput v-model="createForm.name" class="w-full" placeholder="e.g. CI pipeline" />
-            </UFormField>
-            <UFormField label="Expiry" :error="fieldMessage(createForm.errors.expires_in_days)">
-              <USelect v-model="createForm.expires_in_days" :items="expiryOptions" class="w-full" />
-            </UFormField>
-            <UFormField label="Permissions" :error="fieldMessage(createForm.errors.scopes)">
-              <div class="space-y-2">
-                <UCheckbox
-                  v-for="permission in permissions"
-                  :key="permission"
-                  :model-value="createForm.scopes.includes(permission)"
-                  :label="permissionLabel(permission)"
-                  @update:model-value="
-                    (checked: boolean | 'indeterminate') => toggleScope(permission, checked === true)
-                  " />
-                <p v-if="permissions.length === 0" class="text-muted text-xs">
-                  You do not have any permissions yet, so this token will not be able to access anything.
-                </p>
-              </div>
-            </UFormField>
-            <p class="text-muted text-xs">
-              The token can only use permissions you already have. Without selected permissions, the token has no
-              access.
+    <UCard>
+      <div v-if="props.tokens.length === 0" class="flex flex-col items-center gap-3 py-10 text-center">
+        <UIcon :name="icons.key" class="text-dimmed size-8" />
+        <div>
+          <p class="text-highlighted text-sm font-medium">No API tokens yet.</p>
+          <p class="text-muted mt-1 text-xs">
+            Create a token for integrations that need to access the API without a browser session.
+          </p>
+        </div>
+        <UButton color="primary" size="sm" :icon="icons.add" @click="showCreate = true"> New token </UButton>
+      </div>
+      <ul v-else class="divide-default divide-y">
+        <li
+          v-for="token in props.tokens"
+          :key="token.public_id"
+          class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0">
+            <p class="text-highlighted truncate font-medium">{{ token.name }}</p>
+            <p class="text-muted font-mono text-xs">{{ token.prefix }}…</p>
+            <p class="text-muted mt-1 text-xs">
+              Created {{ formatDateTime(token.created_at) }}
+              <span v-if="token.last_used_at"> · Last used {{ formatDateTime(token.last_used_at) }}</span>
+              <span v-else> · Never used</span>
+              <span v-if="token.expires_at"> · Expires {{ formatDateTime(token.expires_at) }}</span>
             </p>
-            <div class="flex justify-end gap-2">
-              <UButton color="neutral" variant="ghost" @click="showCreate = false">Cancel</UButton>
-              <UButton type="submit" color="primary" :loading="createForm.processing">Create token</UButton>
-            </div>
-          </form>
-        </template>
-      </USlideover>
+            <p v-if="token.scopes?.length" class="text-muted mt-1 text-xs">
+              Permissions: {{ token.scopes.map(permissionLabel).join(", ") }}
+            </p>
+            <p v-else class="text-muted mt-1 text-xs">No permissions · no access</p>
+          </div>
+          <UButton
+            color="error"
+            variant="outline"
+            size="xs"
+            :icon="icons.delete"
+            :loading="revoking && revokeTarget?.public_id === token.public_id"
+            @click="revoke(token)">
+            Revoke
+          </UButton>
+        </li>
+      </ul>
+    </UCard>
+  </div>
+
+  <USlideover
+    v-model:open="showCreate"
+    title="New token"
+    description="Give it a name so it is easy to recognize."
+    :ui="{ content: 'sm:max-w-md' }">
+    <template #body>
+      <form class="space-y-4" @submit.prevent="submitCreate">
+        <UFormField label="Name" :error="fieldMessage(createForm.errors.name)">
+          <UInput v-model="createForm.name" class="w-full" placeholder="e.g. CI pipeline" />
+        </UFormField>
+        <UFormField label="Expiry" :error="fieldMessage(createForm.errors.expires_in_days)">
+          <USelect v-model="createForm.expires_in_days" :items="expiryOptions" class="w-full" />
+        </UFormField>
+        <UFormField label="Permissions" :error="fieldMessage(createForm.errors.scopes)">
+          <div class="space-y-2">
+            <UCheckbox
+              v-for="permission in permissions"
+              :key="permission"
+              :model-value="createForm.scopes.includes(permission)"
+              :label="permissionLabel(permission)"
+              @update:model-value="(checked: boolean | 'indeterminate') => toggleScope(permission, checked === true)" />
+            <p v-if="permissions.length === 0" class="text-muted text-xs">
+              You do not have any permissions yet, so this token will not be able to access anything.
+            </p>
+          </div>
+        </UFormField>
+        <p class="text-muted text-xs">
+          The token can only use permissions you already have. Without selected permissions, the token has no access.
+        </p>
+        <div class="flex justify-end gap-2">
+          <UButton color="neutral" variant="ghost" @click="showCreate = false">Cancel</UButton>
+          <UButton type="submit" color="primary" :loading="createForm.processing">Create token</UButton>
+        </div>
+      </form>
     </template>
-  </UDashboardPanel>
+  </USlideover>
 
   <AppConfirmDialog
     :open="revokeTarget !== null"
