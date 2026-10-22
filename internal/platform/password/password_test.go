@@ -82,6 +82,9 @@ func TestCompareRejectsMalformedHashes(t *testing.T) {
 		"short salt":    parts[0] + "$" + parts[1] + "$" + parts[2] + "$" + parts[3] + "$AAAA$" + parts[5],
 		"empty key":     parts[0] + "$" + parts[1] + "$" + parts[2] + "$" + parts[3] + "$" + parts[4] + "$",
 		"extra field":   valid + "$tail",
+		"huge memory":   strings.Replace(valid, "m=8192", "m=1048576", 1),
+		"slow rounds":   strings.Replace(valid, "t=1", "t=99", 1),
+		"many lanes":    strings.Replace(valid, "p=1", "p=64", 1),
 	}
 	for name, encoded := range cases {
 		if err := Compare(encoded, "secret"); !errors.Is(err, ErrInvalidPasswordHash) {

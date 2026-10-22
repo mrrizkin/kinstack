@@ -33,6 +33,15 @@ func (c Cost) valid() bool {
 
 var ErrInvalidPasswordHash = errors.New("invalid argon2id password hash")
 
+// Compare accepts work factors only within these bounds: a corrupted or
+// tampered stored hash must not turn one login attempt into an unbounded
+// allocation. The defaults and the one-time cost both fit well inside them.
+const (
+	maxMemoryKiB   = 256 * 1024
+	maxIterations  = 10
+	maxParallelism = 8
+)
+
 var dummyHash = func() string {
 	salt := []byte("kinstack-dummy-salt")
 	key := argon2.IDKey(
@@ -101,15 +110,15 @@ func Compare(encoded, password string) error {
 		params[key] = value
 	}
 	memory, err := strconv.ParseUint(params["m"], 10, 32)
-	if err != nil || memory == 0 {
+	if err != nil || memory == 0 || memory > maxMemoryKiB {
 		return ErrInvalidPasswordHash
 	}
 	iterations, err := strconv.ParseUint(params["t"], 10, 32)
-	if err != nil || iterations == 0 {
+	if err != nil || iterations == 0 || iterations > maxIterations {
 		return ErrInvalidPasswordHash
 	}
 	parallelism, err := strconv.ParseUint(params["p"], 10, 8)
-	if err != nil || parallelism == 0 {
+	if err != nil || parallelism == 0 || parallelism > maxParallelism {
 		return ErrInvalidPasswordHash
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
