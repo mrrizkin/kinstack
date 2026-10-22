@@ -100,6 +100,14 @@ audit:
     bun audit --ignore=GHSA-hp3w-g68c-fv3c
     go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
+# Next release tag for the current UTC ISO week: v<YEAR>.<WEEK>.<PATCH>.
+next-version:
+    ./scripts/next-version.sh
+
+# Create that tag locally; CI publishes the image once it is pushed.
+tag:
+    ./scripts/next-version.sh --create
+
 migrate:
     go run ./cmd/migrate up
 

@@ -1,7 +1,7 @@
 name: Build and Publish Docker Image
 
-# Releases are cut by hand: tag a commit, push the tag, and this job publishes
-# that tag. Pushing to main only runs CI.
+# Releases are cut by hand (`just tag`, then push it) and named
+# v<YEAR>.<WEEK>.<PATCH>. Pushing a tag publishes the image; main only runs CI.
 on:
   push:
     tags:

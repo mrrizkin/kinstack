@@ -104,17 +104,23 @@ peer is treated as the client.
 
 ## Release
 
-Tagging is manual: CI never creates a tag.
+Tagging is manual: CI never creates a tag. Tags follow the UTC ISO week:
+`v<YEAR>.<WEEK>.<PATCH>`, where PATCH counts releases inside that week, so the
+first release of ISO week 44 of 2026 is `v2026.44.0` and the next is
+`v2026.44.1`.
 
 ```bash
-git switch main && git pull
+git switch main && git pull --tags
 just verify
-git tag -a v1.2.0 -m "v1.2.0"
-git push origin v1.2.0
+just tag                 # creates v<YEAR>.<WEEK>.<PATCH>
+git push origin v2026.44.0   # the tag just printed
 ```
 
+`just next-version` prints the tag without creating it. The counter reads local
+tags, so fetch them first on a clone that has not seen recent releases.
+
 Pushing the tag builds the image and publishes
-`ghcr.io/<owner>/kinstack:v1.2.0` plus `latest`. Pushes to `main` run CI only.
+`ghcr.io/<owner>/kinstack:<tag>` plus `latest`. Pushes to `main` run CI only.
 Tag a commit that CI already passed, and never move a published tag.
 
 ## Deployment
