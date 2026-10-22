@@ -15,9 +15,9 @@ func TestTranslateEnglishCatalog(t *testing.T) {
 
 func TestTranslateArguments(t *testing.T) {
 	if got, want := T(
-		"users.password_too_short",
+		"profile.new_password_min",
 		12,
-	), "Password must be at least 12 characters."; got != want {
+	), "New password must be at least 12 characters."; got != want {
 		t.Fatalf("T() = %q, want %q", got, want)
 	}
 }

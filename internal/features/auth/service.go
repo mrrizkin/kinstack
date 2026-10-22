@@ -12,8 +12,6 @@ import (
 	platformpassword "kinstack/internal/platform/password"
 )
 
-// ServiceDependency contains the persistence boundary, environment super admin
-// credentials, and outbound-email boundary used by the service.
 type ServiceDependency struct {
 	Repository Repository
 	AccessKey  string
@@ -32,7 +30,6 @@ type CredentialRevoker interface {
 	RevokeAll(ctx context.Context, userPublicID string) error
 }
 
-// Service owns the credential verification contract.
 type Service struct {
 	repository Repository
 	accessKey  string
@@ -44,7 +41,6 @@ type Service struct {
 	revoker    CredentialRevoker
 }
 
-// NewService constructs an auth service around its persistence contract.
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "auth repository is required")
 

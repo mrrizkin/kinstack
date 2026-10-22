@@ -88,10 +88,8 @@ type Provider interface {
 // UnavailableProvider is the fail-closed placeholder used when SSO is disabled.
 type UnavailableProvider struct{}
 
-// Name returns the placeholder provider name.
 func (UnavailableProvider) Name() string { return "unavailable" }
 
-// Label returns the placeholder provider label.
 func (UnavailableProvider) Label() string { return "Unavailable" }
 
 // Start always fails because SSO is disabled.
@@ -125,7 +123,6 @@ type HTTPProvider struct {
 	HTTPClient   *http.Client
 }
 
-// Name returns the configured provider slug.
 func (p *HTTPProvider) Name() string {
 	if p == nil || p.ProviderName == "" {
 		return "sso"
@@ -133,7 +130,6 @@ func (p *HTTPProvider) Name() string {
 	return p.ProviderName
 }
 
-// Label returns the configured human-readable provider label.
 func (p *HTTPProvider) Label() string {
 	if p == nil || p.DisplayLabel == "" {
 		return p.Name()
@@ -329,7 +325,6 @@ type StatePayload struct {
 
 const stateSealedVersion = "v1"
 
-// NewStateSigner constructs a signer from a 32+ byte secret and a positive TTL.
 func NewStateSigner(secret string, ttl time.Duration) (*StateSigner, error) {
 	if len([]byte(secret)) < 32 || ttl <= 0 {
 		return nil, ErrInvalidConfig

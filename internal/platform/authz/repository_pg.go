@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	platformdatabase "kinstack/internal/platform/database"
 
 	"github.com/jmoiron/sqlx"
@@ -21,7 +22,7 @@ const (
 SELECT ` + roleColumns + `
 FROM roles
 ORDER BY rank DESC, code ASC
-LIMIT 100`
+LIMIT $1 OFFSET $2`
 
 	countRolesQuery = `
 SELECT COUNT(*) FROM roles`
@@ -121,7 +122,6 @@ WHERE ur.role_code = $1
   AND u.deleted_at IS NULL`
 )
 
-// SQLRepository is the PostgreSQL authorization repository.
 type SQLRepository struct {
 	owner *platformdatabase.StatementOwner
 
@@ -145,12 +145,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to construct the SQL repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL authorization repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "authz database is required")
 
@@ -196,7 +194,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -204,16 +201,19 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// ListRoles returns every role.
-func (r *SQLRepository) ListRoles(ctx context.Context) ([]Role, error) {
+func (r *SQLRepository) ListRoles(ctx context.Context, query pagination.Query) ([]Role, error) {
 	roles := make([]Role, 0)
-	if err := r.listRolesStmt.SelectContext(ctx, &roles); err != nil {
+	if err := r.listRolesStmt.SelectContext(
+		ctx,
+		&roles,
+		query.Limit(),
+		query.Offset(),
+	); err != nil {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
 	return roles, nil
 }
 
-// CountRoles returns the number of roles.
 func (r *SQLRepository) CountRoles(ctx context.Context) (int, error) {
 	var count int
 	if err := r.countRolesStmt.GetContext(ctx, &count); err != nil {
@@ -222,7 +222,6 @@ func (r *SQLRepository) CountRoles(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-// FindRole resolves a single role.
 func (r *SQLRepository) FindRole(ctx context.Context, code string) (Role, error) {
 	var role Role
 	err := r.findRoleStmt.GetContext(ctx, &role, code)
@@ -235,7 +234,6 @@ func (r *SQLRepository) FindRole(ctx context.Context, code string) (Role, error)
 	return role, nil
 }
 
-// CreateRole inserts a new role.
 func (r *SQLRepository) CreateRole(ctx context.Context, input CreateRoleInput) (Role, error) {
 	var role Role
 	err := r.createRoleStmt.GetContext(
@@ -294,7 +292,6 @@ func (r *SQLRepository) DeleteRole(ctx context.Context, code string) error {
 	return nil
 }
 
-// RolePermissions returns the permission codes granted to a role.
 func (r *SQLRepository) RolePermissions(ctx context.Context, code string) ([]Permission, error) {
 	permissions := make([]Permission, 0)
 	if err := r.rolePermissionsStmt.SelectContext(ctx, &permissions, code); err != nil {
@@ -423,7 +420,6 @@ func (r *SQLRepository) DeleteUserOverride(
 	return nil
 }
 
-// UserRole returns the role assigned to one user, or "" when unassigned.
 func (r *SQLRepository) UserRole(ctx context.Context, publicID string) (string, error) {
 	var role string
 	if err := r.userRoleStmt.GetContext(ctx, &role, publicID); err != nil {
@@ -435,7 +431,6 @@ func (r *SQLRepository) UserRole(ctx context.Context, publicID string) (string, 
 	return role, nil
 }
 
-// AssignUserRole changes a user's role.
 func (r *SQLRepository) AssignUserRole(ctx context.Context, publicID string, role string) error {
 	result, err := r.assignRoleStmt.ExecContext(ctx, publicID, role)
 	if err != nil {

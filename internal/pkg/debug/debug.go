@@ -53,7 +53,6 @@ func StackTrace() ([]StackFrame, error) {
 	return frames, nil
 }
 
-// Print takes any value and pretty prints it with indentation
 func Print(vs ...any) {
 	if len(vs) == 0 {
 		return

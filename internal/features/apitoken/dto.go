@@ -2,8 +2,7 @@ package apitoken
 
 import "kinstack/internal/pkg/pagination"
 
-// APITokenDTO is the public contract for one personal API token. The plaintext
-// token is never part of it: it is returned once at creation.
+// The plaintext token is returned once at creation and never stored here.
 type APITokenDTO struct {
 	PublicID   string   `json:"public_id"`
 	Name       string   `json:"name"`
@@ -19,7 +18,6 @@ type TokenPage struct {
 	Page   pagination.Page `json:"page"`
 }
 
-// CreateAPITokenRequest is the payload accepted when creating a token.
 type CreateAPITokenRequest struct {
 	Name          string   `json:"name"`
 	ExpiresInDays int      `json:"expires_in_days"`

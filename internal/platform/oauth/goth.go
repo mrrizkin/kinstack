@@ -22,7 +22,6 @@ func NewGothProvider(provider goth.Provider, label string) *GothProvider {
 	return &GothProvider{Provider: provider, DisplayLabel: label}
 }
 
-// Name returns the goth provider slug.
 func (g *GothProvider) Name() string {
 	if g == nil || g.Provider == nil {
 		return "oauth"
@@ -30,7 +29,6 @@ func (g *GothProvider) Name() string {
 	return g.Provider.Name()
 }
 
-// Label returns the configured button label.
 func (g *GothProvider) Label() string {
 	if g == nil || g.DisplayLabel == "" {
 		return g.Name()

@@ -5,17 +5,17 @@ import { useI18n } from "vue-i18n";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
+import { profilePageSchema } from "@/lib/contracts/profile";
 import { icons } from "@/lib/icons";
+import { usePageSchema } from "@/lib/page-props";
 
 import ProfilePanel from "./components/ProfilePanel.vue";
 import { useProfileForm } from "./composables/useProfileForm";
-import type { Profile } from "./types";
 
 defineOptions({ layout: [BaseLayout, AppLayout, SettingsLayout] });
 
-const props = defineProps<{
-  profile: Profile;
-}>();
+const props = usePageSchema(profilePageSchema);
+const { profile } = props;
 
 const { t } = useI18n();
 

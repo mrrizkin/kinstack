@@ -70,7 +70,6 @@ type AuthConfig struct {
 	SAML     SAMLProviderConfig
 }
 
-// Load reads authentication flags and provider settings from the environment.
 func (c *AuthConfig) Load() {
 	c.StateSecret = os.Getenv("AUTH_STATE_SECRET")
 	c.TwoFactorKey = strings.TrimSpace(os.Getenv("AUTH_2FA_KEY"))

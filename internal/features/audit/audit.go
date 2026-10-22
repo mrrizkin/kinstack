@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Dependency contains the persistence boundary and logger used by the feature.
 type Dependency struct {
 	Repository Repository
 	Actor      *actor.Actor
@@ -25,7 +24,6 @@ type Feature struct {
 	handler *Handler
 }
 
-// New constructs the audit feature from explicit dependencies.
 func New(d Dependency) *Feature {
 	assert.Assert(d.Repository != nil, "audit repository is required")
 	assert.Assert(d.Logger != nil, "audit logger is required")
@@ -42,13 +40,11 @@ func New(d Dependency) *Feature {
 	return &Feature{service: service, handler: handler}
 }
 
-// Mount registers the audit viewer routes on the authenticated workspace.
 func (f *Feature) Mount(router fiber.Router) {
 	assert.Assert(f != nil && f.handler != nil, "audit feature must be initialized")
 	f.handler.Mount(router)
 }
 
-// Service exposes the feature service for composition-root adapters.
 func (f *Feature) Service() *Service {
 	assert.Assert(f != nil && f.service != nil, "audit feature must be initialized")
 	return f.service

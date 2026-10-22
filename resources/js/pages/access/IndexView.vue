@@ -4,10 +4,12 @@ import { computed } from "vue";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppPageHeader from "@/components/AppPageHeader.vue";
-import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
+import AppPagination from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { accessPageSchema } from "@/lib/contracts/access";
 import { icons } from "@/lib/icons";
+import { usePageSchema } from "@/lib/page-props";
 import { useTableView } from "@/lib/table-view";
 
 import { createRoleColumns, createUserColumns } from "./columns";
@@ -20,14 +22,8 @@ import type { Permission, Role, UserAccess } from "./types";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
-const props = defineProps<{
-  roles: Role[];
-  permissions: Permission[];
-  categories: string[];
-  users: UserAccess[];
-  page: PageInfo;
-  roles_page: PageInfo;
-}>();
+const props = usePageSchema(accessPageSchema);
+const { roles, permissions, categories, users, page } = props;
 
 const {
   tab,

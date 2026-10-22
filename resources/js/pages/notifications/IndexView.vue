@@ -5,28 +5,18 @@ import { useI18n } from "vue-i18n";
 import { z } from "zod";
 
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
-import { notificationFeedSchema } from "@/lib/contracts/notifications";
+import { type NotificationItem, notificationFeedSchema, notificationsPageSchema } from "@/lib/contracts/notifications";
 import { unreadCount } from "@/lib/dashboard";
-import { formatDateTime } from "@/lib/formatters";
 import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
-import { usePageProps } from "@/lib/page-props";
+import { usePageProps, usePageSchema } from "@/lib/page-props";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
-interface Notification {
-  public_id: string;
-  kind: string;
-  title: string;
-  body: string;
-  read: boolean;
-  created_at: string;
-  read_at?: string;
-}
-
-const props = defineProps<{ notifications: Notification[]; unread: number; next_cursor: string }>();
+const props = usePageSchema(notificationsPageSchema);
 
 const { csrfToken } = usePageProps();
 const { t } = useI18n();
@@ -44,7 +34,7 @@ const markingAll = ref(false);
 unreadCount.value = props.unread;
 
 // Marking read is silent housekeeping, matching the dashboard slide-over.
-async function markRead(notification: Notification) {
+async function markRead(notification: NotificationItem) {
   if (notification.read || markingId.value) return;
   markingId.value = notification.public_id;
   error.value = "";
@@ -153,7 +143,7 @@ async function markAllRead() {
                 <h3 class="text-highlighted text-sm font-semibold">{{ notification.title }}</h3>
               </div>
               <p class="text-muted text-sm">{{ notification.body }}</p>
-              <p class="text-dimmed text-xs">{{ formatDateTime(notification.created_at) }}</p>
+              <p class="text-dimmed text-xs"><AppCellTime :value="notification.created_at" inline /></p>
             </div>
             <UButton
               v-if="!notification.read"

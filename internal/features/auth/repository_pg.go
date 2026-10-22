@@ -145,12 +145,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to construct the SQL repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL credential repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "auth database is required")
 
@@ -191,7 +189,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -320,7 +317,6 @@ func (r *SQLRepository) ConsumeMagicLinkToken(
 	return publicID, nil
 }
 
-// TouchLastLogin records a successful sign-in timestamp.
 func (r *SQLRepository) TouchLastLogin(ctx context.Context, publicID string) error {
 	if _, err := r.touchStmt.ExecContext(ctx, publicID); err != nil {
 		return fmt.Errorf("touch last login: %w", err)

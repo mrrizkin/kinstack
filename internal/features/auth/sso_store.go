@@ -61,7 +61,6 @@ func (s ssoStore) Consume(key string) (string, bool) {
 	return value, ok
 }
 
-// Delete removes a value.
 func (s ssoStore) Delete(key string) {
 	if s.storage == nil || key == "" {
 		return

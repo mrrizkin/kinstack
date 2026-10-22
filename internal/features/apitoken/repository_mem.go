@@ -19,7 +19,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an isolated-test API token store.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		tokens: map[string]TokenResult{},
@@ -27,7 +26,6 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-// Create stores a new API token.
 func (r *MemoryRepository) Create(_ context.Context, input CreateTokenInput) (TokenResult, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -45,7 +43,6 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateTokenInput) (To
 	return result, nil
 }
 
-// ListByUser returns one page of the user's active tokens, newest first.
 func (r *MemoryRepository) ListByUser(
 	_ context.Context,
 	userPublicID string,
@@ -66,7 +63,6 @@ func (r *MemoryRepository) ListByUser(
 	return results[start:end], nil
 }
 
-// CountByUser returns how many active tokens the user owns.
 func (r *MemoryRepository) CountByUser(_ context.Context, userPublicID string) (int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -79,7 +75,6 @@ func (r *MemoryRepository) CountByUser(_ context.Context, userPublicID string) (
 	return count, nil
 }
 
-// FindByPublicID resolves one token by its public identifier.
 func (r *MemoryRepository) FindByPublicID(_ context.Context, publicID string) (TokenResult, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -90,7 +85,6 @@ func (r *MemoryRepository) FindByPublicID(_ context.Context, publicID string) (T
 	return result, nil
 }
 
-// Revoke marks one token owned by the user as revoked.
 func (r *MemoryRepository) Revoke(_ context.Context, userPublicID, publicID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -121,7 +115,6 @@ func (r *MemoryRepository) RevokeAll(_ context.Context, userPublicID string) (in
 	return revoked, nil
 }
 
-// TouchLastUsed records the last successful use of a token.
 func (r *MemoryRepository) TouchLastUsed(_ context.Context, publicID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

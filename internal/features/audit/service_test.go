@@ -56,13 +56,14 @@ func TestListReturnsNewestFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.Total != 3 || len(props.Entries) != 3 {
+	if props.Page.Total != 3 || len(props.Entries) != 3 {
 		t.Fatalf("unexpected page: %#v", props)
 	}
 	if props.Entries[0].RequestID != "req-other" || props.Entries[2].RequestID != "req-read" {
 		t.Fatalf("expected newest-first ordering: %#v", props.Entries)
 	}
-	if props.PerPage != pagination.DefaultPerPage || props.Page != 1 || props.Pages != 1 {
+	if props.Page.PerPage != pagination.DefaultPerPage || props.Page.Page != 1 ||
+		props.Page.TotalPages != 1 {
 		t.Fatalf("unexpected pagination: %#v", props)
 	}
 }
@@ -76,7 +77,8 @@ func TestListFiltersByActorAndOutcome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.Total != 1 || len(props.Entries) != 1 || props.Entries[0].RequestID != "req-mutate" {
+	if props.Page.Total != 1 || len(props.Entries) != 1 ||
+		props.Entries[0].RequestID != "req-mutate" {
 		t.Fatalf("unexpected filtered page: %#v", props)
 	}
 }
@@ -87,7 +89,7 @@ func TestListSearchMatchesResource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.Total != 1 || props.Entries[0].ActorKey != "actor-2" {
+	if props.Page.Total != 1 || props.Entries[0].ActorKey != "actor-2" {
 		t.Fatalf("unexpected search page: %#v", props)
 	}
 }
@@ -98,7 +100,8 @@ func TestListPaginates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.Total != 3 || props.Pages != 2 || props.Page != 2 || len(props.Entries) != 1 {
+	if props.Page.Total != 3 || props.Page.TotalPages != 2 || props.Page.Page != 2 ||
+		len(props.Entries) != 1 {
 		t.Fatalf("unexpected pagination: %#v", props)
 	}
 }
@@ -125,14 +128,14 @@ func TestListFiltersByDateRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.Total != 3 {
+	if props.Page.Total != 3 {
 		t.Fatalf("expected same-day entries, got %#v", props)
 	}
 	props, err = service.List(context.Background(), FilterRequest{From: "2026-02-02"})
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.Total != 0 {
+	if props.Page.Total != 0 {
 		t.Fatalf("expected empty future range, got %#v", props)
 	}
 }
@@ -144,16 +147,16 @@ func TestListDefaultsAndClampsPerPage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.PerPage != pagination.DefaultPerPage {
-		t.Fatalf("expected the package default, got %d", props.PerPage)
+	if props.Page.PerPage != pagination.DefaultPerPage {
+		t.Fatalf("expected the package default, got %d", props.Page.PerPage)
 	}
 
 	props, err = service.List(context.Background(), FilterRequest{PerPage: 10})
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.PerPage != 10 {
-		t.Fatalf("explicit per_page must win, got %d", props.PerPage)
+	if props.Page.PerPage != 10 {
+		t.Fatalf("explicit per_page must win, got %d", props.Page.PerPage)
 	}
 
 	props, err = service.List(
@@ -163,8 +166,8 @@ func TestListDefaultsAndClampsPerPage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.PerPage != pagination.MaxPerPage {
-		t.Fatalf("per_page must clamp to the cap, got %d", props.PerPage)
+	if props.Page.PerPage != pagination.MaxPerPage {
+		t.Fatalf("per_page must clamp to the cap, got %d", props.Page.PerPage)
 	}
 }
 

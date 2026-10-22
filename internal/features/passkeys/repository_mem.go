@@ -20,7 +20,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs the isolated-test passkey repository.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		users: []FindPasskeyUserResult{
@@ -43,7 +42,6 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-// FindByPublicID resolves one active account.
 func (r *MemoryRepository) FindByPublicID(
 	_ context.Context,
 	id string,
@@ -58,7 +56,6 @@ func (r *MemoryRepository) FindByPublicID(
 	return FindPasskeyUserResult{}, ErrUserNotFound
 }
 
-// ListPasskeys returns the credentials of one active account.
 func (r *MemoryRepository) ListPasskeys(
 	_ context.Context,
 	id string,
@@ -80,7 +77,6 @@ func (r *MemoryRepository) ListPasskeys(
 	return results, nil
 }
 
-// SavePasskey stores a new credential.
 func (r *MemoryRepository) SavePasskey(_ context.Context, id string, record PasskeyRecord) error {
 	if len(record.ID) == 0 || !bytes.Equal(record.ID, record.Credential.ID) ||
 		strings.TrimSpace(
@@ -106,7 +102,6 @@ func (r *MemoryRepository) SavePasskey(_ context.Context, id string, record Pass
 	return nil
 }
 
-// UpdatePasskey stores authenticator state after a successful assertion.
 func (r *MemoryRepository) UpdatePasskey(_ context.Context, id string, record PasskeyRecord) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -129,7 +124,6 @@ func (r *MemoryRepository) UpdatePasskey(_ context.Context, id string, record Pa
 	return ErrPasskeyNotFound
 }
 
-// DeletePasskey removes one credential.
 func (r *MemoryRepository) DeletePasskey(_ context.Context, id string, credentialID []byte) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -146,7 +140,6 @@ func (r *MemoryRepository) DeletePasskey(_ context.Context, id string, credentia
 	return ErrPasskeyNotFound
 }
 
-// FindPasskeyUser resolves the account selected by a discoverable login.
 func (r *MemoryRepository) FindPasskeyUser(
 	_ context.Context,
 	credentialID, userHandle []byte,

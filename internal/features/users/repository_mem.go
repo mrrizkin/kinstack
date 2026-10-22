@@ -19,7 +19,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an empty isolated-test repository.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{users: make(map[string]UserResult)}
 }

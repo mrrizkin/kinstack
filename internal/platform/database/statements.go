@@ -34,7 +34,6 @@ func (o *StatementOwner) Prepare(name, query string) (*sqlx.Stmt, error) {
 	return o.PrepareContext(context.Background(), name, query)
 }
 
-// PrepareContext is the context-aware form of Prepare.
 func (o *StatementOwner) PrepareContext(
 	ctx context.Context,
 	name, query string,

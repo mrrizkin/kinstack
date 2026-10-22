@@ -6,8 +6,6 @@ var catalogs = map[Locale]map[string]string{
 	English: {
 		// Shared response messages.
 		"common.invalid_payload": "Invalid request payload.",
-		"common.invalid_input":   "Invalid input.",
-		"common.unavailable":     "The requested service is unavailable.",
 		"common.invalid_page":    "That page does not exist. Showing the first page instead.",
 
 		// Authentication.
@@ -24,11 +22,9 @@ var catalogs = map[Locale]map[string]string{
 		"auth.reset_link_sent":        "If the email is registered, a password reset link has been sent.",
 		"auth.password_mismatch":      "Passwords do not match.",
 		"auth.invalid_code":           "Incorrect verification code.",
-		"auth.oauth_failed":           "Single sign-on failed.",
 		"auth.oauth_unverified":       "The provider identity could not be verified.",
 		"auth.oauth_unregistered":     "No account is registered with that email address. Contact an administrator.",
 		"auth.oauth_email_unverified": "The email address from the provider is not verified.",
-		"auth.saml_failed":            "SAML sign-in failed.",
 		"auth.saml_unstable_subject":  "The identity provider must send a persistent subject identifier. Contact your administrator.",
 		"auth.saml_unverified":        "The SAML response could not be verified.",
 		"auth.two_factor_invalid":     "Invalid verification request.",
@@ -40,7 +36,6 @@ var catalogs = map[Locale]map[string]string{
 		"auth.invitation_body":        "You are invited to KinStack. Activate your account: %s",
 		"auth.reset_subject":          "Reset your KinStack password",
 		"auth.reset_body":             "Reset your KinStack password: %s",
-		"auth.two_factor_title":       "Two-factor verification",
 
 		// Users and access management.
 		"users.not_found":                  "User not found.",
@@ -48,7 +43,6 @@ var catalogs = map[Locale]map[string]string{
 		"users.email_taken":                "That email address is already in use.",
 		"users.invalid_input":              "Invalid user data.",
 		"users.invalid_role":               "Invalid role.",
-		"users.invalid_status":             "Invalid account status.",
 		"users.last_administrator":         "The last administrator cannot be disabled.",
 		"users.authorization_unavail":      "The access-control service is unavailable.",
 		"users.password_updated":           "User password updated.",
@@ -58,20 +52,10 @@ var catalogs = map[Locale]map[string]string{
 		"users.updated":                    "User updated.",
 		"users.custom_permissions_saved":   "Custom permissions saved.",
 		"users.custom_permissions_deleted": "Custom permission removed.",
-		"users.display_name_required":      "Display name is required.",
-		"users.password_too_short":         "Password must be at least %d characters.",
-		"users.password_too_long":          "Password must be at most %d characters.",
-		"users.role_required":              "Role is required.",
-		"users.username_required":          "Username is required.",
-		"users.email_required":             "Email is required.",
-		"users.invite_requires_email":      "Email is required to send an invitation.",
-		"users.cannot_manage_self":         "You cannot change your own access.",
 		"users.permissions_updated":        "Permissions updated.",
 		"users.role_created":               "Role created.",
 		"users.role_updated_flash":         "Role updated.",
 		"users.role_deleted":               "Role deleted.",
-		"users.role_has_users":             "This role is still assigned to users.",
-		"users.system_role_locked":         "System roles cannot be changed.",
 
 		// Profile and account security.
 		"profile.not_found":                 "User not found.",
@@ -115,25 +99,18 @@ var catalogs = map[Locale]map[string]string{
 		"apitoken.not_found":      "API token not found.",
 		"apitoken.invalid_token":  "Invalid API token.",
 		"apitoken.invalid_input":  "Invalid token data.",
-		"apitoken.name_required":  "Name is required.",
 		"apitoken.name_length":    "Name must be between %d and %d characters.",
 		"apitoken.expiry_invalid": "Expiry must be a positive number of days.",
 		"apitoken.scope_unknown":  "Unknown token scope: %s",
 		"apitoken.max_scopes":     "A token may carry at most %d scopes.",
-		"apitoken.created":        "API token created.",
 		"apitoken.revoked":        "API token revoked.",
 
 		// Passkeys.
-		"passkeys.user_not_found":     "Auth user not found.",
-		"passkeys.unavailable":        "Passkey authentication is unavailable.",
-		"passkeys.not_found":          "Passkey not found.",
-		"passkeys.conflict":           "This passkey is already registered.",
-		"passkeys.invalid":            "Invalid passkey request.",
-		"passkeys.expired":            "The passkey request has expired. Start again.",
-		"passkeys.name_length":        "Passkey name must be between 1 and 80 characters.",
-		"passkeys.verify_failed":      "The passkey could not be verified.",
-		"passkeys.login_failed":       "Passkey sign-in was not verified.",
-		"passkeys.invalid_identifier": "Invalid passkey identifier.",
+		"passkeys.user_not_found": "Auth user not found.",
+		"passkeys.unavailable":    "Passkey authentication is unavailable.",
+		"passkeys.not_found":      "Passkey not found.",
+		"passkeys.conflict":       "This passkey is already registered.",
+		"passkeys.invalid":        "Invalid passkey request.",
 
 		// Notifications.
 		"notifications.not_found":     "Notification not found.",
@@ -143,14 +120,8 @@ var catalogs = map[Locale]map[string]string{
 
 		// Audit and system surfaces.
 		"audit.invalid_filter": "Invalid audit filter.",
-		"system.not_found":     "The page you requested does not exist or is no longer available.",
-		"system.forbidden":     "You do not have access to this page.",
-		"system.error":         "An unexpected error occurred.",
-		"system.offline":       "The service is temporarily offline.",
-		"system.maintenance":   "The service is under maintenance.",
 
 		// Authorization catalog and reasons.
-		"authz.category.system":                 "System",
 		"authz.users_view.label":                "View users",
 		"authz.users_view.description":          "View user accounts.",
 		"authz.users_manage.label":              "Manage users",

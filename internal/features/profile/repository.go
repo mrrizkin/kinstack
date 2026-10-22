@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// ProfileResult is the persistence projection of one user account.
 type ProfileResult struct {
 	PublicID        string     `db:"public_id"`
 	Username        string     `db:"username"`
@@ -19,7 +18,6 @@ type ProfileResult struct {
 	CreatedAt       time.Time  `db:"created_at"`
 }
 
-// PreferencesResult is the persistence projection of personalization settings.
 type PreferencesResult struct {
 	ThemePreference string `db:"theme_preference"`
 	SoundEnabled    bool   `db:"sound_enabled"`
@@ -34,7 +32,6 @@ type PreferencesUpdate struct {
 	PageSize        int
 }
 
-// Repository is the persistence contract owned by the profile slice.
 type Repository interface {
 	FindProfile(context.Context, string) (ProfileResult, error)
 	FindPasswordHash(context.Context, string) (string, error)

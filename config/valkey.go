@@ -15,7 +15,6 @@ type ValkeyConfig struct {
 	Database int
 }
 
-// Load reads Valkey settings from the environment.
 func (c *ValkeyConfig) Load() {
 	c.Port = assert.OK(envInt("VALKEY_PORT", 6379))
 	c.Database = assert.OK(envInt("VALKEY_DATABASE", 0))

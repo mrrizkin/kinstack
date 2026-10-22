@@ -25,7 +25,6 @@ type OpenObserveConfig struct {
 	Insecure         bool
 }
 
-// Load reads observability settings from the environment.
 func (c *OpenObserveConfig) Load() {
 	c.Enabled = assert.OK(envBool("OPENOBSERVE_ENABLED", false))
 	c.Endpoint = strings.TrimRight(strings.TrimSpace(env("OPENOBSERVE_ENDPOINT", "")), "/")

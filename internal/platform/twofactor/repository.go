@@ -11,7 +11,6 @@ type Secret struct {
 	KeyVersion int
 }
 
-// StatusResult is the persistence projection of an account's two-factor state.
 type StatusResult struct {
 	Enabled    bool   `db:"two_factor_enabled"`
 	Secret     string `db:"two_factor_secret"`
@@ -32,7 +31,6 @@ type LegacySecret struct {
 	Secret   string `db:"two_factor_secret"`
 }
 
-// Repository is the persistence contract owned by the two-factor slice.
 type Repository interface {
 	FindStatus(context.Context, string) (StatusResult, error)
 	SetSecret(context.Context, string, Secret) error

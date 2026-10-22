@@ -1,6 +1,7 @@
 package audit
 
-// EntryDTO is the public contract for one audit event.
+import "kinstack/internal/pkg/pagination"
+
 type EntryDTO struct {
 	ID         int64             `json:"id"`
 	OccurredAt string            `json:"occurred_at"`
@@ -26,17 +27,12 @@ type Filters struct {
 	To       string `json:"to"`
 }
 
-// PageProps is the public contract for the audit viewer page.
 type PageProps struct {
-	Entries []EntryDTO `json:"entries"`
-	Filters Filters    `json:"filters"`
-	Total   int        `json:"total"`
-	Page    int        `json:"page"`
-	PerPage int        `json:"per_page"`
-	Pages   int        `json:"pages"`
+	Entries []EntryDTO      `json:"entries"`
+	Filters Filters         `json:"filters"`
+	Page    pagination.Page `json:"page"`
 }
 
-// FilterRequest is the raw query input accepted by the service.
 type FilterRequest struct {
 	ActorKey string
 	Action   string

@@ -71,7 +71,6 @@ WHERE public_id = $1
   AND revoked_at IS NULL`
 )
 
-// SQLRepository is the PostgreSQL API token repository.
 type SQLRepository struct {
 	owner     *platformdatabase.StatementOwner
 	create    *sqlx.Stmt
@@ -85,12 +84,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL API token repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "api token database is required")
 
@@ -119,7 +116,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -127,7 +123,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// Create stores a new API token.
 func (r *SQLRepository) Create(
 	ctx context.Context,
 	input CreateTokenInput,
@@ -149,7 +144,6 @@ func (r *SQLRepository) Create(
 	return result, nil
 }
 
-// ListByUser returns one page of the user's active tokens, newest first.
 func (r *SQLRepository) ListByUser(
 	ctx context.Context,
 	userPublicID string,
@@ -168,7 +162,6 @@ func (r *SQLRepository) ListByUser(
 	return results, nil
 }
 
-// CountByUser returns how many active tokens the user owns.
 func (r *SQLRepository) CountByUser(ctx context.Context, userPublicID string) (int, error) {
 	var count int
 	if err := r.count.GetContext(ctx, &count, userPublicID); err != nil {
@@ -177,7 +170,6 @@ func (r *SQLRepository) CountByUser(ctx context.Context, userPublicID string) (i
 	return count, nil
 }
 
-// FindByPublicID resolves one token by its public identifier.
 func (r *SQLRepository) FindByPublicID(ctx context.Context, publicID string) (TokenResult, error) {
 	var result TokenResult
 	if err := r.find.GetContext(ctx, &result, publicID); err != nil {
@@ -189,7 +181,6 @@ func (r *SQLRepository) FindByPublicID(ctx context.Context, publicID string) (To
 	return result, nil
 }
 
-// Revoke marks one token owned by the user as revoked.
 func (r *SQLRepository) Revoke(ctx context.Context, userPublicID, publicID string) error {
 	result, err := r.revoke.ExecContext(ctx, publicID, userPublicID)
 	if err != nil {
@@ -218,7 +209,6 @@ func (r *SQLRepository) RevokeAll(ctx context.Context, userPublicID string) (int
 	return int(affected), nil
 }
 
-// TouchLastUsed records the last successful use of a token.
 func (r *SQLRepository) TouchLastUsed(ctx context.Context, publicID string) error {
 	if _, err := r.touch.ExecContext(ctx, publicID); err != nil {
 		return fmt.Errorf("touch api token: %w", err)

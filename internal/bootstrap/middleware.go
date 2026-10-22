@@ -18,7 +18,6 @@ import (
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 )
 
-// GlobalMiddlewareDependency contains the boundaries used by global middleware.
 type GlobalMiddlewareDependency struct {
 	App           *fiber.App
 	Config        config.Config

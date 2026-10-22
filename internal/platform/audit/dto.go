@@ -16,7 +16,6 @@ const (
 	OutcomeFailure      Outcome = "failure"
 )
 
-// Event is the application-level audit event contract.
 type Event struct {
 	ID         int64             `json:"id"`
 	OccurredAt time.Time         `json:"occurred_at"`

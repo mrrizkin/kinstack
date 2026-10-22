@@ -30,7 +30,6 @@ const (
 
 const recoveryAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-// Dependency contains the persistence boundary and display metadata.
 type Dependency struct {
 	Repository Repository
 	Issuer     string
@@ -40,7 +39,6 @@ type Dependency struct {
 	Box *envelope.Box
 }
 
-// Service owns two-factor enrollment and verification.
 type Service struct {
 	repository Repository
 	issuer     string
@@ -48,7 +46,6 @@ type Service struct {
 	box        *envelope.Box
 }
 
-// New constructs the two-factor service.
 func New(d Dependency) *Service {
 	assert.Assert(d.Repository != nil, "two-factor repository is required")
 

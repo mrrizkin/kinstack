@@ -14,12 +14,10 @@ type Actor struct {
 	repository Repository
 }
 
-// Dependency contains the actor platform's persistence boundary.
 type Dependency struct {
 	Repository Repository
 }
 
-// New creates an actor boundary.
 func New(d Dependency) *Actor {
 	assert.Assert(d.Repository != nil, "actor repository is required")
 

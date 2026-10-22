@@ -59,7 +59,6 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// New constructs a renderer client. An empty URL produces a disabled client.
 func New(cfg Config) *Client {
 	timeout := cfg.Timeout
 	if timeout <= 0 {

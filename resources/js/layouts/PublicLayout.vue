@@ -8,9 +8,9 @@ import { icons } from "@/lib/icons";
 const { t } = useI18n();
 
 const navigation: NavigationMenuItem[] = [
-  { label: "Features", to: "/#features" },
-  { label: "Security", to: "/#security" },
-  { label: "Help", to: "/help" },
+  { label: t("shell.publicNav.features"), to: "/#features" },
+  { label: t("shell.publicNav.security"), to: "/#security" },
+  { label: t("shell.help"), to: "/help" },
 ];
 
 const year = new Date().getFullYear();
@@ -31,7 +31,7 @@ const year = new Date().getFullYear();
         <UColorModeButton color="neutral" variant="ghost" />
         <UButton
           to="/login"
-          label="Sign in"
+          :label="t('shell.publicNav.signIn')"
           color="neutral"
           :trailing-icon="icons.arrowRight"
           class="hidden lg:inline-flex" />
@@ -40,7 +40,7 @@ const year = new Date().getFullYear();
       <template #body>
         <UNavigationMenu :items="navigation" orientation="vertical" class="-mx-2.5" />
         <USeparator class="my-6" />
-        <UButton to="/login" label="Sign in" block />
+        <UButton to="/login" :label="t('shell.publicNav.signIn')" block />
       </template>
     </UHeader>
 
@@ -54,7 +54,7 @@ const year = new Date().getFullYear();
       </template>
       <template #right>
         <UButton to="/help" label="Help" color="neutral" variant="ghost" />
-        <UButton to="/login" label="Sign in" color="neutral" variant="ghost" />
+        <UButton to="/login" :label="t('shell.publicNav.signIn')" color="neutral" variant="ghost" />
       </template>
     </UFooter>
   </div>

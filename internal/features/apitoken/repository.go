@@ -9,7 +9,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// TokenResult is the persistence projection of one API token.
 type TokenResult struct {
 	PublicID     string         `db:"public_id"`
 	UserPublicID string         `db:"user_public_id"`
@@ -23,7 +22,6 @@ type TokenResult struct {
 	CreatedAt    time.Time      `db:"created_at"`
 }
 
-// CreateTokenInput is the persistence input for a new API token.
 type CreateTokenInput struct {
 	PublicID     string
 	UserPublicID string
@@ -34,7 +32,6 @@ type CreateTokenInput struct {
 	ExpiresAt    *time.Time
 }
 
-// Repository is the persistence contract owned by the apitoken feature.
 type Repository interface {
 	Create(context.Context, CreateTokenInput) (TokenResult, error)
 	ListByUser(context.Context, string, pagination.Query) ([]TokenResult, error)

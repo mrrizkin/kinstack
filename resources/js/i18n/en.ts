@@ -67,6 +67,29 @@ export const messages = {
       help: "Help & support",
       logout: "Sign out",
     },
+    publicNav: {
+      features: "Features",
+      security: "Security",
+      signIn: "Sign in",
+    },
+    filters: {
+      close: "Close filters",
+    },
+    sidebar: {
+      toggle: "Open or close sidebar",
+    },
+    pagination: {
+      showing: "Showing {from}–{to} of {total}",
+      rowsPerPage: "Rows per page",
+      previous: "Previous",
+      next: "Next",
+      page: "Page {page} / {pages}",
+    },
+    table: {
+      view: "View",
+      columns: "Columns",
+      showAll: "Show all",
+    },
     notifications: {
       title: "Notifications",
       unread: "{count} unread",

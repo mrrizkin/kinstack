@@ -1,6 +1,5 @@
 package passkeys
 
-// PasskeyRegistrationRequest is the user-supplied label for a new credential.
 type PasskeyRegistrationRequest struct {
 	Name string `json:"name"`
 }

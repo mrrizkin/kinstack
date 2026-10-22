@@ -33,7 +33,6 @@ type AppConfig struct {
 	SecretKey           string
 }
 
-// Load reads application settings from the environment.
 func (c *AppConfig) Load() {
 	c.Port = assert.OK(envInt("APP_PORT", 3000))
 	c.SessionIdleTimeout = assert.OK(envDuration("SESSION_IDLE_TIMEOUT", 24*time.Hour))

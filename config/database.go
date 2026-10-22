@@ -18,7 +18,6 @@ type DatabaseConfig struct {
 	MaxIdleConns     int
 }
 
-// Load reads database settings from the environment.
 func (c *DatabaseConfig) Load() {
 	c.URL = os.Getenv("DATABASE_URL")
 	c.StatementTimeout = assert.OK(envDuration("DB_STATEMENT_TIMEOUT", 15*time.Second))

@@ -2,7 +2,6 @@ package media
 
 import "kinstack/internal/pkg/pagination"
 
-// AssetDTO is the public contract for one media asset.
 type AssetDTO struct {
 	PublicID    string `json:"public_id"`
 	Filename    string `json:"filename"`

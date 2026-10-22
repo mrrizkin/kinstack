@@ -6,7 +6,7 @@ import AppFilterMenu from "@/components/AppFilterMenu.vue";
 import AppInputDate from "@/components/AppInputDate.vue";
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
-import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
+import AppPagination from "@/components/AppPagination.vue";
 import AppQuickFilters from "@/components/AppQuickFilters.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
 import AppCellBadge from "@/components/cells/AppCellBadge.vue";
@@ -14,12 +14,12 @@ import AppCellStack from "@/components/cells/AppCellStack.vue";
 import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { auditPageSchema } from "@/lib/contracts/audit";
 import { icons } from "@/lib/icons";
-import { usePageProps } from "@/lib/page-props";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { usePageProps, usePageSchema } from "@/lib/page-props";
 import { useTableView } from "@/lib/table-view";
 
-import { actionLabel, createAuditColumns, type Entry, outcomeColor, outcomeLabel, statusColor } from "./columns";
+import { actionLabel, createAuditColumns, outcomeColor, outcomeLabel, statusColor } from "./columns";
 import {
   ALL_FILTER,
   RESET_FILTER_KEY,
@@ -35,25 +35,19 @@ defineOptions({ layout: [BaseLayout, AppLayout] });
 
 type Filters = AuditFilterState;
 
-const props = defineProps<{
-  entries: Entry[];
-  filters: Filters;
-  total: number;
-  page: number;
-  per_page: number;
-  pages: number;
-}>();
+const props = usePageSchema(auditPageSchema);
+const { entries, filters } = props;
 
 const { actor } = usePageProps();
 
 /** Applied filters, normalized into the shape the form and presets share. */
 const currentFilters = computed<Filters>(() => ({
-  actor_key: props.filters.actor_key ?? "",
-  action: props.filters.action || ALL_FILTER,
-  outcome: props.filters.outcome || ALL_FILTER,
-  search: props.filters.search ?? "",
-  from: props.filters.from ? props.filters.from.slice(0, 10) : "",
-  to: props.filters.to ? props.filters.to.slice(0, 10) : "",
+  actor_key: filters.actor_key ?? "",
+  action: filters.action || ALL_FILTER,
+  outcome: filters.outcome || ALL_FILTER,
+  search: filters.search ?? "",
+  from: filters.from ? filters.from.slice(0, 10) : "",
+  to: filters.to ? filters.to.slice(0, 10) : "",
 }));
 
 const form = ref<Filters>({ ...currentFilters.value });
@@ -72,17 +66,6 @@ const outcomeOptions = [
   { label: "Success", value: "success" },
   { label: "Failure", value: "failure" },
 ];
-
-const pageInfo = computed<PageInfo>(() => ({
-  page: props.page ?? 1,
-  per_page: props.per_page ?? DEFAULT_PAGE_SIZE,
-  total: props.total ?? 0,
-  total_pages: props.pages ?? 0,
-  from: props.total === 0 ? 0 : (props.page - 1) * props.per_page + 1,
-  to: Math.min(props.page * props.per_page, props.total),
-  has_prev: props.page > 1,
-  has_next: props.page < props.pages,
-}));
 
 function toQuery(state: Filters): Record<string, string> {
   const query: Record<string, string> = {};
@@ -243,7 +226,7 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
                 class="py-6" />
             </template>
           </UTable>
-          <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
+          <AppPagination :page="props.page" url="/audit" :query="activeFilters" />
         </AppTableCard>
 
         <div class="space-y-3 md:hidden">
@@ -287,7 +270,7 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
             variant="naked"
             :actions="emptyActions"
             class="py-10" />
-          <AppPagination :page="pageInfo" url="/audit" :query="activeFilters" />
+          <AppPagination :page="props.page" url="/audit" :query="activeFilters" />
         </div>
       </div>
     </template>

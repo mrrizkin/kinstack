@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 const adminRole = "administrator"
@@ -412,5 +414,44 @@ func TestRolePermissionsManyFiltersUnknownCodes(t *testing.T) {
 	empty, ok := grouped["missing"]
 	if !ok || empty == nil || len(empty) != 0 {
 		t.Fatalf("missing roles must map to an empty slice, got %#v", empty)
+	}
+}
+
+func TestListRolesPaginatesAndAllRolesSpanEveryPage(t *testing.T) {
+	service, repository := newTestService(t)
+	for _, code := range []string{"viewer", "auditor", "operator"} {
+		repository.SeedRole(Role{Code: code, Name: code, Rank: 5})
+	}
+
+	total, err := service.CountRoles(context.Background())
+	if err != nil {
+		t.Fatalf("count roles: %v", err)
+	}
+	if total != 5 {
+		t.Fatalf("expected 5 roles, got %d", total)
+	}
+
+	first, err := service.ListRoles(context.Background(), pagination.New(1, 2))
+	if err != nil {
+		t.Fatalf("list roles: %v", err)
+	}
+	if len(first) != 2 || first[0].Code != adminRole {
+		t.Fatalf("expected the highest rank first, got %#v", first)
+	}
+
+	last, err := service.ListRoles(context.Background(), pagination.New(3, 2))
+	if err != nil {
+		t.Fatalf("list roles: %v", err)
+	}
+	if len(last) != 1 {
+		t.Fatalf("expected one role on the last page, got %#v", last)
+	}
+
+	all, err := service.AllRoles(context.Background())
+	if err != nil {
+		t.Fatalf("all roles: %v", err)
+	}
+	if len(all) != total {
+		t.Fatalf("AllRoles must page through the catalog, got %d of %d", len(all), total)
 	}
 }

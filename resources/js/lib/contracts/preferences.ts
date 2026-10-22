@@ -7,10 +7,6 @@ import { z } from "zod";
 export const themePreferenceSchema = z.enum(["light", "dark", "system"]);
 export type ThemePreference = z.infer<typeof themePreferenceSchema>;
 
-/** Nuxt UI / VueUse colour-mode store values. */
-export const storedColorModeSchema = z.enum(["auto", "light", "dark"]);
-export type StoredColorMode = z.infer<typeof storedColorModeSchema>;
-
 export const soundPreferenceSchema = z.enum(["on", "off"]);
 export type SoundPreference = z.infer<typeof soundPreferenceSchema>;
 

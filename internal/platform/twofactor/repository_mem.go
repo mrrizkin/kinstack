@@ -24,8 +24,6 @@ type memoryUser struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an isolated-test repository with the supplied
-// known user public IDs.
 func NewMemoryRepository(userPublicIDs ...string) *MemoryRepository {
 	repository := &MemoryRepository{users: map[string]*memoryUser{}}
 	for _, publicID := range userPublicIDs {

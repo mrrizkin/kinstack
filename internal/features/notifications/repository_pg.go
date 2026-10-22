@@ -60,7 +60,6 @@ WHERE recipient_public_id = $1
   AND status = 'unread'`
 )
 
-// SQLRepository is the PostgreSQL notification repository.
 type SQLRepository struct {
 	owner        *platformdatabase.StatementOwner
 	listStmt     *sqlx.Stmt
@@ -72,12 +71,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL notification repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "notification database is required")
 
@@ -104,7 +101,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -139,7 +135,6 @@ func (r *SQLRepository) List(
 	return items, nil
 }
 
-// UnreadCount returns how many notifications are still unread.
 func (r *SQLRepository) UnreadCount(ctx context.Context, recipientPublicID string) (int, error) {
 	var count int
 	if err := r.unreadStmt.GetContext(ctx, &count, recipientPublicID); err != nil {
@@ -148,7 +143,6 @@ func (r *SQLRepository) UnreadCount(ctx context.Context, recipientPublicID strin
 	return count, nil
 }
 
-// Create persists one notification.
 func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Notification, error) {
 	var created Notification
 	if err := r.createStmt.GetContext(
@@ -165,7 +159,6 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Notifica
 	return created, nil
 }
 
-// MarkRead marks one owned notification as read.
 func (r *SQLRepository) MarkRead(
 	ctx context.Context,
 	recipientPublicID, publicID string,
@@ -180,7 +173,6 @@ func (r *SQLRepository) MarkRead(
 	return updated, nil
 }
 
-// MarkAllRead marks every unread notification of the recipient as read.
 func (r *SQLRepository) MarkAllRead(ctx context.Context, recipientPublicID string) (int, error) {
 	result, err := r.markAllStmt.ExecContext(ctx, recipientPublicID)
 	if err != nil {

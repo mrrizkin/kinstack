@@ -101,7 +101,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *inertia.Adapter) *appDe
 	deps.Passkeys = passkeys.New(passkeys.Dependency{
 		Repository: repositories.passkey,
 		AppURL:     d.Config.App.URL,
-		Auth:       deps.Auth,
+		Sessions:   passkeySessionStarter{auth: deps.Auth},
 		Actor:      d.Actor,
 		PageSize:   deps.Profile.Service(),
 		Logger:     d.Log,

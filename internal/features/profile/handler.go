@@ -18,7 +18,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
 	Service   *Service
 	Actor     *actor.Actor
@@ -28,7 +27,6 @@ type HandlerDependency struct {
 	TwoFactor *twofactor.Service
 }
 
-// Handler owns the HTTP boundary for the profile page.
 type Handler struct {
 	service   *Service
 	actor     *actor.Actor
@@ -38,7 +36,6 @@ type Handler struct {
 	twoFactor *twofactor.Service
 }
 
-// NewHandler constructs the profile HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "profile service is required")
 	assert.Assert(d.Actor != nil, "profile actor boundary is required")
@@ -94,7 +91,6 @@ func (h *Handler) actorPublicID(c fiber.Ctx) string {
 	return ""
 }
 
-// Mount registers profile routes on the authenticated workspace group.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/profile", h.show)
 	router.Get("/profile/security", h.show)

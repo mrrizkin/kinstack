@@ -16,7 +16,6 @@ import (
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 )
 
-// AppDependency contains every dependency required to construct the HTTP application.
 type AppDependency struct {
 	Config        config.Config
 	Database      *database.DB

@@ -119,7 +119,6 @@ ORDER BY id
 LIMIT $1`
 )
 
-// SQLRepository is the PostgreSQL two-factor repository.
 type SQLRepository struct {
 	owner        *platformdatabase.StatementOwner
 	findStatus   *sqlx.Stmt
@@ -138,12 +137,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL two-factor repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "two-factor database is required")
 
@@ -177,7 +174,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil

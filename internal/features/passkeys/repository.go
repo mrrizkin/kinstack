@@ -24,7 +24,6 @@ type ListPasskeysResult struct {
 	LastUsedAt *time.Time `db:"last_used_at"`
 }
 
-// Repository is the persistence contract consumed by the passkey service.
 type Repository interface {
 	FindByPublicID(context.Context, string) (FindPasskeyUserResult, error)
 	ListPasskeys(context.Context, string) ([]ListPasskeysResult, error)

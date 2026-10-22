@@ -5,9 +5,10 @@ package audit
 import (
 	"context"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
-// Entry is one persisted audit event projection.
 type Entry struct {
 	ID         int64
 	OccurredAt time.Time
@@ -21,16 +22,15 @@ type Entry struct {
 	Metadata   map[string]string
 }
 
-// Query filters and paginates the audit projection.
+// Query filters the audit projection and windows the result.
 type Query struct {
+	pagination.Query
 	ActorKey string
 	Action   string
 	Outcome  string
 	Search   string
 	From     *time.Time
 	To       *time.Time
-	Limit    int
-	Offset   int
 }
 
 // Page is one page of audit entries plus the total number of matches.

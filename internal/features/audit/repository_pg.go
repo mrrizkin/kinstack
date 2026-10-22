@@ -20,12 +20,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL audit viewer repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "audit database is required")
 	return &SQLRepository{db: dependency.DB}, nil
@@ -58,7 +56,7 @@ func (r *SQLRepository) List(ctx context.Context, query Query) (Page, error) {
 	listQuery := "SELECT " + auditEntryProjection + " FROM audit_events" + where +
 		" ORDER BY occurred_at DESC, id DESC LIMIT $" + strconv.Itoa(limitIndex) +
 		" OFFSET $" + strconv.Itoa(offsetIndex)
-	listArgs := append(append([]any{}, args...), query.Limit, query.Offset)
+	listArgs := append(append([]any{}, args...), query.Limit(), query.Offset())
 
 	rows, err := r.db.QueryxContext(ctx, listQuery, listArgs...)
 	if err != nil {

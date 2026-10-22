@@ -59,7 +59,6 @@ WHERE owner_public_id = $1
 RETURNING ` + assetProjection
 )
 
-// SQLRepository is the PostgreSQL media repository.
 type SQLRepository struct {
 	owner      *platformdatabase.StatementOwner
 	listStmt   *sqlx.Stmt
@@ -71,12 +70,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL media repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "media database is required")
 
@@ -103,7 +100,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -111,7 +107,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// List returns one page of the actor's active assets, newest first.
 func (r *SQLRepository) List(
 	ctx context.Context,
 	ownerPublicID string,
@@ -130,7 +125,6 @@ func (r *SQLRepository) List(
 	return assets, nil
 }
 
-// Create persists one uploaded asset.
 func (r *SQLRepository) Create(ctx context.Context, input CreateAssetInput) (Asset, error) {
 	var asset Asset
 	if err := r.createStmt.GetContext(
@@ -157,7 +151,6 @@ func (r *SQLRepository) Count(ctx context.Context, ownerPublicID string) (int, e
 	return count, nil
 }
 
-// Find returns one active asset owned by the actor.
 func (r *SQLRepository) Find(ctx context.Context, ownerPublicID, publicID string) (Asset, error) {
 	var asset Asset
 	if err := r.findStmt.GetContext(ctx, &asset, ownerPublicID, publicID); err != nil {
@@ -169,7 +162,6 @@ func (r *SQLRepository) Find(ctx context.Context, ownerPublicID, publicID string
 	return asset, nil
 }
 
-// Delete soft-deletes one owned asset.
 func (r *SQLRepository) Delete(ctx context.Context, ownerPublicID, publicID string) (Asset, error) {
 	var asset Asset
 	if err := r.deleteStmt.GetContext(ctx, &asset, ownerPublicID, publicID); err != nil {

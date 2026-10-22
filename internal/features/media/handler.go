@@ -15,7 +15,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
 	Service  *Service
 	Actor    *actor.Actor
@@ -24,7 +23,6 @@ type HandlerDependency struct {
 	Inertia  *platforminertia.Adapter
 }
 
-// Handler owns the HTTP boundary for media management.
 type Handler struct {
 	service  *Service
 	actor    *actor.Actor
@@ -33,7 +31,6 @@ type Handler struct {
 	inertia  *platforminertia.Adapter
 }
 
-// NewHandler constructs the media HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "media service is required")
 	assert.Assert(d.Actor != nil, "media actor boundary is required")
@@ -65,7 +62,6 @@ func (h *Handler) defaultPerPage(c fiber.Ctx) int {
 	return pagination.ResolvePageSize(c.Context(), h.pageSize, session.PublicID)
 }
 
-// Mount registers media routes on the guarded group.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/media", h.index)
 	router.Get("/media/:publicID/file", h.file)

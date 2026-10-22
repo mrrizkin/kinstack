@@ -29,7 +29,6 @@ type SQLRepository struct {
 var _ Repository = (*SQLRepository)(nil)
 
 // NewSQLRepository prepares the actor lookup for the repository lifetime.
-// RepositoryDependency contains the dependencies required to construct the SQL repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
@@ -53,7 +52,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// FindByPublicID resolves only active actors.
 func (r *SQLRepository) FindByPublicID(ctx context.Context, publicID string) error {
 	if r == nil || r.findStmt == nil {
 		return ErrRepositoryUnavailable

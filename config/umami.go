@@ -17,7 +17,6 @@ type UmamiConfig struct {
 	AutoTrack bool
 }
 
-// Load reads analytics settings from the environment.
 func (c *UmamiConfig) Load() {
 	c.Enabled = assert.OK(envBool("UMAMI_ENABLED", false))
 	c.ScriptURL = strings.TrimSpace(env("UMAMI_SCRIPT_URL", ""))

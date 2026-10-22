@@ -9,7 +9,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs the isolated-test system content source.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		page: PageResult{

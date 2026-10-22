@@ -17,8 +17,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an isolated-test registry with the supplied
-// known user public IDs.
 func NewMemoryRepository(userPublicIDs ...string) *MemoryRepository {
 	repository := &MemoryRepository{
 		users:   make(map[string]struct{}, len(userPublicIDs)),
@@ -82,7 +80,6 @@ func (r *MemoryRepository) Touch(ctx context.Context, sessionID string) error {
 	return nil
 }
 
-// ListActive returns the active sessions of one user.
 func (r *MemoryRepository) ListActive(ctx context.Context, userPublicID string) ([]Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -101,7 +98,6 @@ func (r *MemoryRepository) ListActive(ctx context.Context, userPublicID string) 
 	return results[:min(len(results), 50)], nil
 }
 
-// FindByPublicID returns one active session.
 func (r *MemoryRepository) FindByPublicID(
 	ctx context.Context,
 	sessionPublicID string,
@@ -118,7 +114,6 @@ func (r *MemoryRepository) FindByPublicID(
 	return record, nil
 }
 
-// Revoke marks one session as revoked.
 func (r *MemoryRepository) Revoke(ctx context.Context, sessionPublicID string) error {
 	if err := ctx.Err(); err != nil {
 		return err

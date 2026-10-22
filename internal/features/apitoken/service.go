@@ -32,21 +32,16 @@ const (
 	lastUsedThrottle = time.Minute
 )
 
-// ServiceDependency contains the persistence boundary and clock used by the
-// API token service.
 type ServiceDependency struct {
 	Repository Repository
 	Now        func() time.Time
 }
 
-// Service owns API token creation, listing, revocation, and bearer
-// authentication.
 type Service struct {
 	repository Repository
 	now        func() time.Time
 }
 
-// NewService constructs an API token service around its repository.
 func NewService(d ServiceDependency) *Service {
 	assert.Assert(d.Repository != nil, "api token repository is required")
 

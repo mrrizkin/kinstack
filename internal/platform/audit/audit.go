@@ -61,7 +61,6 @@ func (a *Audit) Prune(ctx context.Context, before time.Time) (int64, error) {
 	return a.repository.DeleteBefore(ctx, before)
 }
 
-// List returns events matching query.
 func (a *Audit) List(ctx context.Context, query ListQuery) ([]Event, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

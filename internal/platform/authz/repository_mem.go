@@ -5,6 +5,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 // MemoryRepository is an in-memory Repository used by tests and local wiring.
@@ -19,7 +21,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an empty in-memory repository.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		roles:     make(map[string]Role),
@@ -61,19 +62,38 @@ func (r *MemoryRepository) SeedUser(publicID, role string) {
 	r.userRoles[publicID] = role
 }
 
-// ListRoles returns every role.
-func (r *MemoryRepository) ListRoles(context.Context) ([]Role, error) {
+func (r *MemoryRepository) ListRoles(_ context.Context, query pagination.Query) ([]Role, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	roles := make([]Role, 0, len(r.roles))
 	for _, role := range r.roles {
 		roles = append(roles, role)
 	}
-	sort.Slice(roles, func(i, j int) bool { return roles[i].Code < roles[j].Code })
-	return roles[:min(len(roles), 100)], nil
+	sort.Slice(roles, func(i, j int) bool {
+		if roles[i].Rank != roles[j].Rank {
+			return roles[i].Rank > roles[j].Rank
+		}
+		return roles[i].Code < roles[j].Code
+	})
+	start, end := pagination.Window(query, len(roles))
+	return roles[start:end], nil
 }
 
-// CountRoles returns the number of roles.
+func (r *MemoryRepository) RoleNamesByCode(
+	_ context.Context,
+	codes []string,
+) (map[string]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	names := make(map[string]string, len(codes))
+	for _, code := range codes {
+		if role, ok := r.roles[code]; ok {
+			names[code] = role.Name
+		}
+	}
+	return names, nil
+}
+
 func (r *MemoryRepository) CountRoles(context.Context) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -91,7 +111,6 @@ func (r *MemoryRepository) FindRole(_ context.Context, code string) (Role, error
 	return role, nil
 }
 
-// CreateRole inserts a new role.
 func (r *MemoryRepository) CreateRole(_ context.Context, input CreateRoleInput) (Role, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -126,7 +145,6 @@ func (r *MemoryRepository) UpdateRole(_ context.Context, input UpdateRoleInput) 
 	return role, nil
 }
 
-// DeleteRole removes a role.
 func (r *MemoryRepository) DeleteRole(_ context.Context, code string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -138,7 +156,6 @@ func (r *MemoryRepository) DeleteRole(_ context.Context, code string) error {
 	return nil
 }
 
-// RolePermissions returns a role's permission set.
 func (r *MemoryRepository) RolePermissions(_ context.Context, code string) ([]Permission, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -187,7 +204,6 @@ func (r *MemoryRepository) ReplaceRolePermissions(
 	return nil
 }
 
-// CountRoleAssignments counts users holding a role.
 func (r *MemoryRepository) CountRoleAssignments(_ context.Context, code string) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -200,7 +216,6 @@ func (r *MemoryRepository) CountRoleAssignments(_ context.Context, code string) 
 	return count, nil
 }
 
-// UserOverrides returns a user's overrides.
 func (r *MemoryRepository) UserOverrides(_ context.Context, publicID string) ([]Override, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -262,7 +277,6 @@ func (r *MemoryRepository) SetUserOverride(
 	return override, nil
 }
 
-// DeleteUserOverride removes a user's override.
 func (r *MemoryRepository) DeleteUserOverride(
 	_ context.Context,
 	publicID string,
@@ -274,14 +288,12 @@ func (r *MemoryRepository) DeleteUserOverride(
 	return nil
 }
 
-// UserRole returns the role assigned to one user, or "" when unassigned.
 func (r *MemoryRepository) UserRole(_ context.Context, publicID string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.userRoles[publicID], nil
 }
 
-// AssignUserRole changes a user's role.
 func (r *MemoryRepository) AssignUserRole(_ context.Context, publicID, role string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

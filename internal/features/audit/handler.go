@@ -13,7 +13,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
 	Service  *Service
 	Actor    *actor.Actor
@@ -22,7 +21,6 @@ type HandlerDependency struct {
 	Inertia  *platforminertia.Adapter
 }
 
-// Handler owns the HTTP boundary for the audit viewer.
 type Handler struct {
 	service  *Service
 	actor    *actor.Actor
@@ -31,7 +29,6 @@ type Handler struct {
 	inertia  *platforminertia.Adapter
 }
 
-// NewHandler constructs the audit HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "audit service is required")
 	assert.Assert(d.Logger != nil, "audit logger is required")
@@ -46,7 +43,6 @@ func NewHandler(d HandlerDependency) *Handler {
 	}
 }
 
-// Mount registers the audit viewer routes on the guarded group.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/audit", h.index)
 }
@@ -82,12 +78,9 @@ func (h *Handler) index(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("audit/IndexView", fiber.Map{
-		"entries":  props.Entries,
-		"filters":  props.Filters,
-		"total":    props.Total,
-		"page":     props.Page,
-		"per_page": props.PerPage,
-		"pages":    props.Pages,
+		"entries": props.Entries,
+		"filters": props.Filters,
+		"page":    props.Page,
 	})
 }
 

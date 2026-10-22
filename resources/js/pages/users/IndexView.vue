@@ -3,10 +3,12 @@ import { Head, router } from "@inertiajs/vue3";
 import { computed } from "vue";
 
 import AppPageHeader from "@/components/AppPageHeader.vue";
-import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
+import AppPagination from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { usersPageSchema } from "@/lib/contracts/users";
 import { icons } from "@/lib/icons";
+import { usePageSchema } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 import { useTableView } from "@/lib/table-view";
 
@@ -17,7 +19,7 @@ import { useUserForms } from "./composables/useUserForms";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
-const props = defineProps<{ users: User[]; roles: Role[]; page: PageInfo }>();
+const props = usePageSchema(usersPageSchema);
 
 const { can } = usePermissions();
 

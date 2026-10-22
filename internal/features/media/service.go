@@ -44,19 +44,16 @@ type MediaStorage interface {
 	Delete(context.Context, string) error
 }
 
-// ServiceDependency contains the persistence and object storage boundaries used by the service.
 type ServiceDependency struct {
 	Repository Repository
 	Storage    MediaStorage
 }
 
-// Service owns media business rules.
 type Service struct {
 	repository Repository
 	storage    MediaStorage
 }
 
-// NewService constructs a media service around its boundaries.
 func NewService(d ServiceDependency) *Service {
 	assert.Assert(d.Repository != nil, "media repository is required")
 	assert.Assert(d.Storage != nil, "media storage is required")

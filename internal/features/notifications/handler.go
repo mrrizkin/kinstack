@@ -15,7 +15,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
 	Service  *Service
 	Actor    *actor.Actor
@@ -24,7 +23,6 @@ type HandlerDependency struct {
 	Inertia  *platforminertia.Adapter
 }
 
-// Handler owns the HTTP boundary for the notification center.
 type Handler struct {
 	service  *Service
 	actor    *actor.Actor
@@ -33,7 +31,6 @@ type Handler struct {
 	inertia  *platforminertia.Adapter
 }
 
-// NewHandler constructs the notification HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "notification service is required")
 	assert.Assert(d.Actor != nil, "notification actor boundary is required")
@@ -53,7 +50,6 @@ func (h *Handler) notificationsPath() string {
 	return "/notifications"
 }
 
-// Mount registers notification routes on the guarded group.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/notifications", h.index)
 	router.Get("/notifications/feed", h.feed)

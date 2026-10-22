@@ -20,14 +20,12 @@ import (
 	fibers3 "github.com/gofiber/storage/s3"
 )
 
-// Client owns object-level operations against one RustFS bucket.
 type Client struct {
 	storage   *fibers3.Storage
 	bucket    string
 	publicURL string
 }
 
-// Dependency contains the configuration and logging boundaries used to construct the client.
 type Dependency struct {
 	Config config.RustFSConfig
 	Logger applog.Log
@@ -124,7 +122,6 @@ func (c *Client) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	return output.Body, nil
 }
 
-// Delete removes an object from RustFS.
 func (c *Client) Delete(ctx context.Context, key string) error {
 	assert.Assert(c != nil && c.storage != nil, "rustfs client must be initialized")
 	assert.Assert(key != "", "object key is required")

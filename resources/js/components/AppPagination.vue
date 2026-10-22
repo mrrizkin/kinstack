@@ -1,20 +1,11 @@
 <script setup lang="ts">
 import { router } from "@inertiajs/vue3";
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
+import type { PageInfo } from "@/lib/contracts/pages";
 import { icons } from "@/lib/icons";
 import { pageSizeOptions } from "@/lib/pagination";
-
-export interface PageInfo {
-  page: number;
-  per_page: number;
-  total: number;
-  total_pages: number;
-  from: number;
-  to: number;
-  has_prev: boolean;
-  has_next: boolean;
-}
 
 /**
  * The account's stored page size arrives already applied in `page.per_page`, so
@@ -30,6 +21,8 @@ const props = withDefaults(
   }>(),
   { query: () => ({}), pageParam: "page" },
 );
+
+const { t } = useI18n();
 
 const totalPages = computed(() => Math.max(props.page.total_pages, 1));
 const sizeOptions = computed(() => pageSizeOptions(props.page.per_page));
@@ -65,16 +58,16 @@ function changeSize(value: unknown) {
 
 <template>
   <div v-if="page.total > 0" class="text-muted flex flex-wrap items-center justify-between gap-3 px-1 pt-3 text-xs">
-    <p>Showing {{ page.from }}–{{ page.to }} of {{ page.total }}</p>
+    <p>{{ t("shell.pagination.showing", { from: page.from, to: page.to, total: page.total }) }}</p>
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex items-center gap-1">
-        <span class="hidden sm:inline">Rows per page</span>
+        <span class="hidden sm:inline">{{ t("shell.pagination.rowsPerPage") }}</span>
         <USelect
           :model-value="String(page.per_page)"
           :items="sizeOptions"
           size="xs"
           class="w-20"
-          aria-label="Rows per page"
+          :aria-label="t('shell.pagination.rowsPerPage')"
           @update:model-value="changeSize" />
       </div>
       <div class="flex items-center gap-1">
@@ -84,17 +77,17 @@ function changeSize(value: unknown) {
           color="neutral"
           variant="outline"
           :icon="icons.chevronLeft"
-          label="Previous"
+          :label="t('shell.pagination.previous')"
           :disabled="!page.has_prev"
           @click="go(page.page - 1)" />
-        <span class="px-2">Page {{ page.page }} / {{ totalPages }}</span>
+        <span class="px-2">{{ t("shell.pagination.page", { page: page.page, pages: totalPages }) }}</span>
         <UButton
           type="button"
           size="xs"
           color="neutral"
           variant="outline"
           :trailing-icon="icons.chevronRight"
-          label="Next"
+          :label="t('shell.pagination.next')"
           :disabled="!page.has_next"
           @click="go(page.page + 1)" />
       </div>

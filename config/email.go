@@ -18,7 +18,6 @@ type EmailConfig struct {
 	StartTLS bool
 }
 
-// Load reads SMTP settings from the environment.
 func (c *EmailConfig) Load() {
 	c.Port = assert.OK(envInt("SMTP_PORT", 587))
 	c.StartTLS = assert.OK(envBool("SMTP_STARTTLS", true))

@@ -14,8 +14,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the service, actor boundary, session registry,
-// two-factor service, and logger used by the handler.
 type HandlerDependency struct {
 	Service   *Service
 	Actor     *actor.Actor
@@ -41,7 +39,6 @@ type HandlerDependency struct {
 	ContinuationStorage fiber.Storage
 }
 
-// Handler owns the HTTP boundary for authentication.
 type Handler struct {
 	service   *Service
 	actor     *actor.Actor
@@ -63,7 +60,6 @@ type Handler struct {
 	ssoStorage fiber.Storage
 }
 
-// NewHandler constructs the auth HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "auth service is required")
 	assert.Assert(d.Actor != nil, "auth actor boundary is required")
@@ -103,7 +99,6 @@ func NewHandler(d HandlerDependency) *Handler {
 	return handler
 }
 
-// Mount registers the authentication routes at the root of the application.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/login", h.loginPage)
 	router.Post("/login", h.login)

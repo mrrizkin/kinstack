@@ -42,7 +42,7 @@ const lastLogin = computed(() =>
           <UBadge :color="roleColor" variant="subtle" size="sm">{{ roleLabel }}</UBadge>
         </li>
         <li aria-hidden="true" class="text-dimmed">·</li>
-        <li>Joined {{ formatDateTime(profile.created_at) }}</li>
+        <li>Joined <AppCellTime :value="profile.created_at" inline /></li>
         <li aria-hidden="true" class="text-dimmed">·</li>
         <li>Last login {{ lastLogin }}</li>
       </ul>

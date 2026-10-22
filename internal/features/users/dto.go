@@ -2,7 +2,6 @@ package users
 
 import "kinstack/internal/pkg/pagination"
 
-// UserDTO is the public contract for one user account.
 type UserDTO struct {
 	PublicID    string `json:"public_id"`
 	Username    string `json:"username"`
@@ -15,7 +14,6 @@ type UserDTO struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// CreateUserRequest is the payload accepted when creating an account.
 type CreateUserRequest struct {
 	Username    string `json:"username"`
 	Email       string `json:"email"`
@@ -24,7 +22,6 @@ type CreateUserRequest struct {
 	Role        string `json:"role"`
 }
 
-// InviteUserRequest is the payload accepted when inviting a new account.
 type InviteUserRequest struct {
 	Email       string `json:"email"`
 	Username    string `json:"username"`
@@ -32,30 +29,25 @@ type InviteUserRequest struct {
 	Role        string `json:"role"`
 }
 
-// UpdateUserRequest is the payload accepted when editing an account.
 type UpdateUserRequest struct {
 	Email       string `json:"email"`
 	DisplayName string `json:"display_name"`
 	Role        string `json:"role"`
 }
 
-// ResetPasswordRequest is the payload accepted when resetting a password.
 type ResetPasswordRequest struct {
 	Password string `json:"password"`
 }
 
-// SetActiveRequest is the payload accepted when enabling or disabling an account.
 type SetActiveRequest struct {
 	IsActive bool `json:"is_active"`
 }
 
-// UsersPageProps is the public contract for the user management page.
 type UsersPageProps struct {
 	Users []UserDTO `json:"users"`
 	Roles []RoleDTO `json:"roles"`
 }
 
-// RoleDTO is the public contract for one authorization role.
 type RoleDTO struct {
 	Code        string   `json:"code"`
 	Name        string   `json:"name"`
@@ -73,7 +65,6 @@ type PermissionDTO struct {
 	Description string `json:"description"`
 }
 
-// OverrideDTO is a per-user permission exception.
 type OverrideDTO struct {
 	Permission string `json:"permission"`
 	Label      string `json:"label"`
@@ -89,14 +80,13 @@ type UserAccessDTO struct {
 	Username    string        `json:"username"`
 	DisplayName string        `json:"display_name"`
 	Role        string        `json:"role"`
-	RoleName    string        `json:"role_name"`
 	IsActive    bool          `json:"is_active"`
 	Overrides   []OverrideDTO `json:"overrides"`
 }
 
-// AccessPageProps is the public contract for the access management page.
 type AccessPageProps struct {
 	Roles       []RoleDTO       `json:"roles"`
+	RoleOptions []RoleDTO       `json:"role_options"`
 	RolesPage   pagination.Page `json:"roles_page"`
 	Permissions []PermissionDTO `json:"permissions"`
 	Categories  []string        `json:"categories"`
@@ -104,7 +94,6 @@ type AccessPageProps struct {
 	Page        pagination.Page `json:"page"`
 }
 
-// CreateRoleRequest is the payload accepted when creating a role.
 type CreateRoleRequest struct {
 	Code        string `json:"code"`
 	Name        string `json:"name"`
@@ -112,7 +101,6 @@ type CreateRoleRequest struct {
 	Rank        int    `json:"rank"`
 }
 
-// UpdateRoleRequest is the payload accepted when editing a role.
 type UpdateRoleRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -137,7 +125,6 @@ type SetOverrideRequest struct {
 	ExpiresAt  string `json:"expires_at"`
 }
 
-// DeleteOverrideRequest removes a per-user permission override.
 type DeleteOverrideRequest struct {
 	Permission string `json:"permission"`
 }

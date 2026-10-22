@@ -14,7 +14,6 @@ type Engine struct {
 	policies map[Permission][]Policy
 }
 
-// NewEngine constructs an ABAC engine from registered policies.
 func NewEngine(policies ...Policy) *Engine {
 	indexed := make(map[Permission][]Policy)
 	for _, policy := range policies {

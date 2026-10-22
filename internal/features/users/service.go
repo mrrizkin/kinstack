@@ -37,7 +37,6 @@ type CredentialRevoker interface {
 	RevokeAll(ctx context.Context, userPublicID string) error
 }
 
-// ServiceDependency contains the persistence boundary used by the service.
 type ServiceDependency struct {
 	Repository    Repository
 	Authorization *authz.Service
@@ -45,7 +44,6 @@ type ServiceDependency struct {
 	Revoker       CredentialRevoker
 }
 
-// Service owns user account business rules.
 type Service struct {
 	repository    Repository
 	authorization *authz.Service
@@ -53,7 +51,6 @@ type Service struct {
 	revoker       CredentialRevoker
 }
 
-// NewService constructs a users service around its persistence contract.
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "users repository is required")
 

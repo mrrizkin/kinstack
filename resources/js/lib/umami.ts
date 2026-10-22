@@ -42,8 +42,3 @@ export function installUmami(config?: UmamiConfig): void {
   }
   document.head.appendChild(script);
 }
-
-/** Tracks a custom event when Umami is loaded. */
-export function trackEvent(name: string, data?: Record<string, unknown>): void {
-  window.umami?.track(name, data);
-}

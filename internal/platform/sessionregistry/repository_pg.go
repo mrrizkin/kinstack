@@ -93,7 +93,6 @@ WHERE user_id = (
 RETURNING session_id`
 )
 
-// SQLRepository is the PostgreSQL session registry.
 type SQLRepository struct {
 	owner      *platformdatabase.StatementOwner
 	register   *sqlx.Stmt
@@ -108,12 +107,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL session registry.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "session registry database is required")
 
@@ -143,7 +140,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -183,7 +179,6 @@ func (r *SQLRepository) Touch(ctx context.Context, sessionID string) error {
 	return nil
 }
 
-// ListActive returns the active sessions of one user.
 func (r *SQLRepository) ListActive(ctx context.Context, userPublicID string) ([]Result, error) {
 	results := make([]Result, 0)
 	if err := r.listActive.SelectContext(ctx, &results, userPublicID); err != nil {
@@ -192,7 +187,6 @@ func (r *SQLRepository) ListActive(ctx context.Context, userPublicID string) ([]
 	return results, nil
 }
 
-// FindByPublicID returns one active session.
 func (r *SQLRepository) FindByPublicID(
 	ctx context.Context,
 	sessionPublicID string,
@@ -207,7 +201,6 @@ func (r *SQLRepository) FindByPublicID(
 	return result, nil
 }
 
-// Revoke marks one session as revoked.
 func (r *SQLRepository) Revoke(ctx context.Context, sessionPublicID string) error {
 	result, err := r.revoke.ExecContext(ctx, sessionPublicID)
 	if err != nil {

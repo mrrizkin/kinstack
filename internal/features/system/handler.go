@@ -12,19 +12,16 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the service and logging boundaries used by the handler.
 type HandlerDependency struct {
 	Service *Service
 	Logger  log.Log
 }
 
-// Handler owns the HTTP boundary for system pages.
 type Handler struct {
 	service *Service
 	logger  log.Log
 }
 
-// NewHandler constructs the system HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "system service is required")
 	assert.Assert(d.Logger != nil, "system logger is required")
@@ -32,7 +29,6 @@ func NewHandler(d HandlerDependency) *Handler {
 	return &Handler{service: d.Service, logger: d.Logger}
 }
 
-// Mount registers the existing public system routes.
 func (h *Handler) Mount(router fiber.Router) {
 	for _, surface := range []string{"403", "error", "offline", "maintenance", "help", "help/shortcuts"} {
 		router.Get("/"+surface, h.page)

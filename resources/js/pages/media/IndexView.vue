@@ -4,28 +4,20 @@ import { computed, ref } from "vue";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
-import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
+import AppPagination from "@/components/AppPagination.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { type Asset, mediaPageSchema } from "@/lib/contracts/media";
 import { fieldMessage } from "@/lib/errors";
-import { formatDateTime } from "@/lib/formatters";
 import { icons } from "@/lib/icons";
-import { usePageProps } from "@/lib/page-props";
+import { usePageProps, usePageSchema } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 import { queryString } from "@/lib/query";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
-interface Asset {
-  public_id: string;
-  filename: string;
-  content_type: string;
-  size: number;
-  url: string;
-  created_at: string;
-}
-
-const props = defineProps<{ assets: Asset[]; page: PageInfo }>();
+const props = usePageSchema(mediaPageSchema);
 
 const { can } = usePermissions();
 const { actor } = usePageProps();
@@ -202,7 +194,9 @@ function isImage(contentType: string) {
               <p class="text-highlighted truncate text-sm font-medium" :title="asset.filename">
                 {{ asset.filename }}
               </p>
-              <p class="text-muted text-xs">{{ humanSize(asset.size) }} · {{ formatDateTime(asset.created_at) }}</p>
+              <p class="text-muted text-xs">
+                {{ humanSize(asset.size) }} · <AppCellTime :value="asset.created_at" inline />
+              </p>
               <div class="flex justify-end gap-2 pt-2">
                 <UButton
                   :to="asset.url"

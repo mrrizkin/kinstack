@@ -129,7 +129,6 @@ SELECT ` + userProjection + `
 FROM updated u`
 )
 
-// SQLRepository is the PostgreSQL user account repository.
 type SQLRepository struct {
 	db           *sqlx.DB
 	owner        *platformdatabase.StatementOwner
@@ -144,12 +143,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to construct the SQL repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL user repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "users database is required")
 
@@ -178,7 +175,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil

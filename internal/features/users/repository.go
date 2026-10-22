@@ -20,7 +20,6 @@ type UserResult struct {
 	CreatedAt   time.Time  `db:"created_at"`
 }
 
-// CreateUserInput is the persistence input for a new account.
 type CreateUserInput struct {
 	PublicID     string
 	Username     string
@@ -30,7 +29,6 @@ type CreateUserInput struct {
 	Invited      bool
 }
 
-// UpdateUserInput is the persistence input for an edited account.
 type UpdateUserInput struct {
 	PublicID    string
 	Email       string
@@ -43,7 +41,6 @@ type UserCounts struct {
 	Active int
 }
 
-// Repository is the persistence contract owned by the users slice.
 type Repository interface {
 	ListUsers(context.Context, pagination.Query) ([]UserResult, error)
 	CountUsers(context.Context) (UserCounts, error)

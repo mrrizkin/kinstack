@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { pageInfoSchema } from "./pages";
+
 /**
  * WebAuthn the browser gives us a `PublicKeyCredential`, but the Go boundary
  * only declares the generic `{ publicKey: object }` envelope. The decoded
@@ -24,5 +26,8 @@ export const passkeySummarySchema = z.looseObject({
 });
 export type PasskeySummary = z.infer<typeof passkeySummarySchema>;
 
-/** Acknowledgement from the delete endpoint or the created credential. */
-export const passkeyMutationSchema = z.union([passkeySummarySchema, passkeyCredentialSchema]);
+export const passkeysPageSchema = z.looseObject({
+  passkeys: z.array(passkeySummarySchema).default([]),
+  page: pageInfoSchema,
+});
+export type PasskeysPageProps = z.infer<typeof passkeysPageSchema>;

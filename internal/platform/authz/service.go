@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/i18n"
 )
 
@@ -25,13 +26,12 @@ const (
 
 var roleCodePattern = regexp.MustCompile(`^[a-z][a-z0-9._-]{2,31}$`)
 
-// ServiceDependency contains the persistence boundary and optional tuning for
-// the authorization service.
 type ServiceDependency struct {
 	Repository Repository
 	Engine     *Engine
-	CacheTTL   time.Duration
-	Now        func() time.Time
+	// CacheTTL of zero disables caching, which tests rely on.
+	CacheTTL time.Duration
+	Now      func() time.Time
 }
 
 // Service resolves effective permissions (RBAC + overrides) and evaluates ABAC
@@ -52,8 +52,6 @@ type resolvedPermissions struct {
 	expiresAt time.Time
 }
 
-// New constructs the authorization service. A zero CacheTTL disables caching
-// and is used by tests.
 func New(d ServiceDependency) *Service {
 	assert.Assert(d.Repository != nil, "authz repository is required")
 
@@ -293,23 +291,32 @@ func (s *Service) FindRole(ctx context.Context, code string) (Role, error) {
 	return s.repository.FindRole(ctx, strings.TrimSpace(code))
 }
 
-// ListRoles returns every role ordered by rank then code.
-// CountRoles returns the total number of roles.
 func (s *Service) CountRoles(ctx context.Context) (int, error) {
 	return s.repository.CountRoles(ctx)
 }
 
-func (s *Service) ListRoles(ctx context.Context) ([]Role, error) {
-	roles, err := s.repository.ListRoles(ctx)
+// ListRoles returns one page of roles, highest rank first.
+func (s *Service) ListRoles(ctx context.Context, query pagination.Query) ([]Role, error) {
+	return s.repository.ListRoles(ctx, query)
+}
+
+// AllRoles pages through the catalog for selects that must list every role.
+func (s *Service) AllRoles(ctx context.Context) ([]Role, error) {
+	total, err := s.repository.CountRoles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	sort.SliceStable(roles, func(i, j int) bool {
-		if roles[i].Rank != roles[j].Rank {
-			return roles[i].Rank > roles[j].Rank
+	roles := make([]Role, 0, total)
+	for page := 1; len(roles) < total; page++ {
+		batch, err := s.repository.ListRoles(ctx, pagination.New(page, pagination.MaxPerPage))
+		if err != nil {
+			return nil, err
 		}
-		return roles[i].Code < roles[j].Code
-	})
+		if len(batch) == 0 {
+			break
+		}
+		roles = append(roles, batch...)
+	}
 	return roles, nil
 }
 

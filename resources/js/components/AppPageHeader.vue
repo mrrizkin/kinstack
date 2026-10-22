@@ -6,7 +6,11 @@
  * description, the notification bell, and page-specific actions. The panel
  * owner supplies `#header`; this component only fills the navbar.
  */
+import { useI18n } from "vue-i18n";
+
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
+
+const { t } = useI18n();
 
 defineProps<{
   title: string;
@@ -17,7 +21,7 @@ defineProps<{
 <template>
   <UDashboardNavbar :title="title" :description="description">
     <template #leading>
-      <UDashboardSidebarCollapse aria-label="Open or close sidebar" />
+      <UDashboardSidebarCollapse :aria-label="t('shell.sidebar.toggle')" />
       <slot name="leading" />
     </template>
     <slot />

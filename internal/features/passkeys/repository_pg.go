@@ -16,7 +16,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// SQLRepository is the PostgreSQL implementation of the passkey repository.
 type SQLRepository struct {
 	owner               *platformdatabase.StatementOwner
 	findByPublicIDStmt  *sqlx.Stmt
@@ -30,7 +29,6 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
@@ -63,7 +61,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -71,7 +68,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// FindByPublicID resolves one active account.
 func (r *SQLRepository) FindByPublicID(
 	ctx context.Context,
 	id string,
@@ -86,7 +82,6 @@ func (r *SQLRepository) FindByPublicID(
 	return result, nil
 }
 
-// ListPasskeys returns the credentials of one active account.
 func (r *SQLRepository) ListPasskeys(ctx context.Context, id string) ([]ListPasskeysResult, error) {
 	if _, err := r.FindByPublicID(ctx, id); err != nil {
 		return nil, err
@@ -98,7 +93,6 @@ func (r *SQLRepository) ListPasskeys(ctx context.Context, id string) ([]ListPass
 	return results, nil
 }
 
-// SavePasskey stores a new credential.
 func (r *SQLRepository) SavePasskey(ctx context.Context, id string, record PasskeyRecord) error {
 	record.Name = strings.TrimSpace(record.Name)
 	if len(record.ID) == 0 || !bytes.Equal(record.ID, record.Credential.ID) ||
@@ -127,7 +121,6 @@ func (r *SQLRepository) SavePasskey(ctx context.Context, id string, record Passk
 	return nil
 }
 
-// UpdatePasskey stores authenticator state after a successful assertion.
 func (r *SQLRepository) UpdatePasskey(ctx context.Context, id string, record PasskeyRecord) error {
 	credential, err := json.Marshal(record.Credential)
 	if err != nil {
@@ -160,7 +153,6 @@ func (r *SQLRepository) UpdatePasskey(ctx context.Context, id string, record Pas
 	return nil
 }
 
-// DeletePasskey removes one credential.
 func (r *SQLRepository) DeletePasskey(ctx context.Context, id string, credentialID []byte) error {
 	result, err := r.deletePasskeyStmt.ExecContext(ctx, id, credentialID)
 	if err != nil {
@@ -191,7 +183,6 @@ func (r *SQLRepository) hasActiveUser(ctx context.Context, id string) (bool, err
 	return active, nil
 }
 
-// FindPasskeyUser resolves the account selected by a discoverable login.
 func (r *SQLRepository) FindPasskeyUser(
 	ctx context.Context,
 	credentialID, userHandle []byte,

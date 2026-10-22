@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Dependency contains the boundaries used by the notifications feature.
 type Dependency struct {
 	Repository Repository
 	Actor      *actor.Actor
@@ -25,7 +24,6 @@ type Feature struct {
 	handler *Handler
 }
 
-// New constructs the notifications feature from explicit dependencies.
 func New(d Dependency) *Feature {
 	assert.Assert(d.Repository != nil, "notification repository is required")
 	assert.Assert(d.Actor != nil, "notification actor is required")
@@ -43,7 +41,6 @@ func New(d Dependency) *Feature {
 	return &Feature{service: service, handler: handler}
 }
 
-// Mount registers notification routes on the guarded workspace.
 func (f *Feature) Mount(router fiber.Router) {
 	assert.Assert(f != nil && f.handler != nil, "notifications feature must be initialized")
 	f.handler.Mount(router)

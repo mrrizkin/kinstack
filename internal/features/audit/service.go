@@ -27,17 +27,14 @@ var allowedOutcomes = map[string]struct{}{
 	"failure": {},
 }
 
-// ServiceDependency contains the persistence boundary used by the service.
 type ServiceDependency struct {
 	Repository Repository
 }
 
-// Service owns the audit viewer business rules.
 type Service struct {
 	repository Repository
 }
 
-// NewService constructs an audit service around its repository.
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "audit repository is required")
 	return &Service{repository: dependency.Repository}
@@ -59,10 +56,6 @@ func (s *Service) List(ctx context.Context, request FilterRequest) (PageProps, e
 		entries = append(entries, toEntryDTO(entry))
 	}
 	query := filter.Query
-	pages := 0
-	if query.Limit > 0 {
-		pages = (page.Total + query.Limit - 1) / query.Limit
-	}
 	return PageProps{
 		Entries: entries,
 		Filters: Filters{
@@ -73,10 +66,7 @@ func (s *Service) List(ctx context.Context, request FilterRequest) (PageProps, e
 			From:     filter.From,
 			To:       filter.To,
 		},
-		Total:   page.Total,
-		Page:    query.Offset/query.Limit + 1,
-		PerPage: query.Limit,
-		Pages:   pages,
+		Page: pagination.NewPage(query.Query, page.Total),
 	}, nil
 }
 
@@ -130,8 +120,7 @@ func normalizeFilter(request FilterRequest) (normalizedFilter, error) {
 	if page < 1 {
 		page = 1
 	}
-	query.Limit = perPage
-	query.Offset = (page - 1) * perPage
+	query.Query = pagination.Query{Page: page, PerPage: perPage}
 
 	from, err := parseTimeFilter(request.From, false)
 	if err != nil {

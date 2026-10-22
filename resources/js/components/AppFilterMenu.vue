@@ -6,6 +6,7 @@
  * visible while the user fixes them.
  */
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import { icons } from "@/lib/icons";
 
@@ -19,6 +20,8 @@ interface Props {
   resetLabel?: string;
   applyLabel?: string;
 }
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<Props>(), {
   activeCount: 0,
@@ -73,7 +76,7 @@ defineExpose({ close });
             size="xs"
             square
             :icon="icons.close"
-            aria-label="Close filters"
+            :aria-label="t('shell.filters.close')"
             @click="closePopover" />
         </div>
 

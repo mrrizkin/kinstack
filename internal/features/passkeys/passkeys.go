@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"kinstack/internal/features/auth"
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
 	"kinstack/internal/pkg/pagination"
@@ -16,12 +15,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Dependency contains the persistence, WebAuthn, authentication, actor, and
-// logging boundaries used by the feature.
 type Dependency struct {
 	Repository Repository
 	AppURL     string
-	Auth       *auth.Feature
+	Sessions   SessionStarter
 	Actor      *platformactor.Actor
 	PageSize   pagination.PageSizeReader
 	Logger     applog.Log
@@ -33,10 +30,9 @@ type Feature struct {
 	handler *Handler
 }
 
-// New constructs the passkey feature from explicit dependencies.
 func New(d Dependency) *Feature {
 	assert.Assert(d.Repository != nil, "passkeys repository is required")
-	assert.Assert(d.Auth != nil, "passkeys auth feature is required")
+	assert.Assert(d.Sessions != nil, "passkeys session starter is required")
 	assert.Assert(d.Actor != nil, "passkeys actor boundary is required")
 	assert.Assert(d.Logger != nil, "passkeys logger is required")
 	assert.Assert(d.AppURL != "", "passkeys app URL is required")
@@ -55,14 +51,13 @@ func New(d Dependency) *Feature {
 			Actor:    d.Actor,
 			Service:  service,
 			WebAuthn: webAuthn,
-			Auth:     d.Auth,
+			Sessions: d.Sessions,
 			PageSize: d.PageSize,
 			Logger:   d.Logger,
 		}),
 	}
 }
 
-// Mount registers the public passkey sign-in routes.
 func (f *Feature) Mount(router fiber.Router) {
 	assert.Assert(f != nil && f.handler != nil, "passkeys feature must be initialized")
 	f.handler.MountPublic(router)
@@ -74,7 +69,6 @@ func (f *Feature) MountWorkspace(router fiber.Router) {
 	f.handler.MountWorkspace(router)
 }
 
-// Service exposes the feature service for composition-root adapters.
 func (f *Feature) Service() *Service {
 	assert.Assert(f != nil && f.service != nil, "passkeys feature must be initialized")
 	return f.service

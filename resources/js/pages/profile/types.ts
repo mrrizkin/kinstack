@@ -1,42 +1,7 @@
+import type { ActiveSession, Preferences, Profile, ThemeOption, TwoFactor } from "@/lib/contracts/profile";
 import type { ThemePreference } from "@/lib/theme";
 
-export interface Profile {
-  public_id: string;
-  username: string;
-  display_name: string;
-  role: string;
-  invited: boolean;
-  last_login_at: string;
-  created_at: string;
-}
-
-export interface Preferences {
-  theme: string;
-  sound_enabled: boolean;
-  page_size: number;
-}
-
-export interface ActiveSession {
-  public_id: string;
-  ip: string;
-  user_agent: string;
-  login_at: string;
-  last_seen_at: string;
-  current: boolean;
-}
-
-export interface TwoFactor {
-  enabled: boolean;
-  pending_secret: string;
-  uri: string;
-  recovery_codes: string[];
-}
-
-export interface ThemeOption {
-  label: string;
-  value: ThemePreference;
-  icon: string;
-}
+export type { ActiveSession, Preferences, Profile, ThemeOption, TwoFactor };
 
 export interface ProfileForm {
   display_name: string;

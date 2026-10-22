@@ -2,8 +2,9 @@
 import { computed } from "vue";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
-import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
-import { formatDateTime } from "@/lib/formatters";
+import AppPagination from "@/components/AppPagination.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
+import type { PageInfo } from "@/lib/contracts/pages";
 import { icons } from "@/lib/icons";
 
 import type { TwoFactorAction } from "../composables/useSecurityForms";
@@ -219,8 +220,8 @@ const enrollLabel = computed(() => (props.twoFactor.pending_secret ? "Continue s
               <UBadge v-if="item.current" color="primary" variant="subtle" size="sm">This session</UBadge>
             </p>
             <p class="text-muted mt-1 text-xs">
-              {{ item.ip || "-" }} · last active {{ formatDateTime(item.last_seen_at) }} · started
-              {{ formatDateTime(item.login_at) }}
+              {{ item.ip || "-" }} · last active <AppCellTime :value="item.last_seen_at" inline /> · started
+              <AppCellTime :value="item.login_at" inline />
             </p>
           </div>
           <UButton

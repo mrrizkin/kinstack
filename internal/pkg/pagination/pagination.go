@@ -128,7 +128,6 @@ func Window(query Query, total int) (int, int) {
 	return start, end
 }
 
-// Query is a normalized page request.
 type Query struct {
 	Page    int
 	PerPage int

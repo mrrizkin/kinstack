@@ -5,27 +5,11 @@ import AppCellSelect from "@/components/cells/AppCellSelect.vue";
 import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
 import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
+import type { RoleOption as Role, User } from "@/lib/contracts/users";
 
 import UserActionsCell from "./components/UserActionsCell.vue";
 
-export interface User {
-  public_id: string;
-  username: string;
-  email?: string;
-  display_name: string;
-  role: string;
-  is_active: boolean;
-  invited: boolean;
-  last_login_at?: string;
-  created_at: string;
-}
-
-export interface Role {
-  code: string;
-  name: string;
-  description: string;
-  is_system: boolean;
-}
+export type { Role, User };
 
 export interface CreateUserForm {
   username: string;

@@ -20,7 +20,6 @@ type DocumentConfig struct {
 	Timeout      time.Duration
 }
 
-// Load reads document rendering settings from the environment.
 func (c *DocumentConfig) Load() {
 	c.Timeout = assert.OK(envDuration("DOCUMENT_TIMEOUT", defaultDocumentTimeout))
 	c.GotenbergURL = strings.TrimRight(strings.TrimSpace(os.Getenv("GOTENBERG_URL")), "/")

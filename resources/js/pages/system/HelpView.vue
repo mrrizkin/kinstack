@@ -6,19 +6,15 @@ import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import PublicLayout from "@/layouts/PublicLayout.vue";
+import { systemStatePageSchema } from "@/lib/contracts/pages";
 import { icons } from "@/lib/icons";
-import { usePageProps } from "@/lib/page-props";
+import { usePageProps, usePageSchema } from "@/lib/page-props";
 
 defineOptions({
   layout: (props: { actor?: unknown }) => (props.actor ? [BaseLayout, AppLayout] : [BaseLayout, PublicLayout]),
 });
 
-interface Shortcut {
-  key: string;
-  action: string;
-}
-
-defineProps<{ topics: string[]; shortcuts: Shortcut[] }>();
+const { topics, shortcuts } = usePageSchema(systemStatePageSchema);
 
 const { actor } = usePageProps();
 const isAuthenticated = computed(() => Boolean(actor.value));

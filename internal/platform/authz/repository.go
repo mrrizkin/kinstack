@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/i18n"
 )
 
@@ -34,7 +35,6 @@ type Role struct {
 	UpdatedAt   time.Time `db:"updated_at"`
 }
 
-// Override is a per-user permission exception.
 type Override struct {
 	Permission Permission `db:"permission_code"`
 	Effect     Effect     `db:"effect"`
@@ -47,7 +47,6 @@ func (o Override) Expired(now time.Time) bool {
 	return o.ExpiresAt != nil && !o.ExpiresAt.After(now)
 }
 
-// CreateRoleInput is the persistence input for a new role.
 type CreateRoleInput struct {
 	Code        string
 	Name        string
@@ -55,7 +54,6 @@ type CreateRoleInput struct {
 	Rank        int
 }
 
-// UpdateRoleInput is the persistence input for an edited role.
 type UpdateRoleInput struct {
 	Code        string
 	Name        string
@@ -63,7 +61,6 @@ type UpdateRoleInput struct {
 	Rank        int
 }
 
-// SetOverrideInput is the persistence input for an override upsert.
 type SetOverrideInput struct {
 	UserPublicID string
 	Permission   Permission
@@ -72,9 +69,8 @@ type SetOverrideInput struct {
 	ExpiresAt    *time.Time
 }
 
-// Repository is the persistence contract owned by the authz platform package.
 type Repository interface {
-	ListRoles(context.Context) ([]Role, error)
+	ListRoles(context.Context, pagination.Query) ([]Role, error)
 	CountRoles(context.Context) (int, error)
 	FindRole(context.Context, string) (Role, error)
 	CreateRole(context.Context, CreateRoleInput) (Role, error)

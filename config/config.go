@@ -12,7 +12,6 @@ type Configuration interface {
 	Validate() error
 }
 
-// Config is the complete runtime configuration.
 type Config struct {
 	App         AppConfig
 	DB          DatabaseConfig

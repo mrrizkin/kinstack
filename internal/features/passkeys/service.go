@@ -32,17 +32,14 @@ type PasskeyRecord struct {
 	LastUsedAt *time.Time
 }
 
-// ServiceDependency contains the persistence boundary used by the service.
 type ServiceDependency struct {
 	Repository Repository
 }
 
-// Service owns passkey credential rules and repository orchestration.
 type Service struct {
 	repository Repository
 }
 
-// NewService constructs the service around its repository contract.
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "passkeys repository is required")
 

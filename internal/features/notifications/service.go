@@ -20,17 +20,14 @@ const (
 	maxBodyLength  = 2000
 )
 
-// ServiceDependency contains the persistence boundary used by the service.
 type ServiceDependency struct {
 	Repository Repository
 }
 
-// Service owns notification business rules.
 type Service struct {
 	repository Repository
 }
 
-// NewService constructs a notification service around its repository.
 func NewService(d ServiceDependency) *Service {
 	assert.Assert(d.Repository != nil, "notification repository is required")
 	return &Service{repository: d.Repository}

@@ -5,16 +5,15 @@ import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { resetPasswordPageSchema } from "@/lib/contracts/pages";
 import { icons } from "@/lib/icons";
+import { usePageSchema } from "@/lib/page-props";
 
 defineOptions({
   layout: [BaseLayout, [AuthLayout, { title: "Reset password", subtitle: "Set a new password for your account." }]],
 });
 
-const props = defineProps<{
-  token?: string;
-  done?: boolean;
-}>();
+const props = usePageSchema(resetPasswordPageSchema);
 
 const form = useForm({
   new_password: "",

@@ -57,7 +57,6 @@ type MemorySender struct {
 	failure  error
 }
 
-// NewMemorySender constructs an empty in-memory sender.
 func NewMemorySender() *MemorySender { return &MemorySender{} }
 
 // Send records a message after validating it, deduplicating by idempotency key.

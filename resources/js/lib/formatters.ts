@@ -1,17 +1,5 @@
 /** Formatting helpers shared across KinStack pages. */
 
-export function formatRupiah(value: number | string | null | undefined): string {
-  const amount = Number(value ?? 0);
-  if (Number.isNaN(amount)) {
-    return "IDR 0";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) {
     return "-";
@@ -24,17 +12,6 @@ export function formatDateTime(value: string | null | undefined): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-}
-
-export function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return "-";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(date);
 }
 
 /** Relative time used by the notification slide-over. */

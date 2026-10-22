@@ -21,7 +21,6 @@ const apiTokensPath = "/api-tokens"
 // redirect so it can be shown exactly once.
 const createdTokenFlashKey = "created_api_token"
 
-// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
 	Service       *Service
 	Actor         *actor.Actor
@@ -31,7 +30,6 @@ type HandlerDependency struct {
 	Inertia       *platforminertia.Adapter
 }
 
-// Handler owns the HTTP boundary for personal API tokens.
 type Handler struct {
 	service       *Service
 	actor         *actor.Actor
@@ -41,7 +39,6 @@ type Handler struct {
 	inertia       *platforminertia.Adapter
 }
 
-// NewHandler constructs the API token HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "api token service is required")
 	assert.Assert(d.Actor != nil, "api token actor boundary is required")
@@ -59,7 +56,6 @@ func NewHandler(d HandlerDependency) *Handler {
 	}
 }
 
-// Mount registers the API token routes on the authenticated workspace.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/api-tokens", h.show)
 	router.Post("/api-tokens", h.create)

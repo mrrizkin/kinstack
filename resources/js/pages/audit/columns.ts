@@ -5,19 +5,9 @@ import AppCellBadge from "@/components/cells/AppCellBadge.vue";
 import AppCellStack from "@/components/cells/AppCellStack.vue";
 import AppCellTime from "@/components/cells/AppCellTime.vue";
 import type { CellBadgeColor } from "@/components/cells/types";
+import type { AuditEntry as Entry } from "@/lib/contracts/audit";
 
-export interface Entry {
-  id: number;
-  occurred_at: string;
-  request_id: string;
-  actor_key: string;
-  action: string;
-  resource: string;
-  method: string;
-  status: number;
-  outcome: string;
-  metadata?: Record<string, string>;
-}
+export type { Entry };
 
 const ACTION_LABELS: Record<string, string> = {
   "http.read": "Page view",

@@ -29,7 +29,6 @@ func NewMemoryActor(publicIDs ...string) *Actor {
 	return New(Dependency{Repository: NewMemoryRepository(publicIDs...)})
 }
 
-// Add marks an actor as active.
 func (r *MemoryRepository) Add(publicID string) {
 	if r == nil {
 		return
@@ -39,7 +38,6 @@ func (r *MemoryRepository) Add(publicID string) {
 	r.active[strings.TrimSpace(publicID)] = struct{}{}
 }
 
-// Remove marks an actor as unavailable.
 func (r *MemoryRepository) Remove(publicID string) {
 	if r == nil {
 		return
@@ -49,7 +47,6 @@ func (r *MemoryRepository) Remove(publicID string) {
 	delete(r.active, strings.TrimSpace(publicID))
 }
 
-// FindByPublicID resolves only active actors.
 func (r *MemoryRepository) FindByPublicID(ctx context.Context, publicID string) error {
 	if err := ctx.Err(); err != nil {
 		return err

@@ -23,7 +23,6 @@ type memoryRecord struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an isolated-test profile store.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{records: map[string]memoryRecord{}}
 }
@@ -38,7 +37,6 @@ func (r *MemoryRepository) Seed(result ProfileResult, passwordHash string) {
 	}
 }
 
-// FindProfile returns one account projection.
 func (r *MemoryRepository) FindProfile(_ context.Context, publicID string) (ProfileResult, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -50,7 +48,6 @@ func (r *MemoryRepository) FindProfile(_ context.Context, publicID string) (Prof
 	return record.profile, nil
 }
 
-// FindPasswordHash returns the stored password hash.
 func (r *MemoryRepository) FindPasswordHash(_ context.Context, publicID string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -62,7 +59,6 @@ func (r *MemoryRepository) FindPasswordHash(_ context.Context, publicID string) 
 	return record.password, nil
 }
 
-// UpdateDisplayName stores a new display name.
 func (r *MemoryRepository) UpdateDisplayName(
 	_ context.Context,
 	publicID string,
@@ -91,7 +87,6 @@ func (r *MemoryRepository) FindPageSize(_ context.Context, publicID string) (int
 	return record.profile.PageSize, nil
 }
 
-// UpdatePreferences stores personalization settings.
 func (r *MemoryRepository) UpdatePreferences(
 	_ context.Context,
 	publicID string,

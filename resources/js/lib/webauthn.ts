@@ -1,4 +1,4 @@
-import { passkeyOptionsSchema, type PasskeyCredential, type PasskeyOptions } from "./contracts/passkeys";
+import type { PasskeyCredential, PasskeyOptions } from "./contracts/passkeys";
 
 // The WebAuthn API is a browser-native boundary: decoded binary fields are
 // intentionally cast here because the DOM types describe ArrayBuffers, not the
@@ -18,10 +18,6 @@ function encode(value: ArrayBuffer): string {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
-}
-
-export function parsePasskeyOptions(payload: unknown): PasskeyOptions {
-  return passkeyOptionsSchema.parse(payload);
 }
 
 function prepareOptions(

@@ -1,6 +1,5 @@
 package notifications
 
-// NotificationDTO is the public contract for one in-app notification.
 type NotificationDTO struct {
 	PublicID  string `json:"public_id"`
 	Kind      string `json:"kind"`

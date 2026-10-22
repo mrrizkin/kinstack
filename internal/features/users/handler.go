@@ -17,7 +17,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
 	Service  *Service
 	Actor    *actor.Actor
@@ -26,7 +25,6 @@ type HandlerDependency struct {
 	Inertia  *platforminertia.Adapter
 }
 
-// Handler owns the HTTP boundary for user management.
 type Handler struct {
 	service  *Service
 	actor    *actor.Actor
@@ -35,7 +33,6 @@ type Handler struct {
 	inertia  *platforminertia.Adapter
 }
 
-// NewHandler constructs the users HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "users service is required")
 	assert.Assert(d.Actor != nil, "users actor boundary is required")
@@ -93,7 +90,6 @@ func (h *Handler) accessPath() string {
 	return "/access"
 }
 
-// Mount registers user management and access control routes on the guarded group.
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/users", h.index)
 	router.Post("/users", h.create)
@@ -153,12 +149,13 @@ func (h *Handler) access(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("access/IndexView", fiber.Map{
-		"roles":       props.Roles,
-		"roles_page":  props.RolesPage,
-		"permissions": props.Permissions,
-		"categories":  props.Categories,
-		"users":       props.Users,
-		"page":        props.Page,
+		"roles":        props.Roles,
+		"role_options": props.RoleOptions,
+		"roles_page":   props.RolesPage,
+		"permissions":  props.Permissions,
+		"categories":   props.Categories,
+		"users":        props.Users,
+		"page":         props.Page,
 	})
 }
 

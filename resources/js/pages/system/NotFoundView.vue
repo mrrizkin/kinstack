@@ -2,8 +2,10 @@
 import { Head } from "@inertiajs/vue3";
 
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { errorPageSchema } from "@/lib/contracts/pages";
+import { usePageSchema } from "@/lib/page-props";
 
-defineProps<{ status?: number; message?: string }>();
+const { status, message } = usePageSchema(errorPageSchema);
 defineOptions({ layout: [BaseLayout] });
 </script>
 

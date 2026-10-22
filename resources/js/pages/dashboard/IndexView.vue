@@ -5,9 +5,10 @@ import { computed } from "vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { dashboardPageSchema } from "@/lib/contracts/dashboard";
 import { icons } from "@/lib/icons";
 import { isNavigationItemVisible } from "@/lib/navigation";
-import { usePageProps } from "@/lib/page-props";
+import { usePageProps, usePageSchema } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
@@ -21,16 +22,7 @@ interface QuickLink {
   requiresMedia?: boolean;
 }
 
-interface Metrics {
-  users_total: number;
-  users_active: number;
-  roles_total: number;
-  audit_24h: number;
-  media_total: number;
-  notifications_unread: number;
-}
-
-const props = defineProps<{ metrics: Metrics }>();
+const props = usePageSchema(dashboardPageSchema);
 
 const { can } = usePermissions();
 const { actor, mediaEnabled } = usePageProps();

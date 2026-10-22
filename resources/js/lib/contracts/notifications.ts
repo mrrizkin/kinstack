@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { pageInfoSchema } from "./pages";
+
 /** One in-app notification as returned by `/notifications/feed`. */
 export const notificationSchema = z.looseObject({
   public_id: z.string(),
@@ -21,4 +23,11 @@ export const notificationFeedSchema = z.looseObject({
   unread: z.number().int().nonnegative().default(0),
   next_cursor: z.string().default(""),
 });
-export type NotificationFeed = z.infer<typeof notificationFeedSchema>;
+
+export const notificationsPageSchema = z.looseObject({
+  notifications: z.array(notificationSchema).default([]),
+  unread: z.number().int().nonnegative().default(0),
+  next_cursor: z.string().default(""),
+  page: pageInfoSchema.optional(),
+});
+export type NotificationsPageProps = z.infer<typeof notificationsPageSchema>;

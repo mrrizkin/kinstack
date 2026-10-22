@@ -33,7 +33,6 @@ import (
 
 const traceIDLocal = "otel_trace_id"
 
-// Dependency contains the configuration used to construct the telemetry stack.
 type Dependency struct {
 	Config config.Config
 }

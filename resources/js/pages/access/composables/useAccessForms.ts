@@ -10,6 +10,7 @@ import type { Override, OverrideForm, Permission, PermissionCategory, Role, User
 
 interface AccessProps {
   roles: Role[];
+  role_options: Role[];
   permissions: Permission[];
   categories: string[];
   users: UserAccess[];
@@ -156,7 +157,7 @@ export function useAccessForms(props: AccessProps) {
     })),
   );
 
-  const roleOptions = computed(() => props.roles.map((role) => ({ label: role.name, value: role.code })));
+  const roleOptions = computed(() => props.role_options.map((role) => ({ label: role.name, value: role.code })));
 
   function overrideFieldError(field: string): string | undefined {
     return overrideLocalErrors.value[field] || message(field);

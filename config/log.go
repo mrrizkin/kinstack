@@ -18,7 +18,6 @@ type LogConfig struct {
 	MaxAge    int
 }
 
-// Load reads logging settings from the environment.
 func (c *LogConfig) Load() {
 	c.Console = assert.OK(envBool("LOG_CONSOLE", true))
 	c.File = assert.OK(envBool("LOG_FILE", true))

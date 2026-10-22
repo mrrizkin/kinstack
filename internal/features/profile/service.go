@@ -20,17 +20,14 @@ const (
 	maxPasswordLength    = 72
 )
 
-// ServiceDependency contains the boundaries used by the profile service.
 type ServiceDependency struct {
 	Repository Repository
 }
 
-// Service owns profile business rules.
 type Service struct {
 	repository Repository
 }
 
-// NewService constructs a profile service around its repository.
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "profile repository is required")
 	return &Service{repository: dependency.Repository}

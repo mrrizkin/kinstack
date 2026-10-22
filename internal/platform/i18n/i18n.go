@@ -18,7 +18,6 @@ const (
 	English Locale = "en"
 )
 
-// Default returns the application default locale.
 func Default() Locale {
 	return English
 }

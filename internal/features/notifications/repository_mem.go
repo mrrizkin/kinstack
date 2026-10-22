@@ -20,7 +20,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an isolated-test notification store.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{items: map[string]Notification{}}
 }
@@ -81,7 +80,6 @@ func beforeCursor(notification Notification, cursor Cursor) bool {
 	return notification.ID < cursor.ID
 }
 
-// UnreadCount returns how many notifications are still unread.
 func (r *MemoryRepository) UnreadCount(_ context.Context, recipientPublicID string) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -95,7 +93,6 @@ func (r *MemoryRepository) UnreadCount(_ context.Context, recipientPublicID stri
 	return count, nil
 }
 
-// Create persists one notification.
 func (r *MemoryRepository) Create(_ context.Context, input CreateInput) (Notification, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -116,7 +113,6 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateInput) (Notific
 	return notification, nil
 }
 
-// MarkRead marks one owned notification as read.
 func (r *MemoryRepository) MarkRead(
 	_ context.Context,
 	recipientPublicID, publicID string,
@@ -134,7 +130,6 @@ func (r *MemoryRepository) MarkRead(
 	return item, nil
 }
 
-// MarkAllRead marks every unread notification of the recipient as read.
 func (r *MemoryRepository) MarkAllRead(_ context.Context, recipientPublicID string) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

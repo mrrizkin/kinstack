@@ -18,7 +18,6 @@ type GlitchTipConfig struct {
 	Debug            bool
 }
 
-// Load reads error tracking settings from the environment.
 func (c *GlitchTipConfig) Load() {
 	c.DSN = strings.TrimSpace(env("GLITCHTIP_DSN", ""))
 	c.Enabled = c.DSN != ""

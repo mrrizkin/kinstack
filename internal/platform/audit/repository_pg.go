@@ -14,7 +14,6 @@ import (
 
 // -----------------------------------------------------------------------------
 // PostgreSQL repository
-// -----------------------------------------------------------------------------
 
 type sqlRepository struct {
 	owner *platformdatabase.StatementOwner
@@ -79,7 +78,6 @@ const (
 )
 
 // NewSQLRepository prepares the audit queries for the repository lifetime.
-// RepositoryDependency contains the dependencies required to construct the SQL repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
@@ -115,7 +113,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*sqlRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *sqlRepository) Close() error {
 	if r == nil {
 		return nil
@@ -233,7 +230,6 @@ func (r *sqlRepository) List(ctx context.Context, query RepositoryQuery) ([]Audi
 
 // -----------------------------------------------------------------------------
 // Metadata
-// -----------------------------------------------------------------------------
 
 func encodeMetadata(metadata map[string]string) string {
 	encoded, err := json.Marshal(cloneMetadata(metadata))

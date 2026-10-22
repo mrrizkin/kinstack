@@ -56,7 +56,6 @@ func (r Resource) Float(key string) (float64, bool) {
 	}
 }
 
-// Bool reads a boolean attribute.
 func (r Resource) Bool(key string) (bool, bool) {
 	value, ok := r[key].(bool)
 	return value, ok
@@ -102,10 +101,8 @@ type OwnershipPolicy struct {
 	Message    string
 }
 
-// Name implements Policy.
 func (p OwnershipPolicy) Name() string { return p.PolicyName }
 
-// Evaluate implements Policy.
 func (p OwnershipPolicy) Evaluate(req Request) *Decision {
 	if req.Permission != p.Permission {
 		return nil
@@ -134,10 +131,8 @@ type AmountLimitPolicy struct {
 	Message    string
 }
 
-// Name implements Policy.
 func (p AmountLimitPolicy) Name() string { return p.PolicyName }
 
-// Evaluate implements Policy.
 func (p AmountLimitPolicy) Evaluate(req Request) *Decision {
 	if req.Permission != p.Permission {
 		return nil
@@ -171,10 +166,8 @@ type TimeWindowPolicy struct {
 	Message    string
 }
 
-// Name implements Policy.
 func (p TimeWindowPolicy) Name() string { return p.PolicyName }
 
-// Evaluate implements Policy.
 func (p TimeWindowPolicy) Evaluate(req Request) *Decision {
 	if req.Permission != p.Permission {
 		return nil
@@ -224,10 +217,8 @@ type ShiftPolicy struct {
 	Message    string
 }
 
-// Name implements Policy.
 func (p ShiftPolicy) Name() string { return p.PolicyName }
 
-// Evaluate implements Policy.
 func (p ShiftPolicy) Evaluate(req Request) *Decision {
 	if req.Permission != p.Permission {
 		return nil

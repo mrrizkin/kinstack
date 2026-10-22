@@ -5,11 +5,11 @@ import { computed } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { forgotPasswordPageSchema } from "@/lib/contracts/pages";
 import { icons } from "@/lib/icons";
+import { usePageSchema } from "@/lib/page-props";
 
-defineProps<{
-  notice?: string;
-}>();
+const { notice } = usePageSchema(forgotPasswordPageSchema);
 
 defineOptions({
   layout: [

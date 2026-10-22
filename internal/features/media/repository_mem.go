@@ -19,7 +19,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an isolated-test media store.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{assets: map[string]Asset{}}
 }
@@ -31,7 +30,6 @@ func (r *MemoryRepository) Seed(asset Asset) {
 	r.assets[asset.PublicID] = asset
 }
 
-// List returns one page of the actor's active assets, newest first.
 func (r *MemoryRepository) List(
 	_ context.Context,
 	ownerPublicID string,
@@ -53,7 +51,6 @@ func (r *MemoryRepository) List(
 	return assets[start:end], nil
 }
 
-// Create persists one uploaded asset.
 func (r *MemoryRepository) Create(_ context.Context, input CreateAssetInput) (Asset, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -71,7 +68,6 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateAssetInput) (As
 	return asset, nil
 }
 
-// Count returns the number of assets owned by the actor.
 func (r *MemoryRepository) Count(_ context.Context, ownerPublicID string) (int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -84,7 +80,6 @@ func (r *MemoryRepository) Count(_ context.Context, ownerPublicID string) (int, 
 	return count, nil
 }
 
-// Find returns one active asset owned by the actor.
 func (r *MemoryRepository) Find(_ context.Context, ownerPublicID, publicID string) (Asset, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -96,7 +91,6 @@ func (r *MemoryRepository) Find(_ context.Context, ownerPublicID, publicID strin
 	return asset, nil
 }
 
-// Delete soft-deletes one owned asset.
 func (r *MemoryRepository) Delete(
 	_ context.Context,
 	ownerPublicID, publicID string,

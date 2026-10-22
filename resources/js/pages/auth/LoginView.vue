@@ -5,10 +5,12 @@ import { computed, ref } from "vue";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { loginPageSchema } from "@/lib/contracts/pages";
 import { passkeyCredentialSchema, passkeyOptionsSchema } from "@/lib/contracts/passkeys";
 import { fieldMessage } from "@/lib/errors";
 import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
+import { usePageSchema } from "@/lib/page-props";
 import { usePageProps } from "@/lib/page-props";
 import { getPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
@@ -19,26 +21,21 @@ defineOptions({
   ],
 });
 
-const props = defineProps<{
-  notice?: string;
-  oauth_enabled?: boolean;
-  oauth_providers?: { name: string; label: string }[];
-  oauth_error?: string;
-  magic_link_enabled?: boolean;
-  passkey_enabled?: boolean;
-  password_reset_enabled?: boolean;
-  saml_enabled?: boolean;
-}>();
+const {
+  notice,
+  oauth_enabled,
+  oauth_providers,
+  oauth_error,
+  magic_link_enabled,
+  passkey_enabled,
+  password_reset_enabled,
+  saml_enabled,
+} = usePageSchema(loginPageSchema);
 
 const { csrfToken } = usePageProps();
 const passkeySupported = supportsWebAuthn();
 const hasAlternatives = computed(() =>
-  Boolean(
-    props.magic_link_enabled ||
-    props.oauth_enabled ||
-    props.saml_enabled ||
-    (props.passkey_enabled && passkeySupported),
-  ),
+  Boolean(magic_link_enabled || oauth_enabled || saml_enabled || (passkey_enabled && passkeySupported)),
 );
 const passkeyLoading = ref(false);
 const passkeyError = ref("");

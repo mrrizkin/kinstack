@@ -69,7 +69,8 @@ func (h *Handler) changePassword(c fiber.Ctx) error {
 	// Roll the session identifier after a credential change.
 	if sessionActor := h.actor.ActorFromContext(c); sessionActor != nil {
 		if err := h.actor.SetActor(c, *sessionActor); err != nil {
-			h.logger.Errorw("regenerate session after password change", "error", err)
+			h.logger.Errorw("regenerate session after password change",
+				"request_id", c.RequestID(), "error", err)
 		}
 	}
 	// A password change signs out every other device.
@@ -79,7 +80,8 @@ func (h *Handler) changePassword(c fiber.Ctx) error {
 			h.actorPublicID(c),
 			platformsession.CurrentID(c),
 		); err != nil {
-			h.logger.Errorw("revoke other sessions after password change", "error", err)
+			h.logger.Errorw("revoke other sessions after password change",
+				"request_id", c.RequestID(), "error", err)
 		}
 	}
 	h.logger.Infow(

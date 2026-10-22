@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// Notification is the persistence projection of one in-app notification.
 type Notification struct {
 	ID                int64      `db:"id"`
 	PublicID          string     `db:"public_id"`
@@ -18,7 +17,6 @@ type Notification struct {
 	ReadAt            *time.Time `db:"read_at"`
 }
 
-// CreateInput is the data required to persist one notification.
 type CreateInput struct {
 	PublicID          string
 	RecipientPublicID string
@@ -40,7 +38,6 @@ type ListQuery struct {
 	Before *Cursor
 }
 
-// Repository is the persistence contract owned by the notifications slice.
 type Repository interface {
 	List(context.Context, string, ListQuery) ([]Notification, error)
 	UnreadCount(context.Context, string) (int, error)

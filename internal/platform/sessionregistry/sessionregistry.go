@@ -10,8 +10,6 @@ import (
 	"kinstack/internal/pkg/publicid"
 )
 
-// Dependency contains the persistence boundary and the session store used to
-// destroy a revoked session.
 type Dependency struct {
 	Repository Repository
 	Store      SessionStore
@@ -22,13 +20,11 @@ type SessionStore interface {
 	Delete(ctx context.Context, id string) error
 }
 
-// Service owns active-session bookkeeping.
 type Service struct {
 	repository Repository
 	store      SessionStore
 }
 
-// New constructs the active-session service.
 func New(d Dependency) *Service {
 	assert.Assert(d.Repository != nil, "session registry repository is required")
 

@@ -2,6 +2,7 @@ package passkeys
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"kinstack/internal/features/auth"
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
 	"kinstack/internal/pkg/pagination"
@@ -26,39 +26,42 @@ const passkeysPath = "/passkeys"
 // ceremonySessionKey names the session entry holding one pending WebAuthn ceremony.
 const ceremonySessionKey = "auth.passkey.ceremony"
 
-// HandlerDependency contains the service, WebAuthn, auth, actor, and logging
-// boundaries used by the handler.
+// SessionStarter signs an account in after a verified credential assertion. The
+// composition root wires the auth slice behind it, so this slice never imports
+// another feature.
+type SessionStarter interface {
+	StartSession(context.Context, fiber.Ctx, string) error
+}
+
 type HandlerDependency struct {
 	Service  *Service
 	WebAuthn *webauthn.WebAuthn
-	Auth     *auth.Feature
+	Sessions SessionStarter
 	Actor    *platformactor.Actor
 	PageSize pagination.PageSizeReader
 	Logger   applog.Log
 }
 
-// Handler owns passkey HTTP validation, WebAuthn transport, and error mapping.
 type Handler struct {
 	service  *Service
 	webAuthn *webauthn.WebAuthn
-	auth     *auth.Feature
+	sessions SessionStarter
 	actor    *platformactor.Actor
 	pageSize pagination.PageSizeReader
 	logger   applog.Log
 }
 
-// NewHandler constructs the passkey HTTP handler.
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "passkeys service is required")
 	assert.Assert(d.WebAuthn != nil, "passkeys WebAuthn configuration is required")
-	assert.Assert(d.Auth != nil, "passkeys auth feature is required")
+	assert.Assert(d.Sessions != nil, "passkeys session starter is required")
 	assert.Assert(d.Actor != nil, "passkeys actor boundary is required")
 	assert.Assert(d.Logger != nil, "passkeys logger is required")
 
 	return &Handler{
 		service:  d.Service,
 		webAuthn: d.WebAuthn,
-		auth:     d.Auth,
+		sessions: d.Sessions,
 		actor:    d.Actor,
 		pageSize: d.PageSize,
 		logger:   d.Logger,
@@ -378,11 +381,7 @@ func (h *Handler) finishPasskeyLogin(c fiber.Ctx) error {
 	if err := h.service.UpdatePasskey(c.Context(), resolved.user.PublicID, updated); err != nil {
 		return h.internalServerError(c, "unable to update passkey", err)
 	}
-	session, err := h.auth.Service().Session(c.Context(), resolved.user.PublicID)
-	if err != nil {
-		return h.internalServerError(c, "unable to load passkey session", err)
-	}
-	if err := h.auth.SetSession(c, session); err != nil {
+	if err := h.sessions.StartSession(c.Context(), c, resolved.user.PublicID); err != nil {
 		return h.internalServerError(c, "unable to create session", err)
 	}
 	// Passkeys satisfy both authentication factors per the WebAuthn spec

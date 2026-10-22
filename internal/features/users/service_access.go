@@ -9,13 +9,12 @@ import (
 	"kinstack/internal/platform/authz"
 )
 
-// RoleOptions returns every role as selectable options.
 func (s *Service) RoleOptions(ctx context.Context) ([]RoleDTO, error) {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
 		return nil, err
 	}
-	roles, err := authorization.ListRoles(ctx)
+	roles, err := authorization.AllRoles(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -36,25 +35,21 @@ func (s *Service) AccessView(
 	if err != nil {
 		return AccessPageProps{}, err
 	}
-	roles, err := authorization.ListRoles(ctx)
+	roleDTOs, rolesPage, err := rolePage(ctx, authorization, rolesQuery)
 	if err != nil {
 		return AccessPageProps{}, err
 	}
-	// Role names label the users table on every role page.
-	roleNames := make(map[string]string, len(roles))
-	for _, role := range roles {
-		roleNames[role.Code] = role.Name
-	}
-	roleDTOs, rolesPage, err := rolePage(ctx, authorization, roles, rolesQuery)
+	roleOptions, err := s.RoleOptions(ctx)
 	if err != nil {
 		return AccessPageProps{}, err
 	}
-	userDTOs, usersPage, err := s.userPage(ctx, authorization, roleNames, usersQuery)
+	userDTOs, usersPage, err := s.userPage(ctx, authorization, usersQuery)
 	if err != nil {
 		return AccessPageProps{}, err
 	}
 	return AccessPageProps{
 		Roles:       roleDTOs,
+		RoleOptions: roleOptions,
 		RolesPage:   rolesPage,
 		Permissions: permissionCatalog(),
 		Categories:  authz.CategoryOrder(),
@@ -66,31 +61,35 @@ func (s *Service) AccessView(
 func rolePage(
 	ctx context.Context,
 	authorization *authz.Service,
-	roles []authz.Role,
 	query pagination.Query,
 ) ([]RoleDTO, pagination.Page, error) {
-	query = pagination.ClampPage(query, len(roles))
-	start, end := pagination.Window(query, len(roles))
-	windowed := roles[start:end]
-	codes := make([]string, 0, len(windowed))
-	for _, role := range windowed {
+	total, err := authorization.CountRoles(ctx)
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
+	query = pagination.ClampPage(query, total)
+	roles, err := authorization.ListRoles(ctx, query)
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
+	codes := make([]string, 0, len(roles))
+	for _, role := range roles {
 		codes = append(codes, role.Code)
 	}
 	permissionsByRole, err := authorization.RolePermissionsMany(ctx, codes)
 	if err != nil {
 		return nil, pagination.Page{}, err
 	}
-	dtos := make([]RoleDTO, 0, len(windowed))
-	for _, role := range windowed {
+	dtos := make([]RoleDTO, 0, len(roles))
+	for _, role := range roles {
 		dtos = append(dtos, roleToDTO(role, permissionsByRole[role.Code]))
 	}
-	return dtos, pagination.NewPage(query, len(roles)), nil
+	return dtos, pagination.NewPage(query, total), nil
 }
 
 func (s *Service) userPage(
 	ctx context.Context,
 	authorization *authz.Service,
-	roleNames map[string]string,
 	query pagination.Query,
 ) ([]UserAccessDTO, pagination.Page, error) {
 	counts, err := s.repository.CountUsers(ctx)
@@ -118,7 +117,6 @@ func (s *Service) userPage(
 			Username:    user.Username,
 			DisplayName: user.DisplayName,
 			Role:        user.Role,
-			RoleName:    roleNames[user.Role],
 			IsActive:    user.IsActive,
 			Overrides:   overridesToDTO(overridesByUser[user.PublicID], now),
 		})
@@ -238,7 +236,6 @@ func (s *Service) SetOverride(
 	return err
 }
 
-// DeleteOverride removes a per-user permission override.
 func (s *Service) DeleteOverride(ctx context.Context, publicID, permission string) error {
 	authorization, err := s.requireAuthorization()
 	if err != nil {

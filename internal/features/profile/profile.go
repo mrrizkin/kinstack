@@ -12,8 +12,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Dependency contains the repository, actor boundary, session registry,
-// two-factor service, Inertia adapter, and logger used by the feature.
 type Dependency struct {
 	Repository Repository
 	Actor      *actor.Actor
@@ -29,7 +27,6 @@ type Feature struct {
 	handler *Handler
 }
 
-// New constructs the profile feature from explicit dependencies.
 func New(d Dependency) *Feature {
 	assert.Assert(d.Repository != nil, "profile repository is required")
 	assert.Assert(d.Actor != nil, "profile actor boundary is required")
@@ -48,13 +45,11 @@ func New(d Dependency) *Feature {
 	return &Feature{service: service, handler: handler}
 }
 
-// Mount registers profile routes on the authenticated workspace group.
 func (f *Feature) Mount(router fiber.Router) {
 	assert.Assert(f != nil && f.handler != nil, "profile feature must be initialized")
 	f.handler.Mount(router)
 }
 
-// Service exposes the feature service for composition-root adapters.
 func (f *Feature) Service() *Service {
 	assert.Assert(f != nil && f.service != nil, "profile feature must be initialized")
 	return f.service

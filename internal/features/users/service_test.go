@@ -466,10 +466,8 @@ func TestAccessViewPaginatesRolesIndependently(t *testing.T) {
 	if len(second.Roles) != 1 || second.Roles[0].Code == first.Roles[0].Code {
 		t.Fatalf("expected the other role, got %#v", second.Roles)
 	}
-	for _, user := range second.Users {
-		if user.RoleName == "" {
-			t.Fatalf("user %q lost its role name on roles page 2", user.PublicID)
-		}
+	if len(second.RoleOptions) != len(first.RoleOptions) || len(second.RoleOptions) != 2 {
+		t.Fatalf("role options must cover the catalog, got %#v", second.RoleOptions)
 	}
 	if second.Page.Total != first.Page.Total {
 		t.Fatalf("roles paging must not move the users page: %+v vs %+v", first.Page, second.Page)

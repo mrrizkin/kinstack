@@ -59,9 +59,6 @@ export const sharedPagePropsSchema = z.looseObject({
 });
 export type SharedPageProps = z.infer<typeof sharedPagePropsSchema>;
 
-/** URL fragment carried on every Inertia page component. */
-export const pageComponentSchema = z.string().min(1);
-
 /** Public JSON error envelope (`httperror.Problem` under `error`). */
 export const errorResponseSchema = z.object({
   error: z.looseObject({
@@ -72,7 +69,6 @@ export const errorResponseSchema = z.object({
     retryable: z.boolean().optional(),
   }),
 });
-export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
 export const problemSchema = errorResponseSchema.shape.error;
 export type Problem = z.infer<typeof problemSchema>;

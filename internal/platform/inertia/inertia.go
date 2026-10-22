@@ -29,7 +29,6 @@ type Adapter struct {
 	*fibertia.Fibertia
 }
 
-// Dependency contains the environment and session boundaries used to construct the adapter.
 type Dependency struct {
 	Environment  string
 	SessionStore *fibersession.Store

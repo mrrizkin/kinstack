@@ -2,24 +2,20 @@ package system
 
 import "kinstack/internal/pkg/assert"
 
-// ServiceDependency contains the content boundary used by the service.
 type ServiceDependency struct {
 	Repository Repository
 }
 
-// Service owns the business contract for application-provided system pages.
 type Service struct {
 	repository Repository
 }
 
-// NewService constructs a system service around its explicit content contract.
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "system repository is required")
 
 	return &Service{repository: dependency.Repository}
 }
 
-// NotFound returns the public not-found page payload.
 func (s *Service) NotFound() NotFoundPageProps {
 	result := s.repository.NotFound()
 	return NotFoundPageProps(result)

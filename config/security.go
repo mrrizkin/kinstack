@@ -20,7 +20,6 @@ type SecurityConfig struct {
 	ExtraImageSources   []string
 }
 
-// Load reads security settings from the environment.
 func (c *SecurityConfig) Load() {
 	c.CSPEnabled = assert.OK(envBool("CSP_ENABLED", isProduction()))
 	c.CSPReportOnly = assert.OK(envBool("CSP_REPORT_ONLY", false))

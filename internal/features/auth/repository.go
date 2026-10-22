@@ -30,7 +30,6 @@ type PasswordResetToken struct {
 	ExpiresAt    time.Time
 }
 
-// Repository is the persistence contract owned by the auth slice.
 type Repository interface {
 	FindUserByUsername(context.Context, string) (FindUserByUsernameResult, error)
 	FindUserByPublicID(context.Context, string) (FindUserByUsernameResult, error)

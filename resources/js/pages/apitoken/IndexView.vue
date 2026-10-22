@@ -4,29 +4,20 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
-import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
+import AppPagination from "@/components/AppPagination.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
+import { type APIToken, apiTokensPageSchema } from "@/lib/contracts/apitoken";
 import { fieldMessage } from "@/lib/errors";
-import { formatDateTime } from "@/lib/formatters";
 import { icons } from "@/lib/icons";
-import { usePageProps } from "@/lib/page-props";
+import { usePageProps, usePageSchema } from "@/lib/page-props";
 import { permissionLabel } from "@/lib/permissions";
 
 defineOptions({ layout: [BaseLayout, AppLayout, SettingsLayout] });
 
-interface APIToken {
-  public_id: string;
-  name: string;
-  prefix: string;
-  scopes: string[];
-  expires_at?: string;
-  last_used_at?: string;
-  created_at: string;
-}
-
-const props = defineProps<{ tokens: APIToken[]; page: PageInfo; created_token?: string }>();
+const props = usePageSchema(apiTokensPageSchema);
 
 const { permissions } = usePageProps();
 const { t } = useI18n();
@@ -139,10 +130,10 @@ async function copyToken() {
             <p class="text-highlighted truncate font-medium">{{ token.name }}</p>
             <p class="text-muted font-mono text-xs">{{ token.prefix }}…</p>
             <p class="text-muted mt-1 text-xs">
-              Created {{ formatDateTime(token.created_at) }}
-              <span v-if="token.last_used_at"> · Last used {{ formatDateTime(token.last_used_at) }}</span>
+              Created <AppCellTime :value="token.created_at" inline />
+              <span v-if="token.last_used_at"> · Last used <AppCellTime :value="token.last_used_at" inline /></span>
               <span v-else> · Never used</span>
-              <span v-if="token.expires_at"> · Expires {{ formatDateTime(token.expires_at) }}</span>
+              <span v-if="token.expires_at"> · Expires <AppCellTime :value="token.expires_at" inline /></span>
             </p>
             <p v-if="token.scopes?.length" class="text-muted mt-1 text-xs">
               Permissions: {{ token.scopes.map(permissionLabel).join(", ") }}

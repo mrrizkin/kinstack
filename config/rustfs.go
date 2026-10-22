@@ -22,7 +22,6 @@ type RustFSConfig struct {
 	UseSSL    bool
 }
 
-// Load reads RustFS settings from the environment.
 func (c *RustFSConfig) Load() {
 	c.Enabled = assert.OK(envBool("MEDIA_ENABLED", false))
 	c.Endpoint = env("RUSTFS_ENDPOINT", "http://localhost:9000")

@@ -1,6 +1,5 @@
 package profile
 
-// ProfileDTO is the public contract for the signed-in user profile.
 type ProfileDTO struct {
 	PublicID    string `json:"public_id"`
 	Username    string `json:"username"`
@@ -11,7 +10,6 @@ type ProfileDTO struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// PreferencesDTO is the public contract for per-user personalization.
 type PreferencesDTO struct {
 	Theme        string `json:"theme"`
 	SoundEnabled bool   `json:"sound_enabled"`
@@ -28,7 +26,6 @@ type ActiveSessionDTO struct {
 	Current    bool   `json:"current"`
 }
 
-// TwoFactorDTO is the public contract for the two-factor security panel.
 type TwoFactorDTO struct {
 	Enabled       bool     `json:"enabled"`
 	PendingSecret string   `json:"pending_secret"`
@@ -36,18 +33,15 @@ type TwoFactorDTO struct {
 	RecoveryCodes []string `json:"recovery_codes"`
 }
 
-// ProfilePageProps is the public contract for the profile page.
 type ProfilePageProps struct {
 	Profile     ProfileDTO     `json:"profile"`
 	Preferences PreferencesDTO `json:"preferences"`
 }
 
-// UpdateProfileRequest is the payload accepted when renaming the profile.
 type UpdateProfileRequest struct {
 	DisplayName string `json:"display_name"`
 }
 
-// UpdatePreferencesRequest is the payload accepted when saving preferences.
 type UpdatePreferencesRequest struct {
 	Theme        string `json:"theme"`
 	SoundEnabled bool   `json:"sound_enabled"`
@@ -60,14 +54,12 @@ type UpdateThemeRequest struct {
 	Theme string `json:"theme"`
 }
 
-// ChangePasswordRequest is the payload accepted when changing the password.
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
 	ConfirmPassword string `json:"confirm_password"`
 }
 
-// ConfirmTwoFactorRequest is the TOTP code that activates enrollment.
 type ConfirmTwoFactorRequest struct {
 	Code string `json:"code"`
 }

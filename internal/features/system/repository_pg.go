@@ -13,7 +13,6 @@ type StaticRepository struct{}
 
 var _ Repository = (*StaticRepository)(nil)
 
-// NewStaticRepository constructs the production static content source.
 func NewStaticRepository() *StaticRepository {
 	return &StaticRepository{}
 }

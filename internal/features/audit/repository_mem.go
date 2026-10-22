@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 // MemoryRepository is the deterministic in-memory repository used by service
@@ -17,7 +19,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository constructs an isolated-test audit viewer store.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{nextID: 1, entries: make([]Entry, 0)}
 }
@@ -54,15 +55,8 @@ func (r *MemoryRepository) List(_ context.Context, query Query) (Page, error) {
 		return matches[i].OccurredAt.After(matches[j].OccurredAt)
 	})
 
-	total := len(matches)
-	if query.Offset >= total {
-		return Page{Entries: []Entry{}, Total: total}, nil
-	}
-	end := query.Offset + query.Limit
-	if query.Limit <= 0 || end > total {
-		end = total
-	}
-	return Page{Entries: matches[query.Offset:end], Total: total}, nil
+	start, end := pagination.Window(query.Query, len(matches))
+	return Page{Entries: matches[start:end], Total: len(matches)}, nil
 }
 
 func matchesQuery(entry Entry, query Query) bool {

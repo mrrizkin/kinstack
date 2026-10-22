@@ -14,7 +14,6 @@ type Registry struct {
 	order     []string
 }
 
-// NewRegistry constructs an empty provider registry.
 func NewRegistry() *Registry {
 	return &Registry{providers: map[string]Provider{}}
 }

@@ -2,13 +2,10 @@
 import { Head } from "@inertiajs/vue3";
 
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { systemStatePageSchema } from "@/lib/contracts/pages";
+import { usePageSchema } from "@/lib/page-props";
 
-interface Shortcut {
-  key: string;
-  action: string;
-}
-
-defineProps<{ surface: string; topics: string[]; shortcuts: Shortcut[] }>();
+const { surface, topics, shortcuts } = usePageSchema(systemStatePageSchema);
 defineOptions({ layout: [BaseLayout] });
 </script>
 

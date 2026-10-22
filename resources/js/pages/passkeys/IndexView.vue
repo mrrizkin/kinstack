@@ -5,28 +5,22 @@ import { useI18n } from "vue-i18n";
 import { z } from "zod";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
-import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
+import AppPagination from "@/components/AppPagination.vue";
+import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
 import { passkeyOptionsSchema, passkeySummarySchema } from "@/lib/contracts/passkeys";
-import { formatDateTime } from "@/lib/formatters";
+import { type PasskeySummary, passkeysPageSchema } from "@/lib/contracts/passkeys";
 import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
 import { useNotify } from "@/lib/notify";
-import { usePageProps } from "@/lib/page-props";
+import { usePageProps, usePageSchema } from "@/lib/page-props";
 import { createPasskey, supportsWebAuthn } from "@/lib/webauthn";
 
 defineOptions({ layout: [BaseLayout, AppLayout, SettingsLayout] });
 
-interface Passkey {
-  id: string;
-  name: string;
-  created_at: string;
-  last_used_at?: string;
-}
-
-const props = defineProps<{ passkeys: Passkey[]; page: PageInfo }>();
+const props = usePageSchema(passkeysPageSchema);
 
 const { csrfToken } = usePageProps();
 const { t } = useI18n();
@@ -36,7 +30,7 @@ const name = ref("This device");
 const nameError = ref("");
 const saving = ref(false);
 const revoking = ref("");
-const revokeTarget = ref<Passkey | null>(null);
+const revokeTarget = ref<PasskeySummary | null>(null);
 const addDialogOpen = ref(false);
 const supported = supportsWebAuthn();
 
@@ -90,7 +84,7 @@ async function confirmAddPasskey() {
   }
 }
 
-function revokePasskey(passkey: Passkey) {
+function revokePasskey(passkey: PasskeySummary) {
   if (revoking.value) return;
   revokeTarget.value = passkey;
 }
@@ -146,8 +140,10 @@ const emptyActions = computed(() =>
           <div class="min-w-0">
             <p class="text-highlighted truncate font-medium">{{ passkey.name }}</p>
             <p class="text-muted mt-1 text-xs">
-              Added {{ formatDateTime(passkey.created_at) }}
-              <span v-if="passkey.last_used_at"> · Last used {{ formatDateTime(passkey.last_used_at) }}</span>
+              Added <AppCellTime :value="passkey.created_at" inline />
+              <span v-if="passkey.last_used_at">
+                · Last used <AppCellTime :value="passkey.last_used_at" inline />
+              </span>
             </p>
           </div>
           <UButton

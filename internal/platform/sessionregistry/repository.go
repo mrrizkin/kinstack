@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// Result is the persistence projection of one browser session.
 type Result struct {
 	PublicID     string     `db:"public_id"`
 	UserPublicID string     `db:"user_public_id"`
@@ -17,7 +16,6 @@ type Result struct {
 	RevokedAt    *time.Time `db:"revoked_at"`
 }
 
-// Repository is the persistence contract owned by the session registry.
 type Repository interface {
 	Register(context.Context, string, RegisterInput) (Result, error)
 	Touch(context.Context, string) error

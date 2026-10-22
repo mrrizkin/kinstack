@@ -94,7 +94,6 @@ WHERE public_id = $1
   AND deleted_at IS NULL`
 )
 
-// SQLRepository is the PostgreSQL profile repository.
 type SQLRepository struct {
 	owner        *platformdatabase.StatementOwner
 	findProfile  *sqlx.Stmt
@@ -107,12 +106,10 @@ type SQLRepository struct {
 
 var _ Repository = (*SQLRepository)(nil)
 
-// RepositoryDependency contains the dependencies required to build the repository.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository constructs the PostgreSQL profile repository.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "profile database is required")
 
@@ -140,7 +137,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return repository, nil
 }
 
-// Close releases the prepared statements owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
@@ -148,7 +144,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// FindProfile returns one account projection.
 func (r *SQLRepository) FindProfile(ctx context.Context, publicID string) (ProfileResult, error) {
 	var result ProfileResult
 	if err := r.findProfile.GetContext(ctx, &result, publicID); err != nil {
@@ -160,7 +155,6 @@ func (r *SQLRepository) FindProfile(ctx context.Context, publicID string) (Profi
 	return result, nil
 }
 
-// FindPasswordHash returns the stored password hash.
 func (r *SQLRepository) FindPasswordHash(ctx context.Context, publicID string) (string, error) {
 	var hash string
 	if err := r.findPassword.GetContext(ctx, &hash, publicID); err != nil {
@@ -172,7 +166,6 @@ func (r *SQLRepository) FindPasswordHash(ctx context.Context, publicID string) (
 	return hash, nil
 }
 
-// UpdateDisplayName stores a new display name.
 func (r *SQLRepository) UpdateDisplayName(
 	ctx context.Context,
 	publicID string,
@@ -199,7 +192,6 @@ func (r *SQLRepository) FindPageSize(ctx context.Context, publicID string) (int,
 	return size, nil
 }
 
-// UpdatePreferences stores personalization settings.
 func (r *SQLRepository) UpdatePreferences(
 	ctx context.Context,
 	publicID string,

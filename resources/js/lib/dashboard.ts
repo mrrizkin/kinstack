@@ -4,7 +4,3 @@ import { ref } from "vue";
 // it. A module singleton keeps the dashboard shell free of extra providers.
 export const notificationsOpen = ref(false);
 export const unreadCount = ref(0);
-
-export function toggleNotifications() {
-  notificationsOpen.value = !notificationsOpen.value;
-}
