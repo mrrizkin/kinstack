@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ type AppConfig struct {
 	HTTPIdleTimeout     time.Duration
 	AccessKey           string
 	SecretKey           string
+	TrustedProxies      []string
 }
 
 func (c *AppConfig) Load() {
@@ -52,6 +54,7 @@ func (c *AppConfig) Load() {
 	c.URL = env("APP_URL", "http://localhost:3000")
 	c.AccessKey = strings.TrimSpace(os.Getenv("ACCESS_KEY"))
 	c.SecretKey = os.Getenv("SECRET_KEY")
+	c.TrustedProxies = envList("TRUSTED_PROXIES")
 }
 
 // Validate checks application settings that do not depend on another section.
@@ -89,6 +92,14 @@ func (c AppConfig) Validate() error {
 	}
 	if err := validateURL("APP_URL", c.URL, false); err != nil {
 		return err
+	}
+	for _, proxy := range c.TrustedProxies {
+		if net.ParseIP(proxy) != nil {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(proxy); err != nil {
+			return fmt.Errorf("TRUSTED_PROXIES entry %q is not an IP address or CIDR", proxy)
+		}
 	}
 	if (c.AccessKey == "") != (c.SecretKey == "") {
 		return fmt.Errorf("ACCESS_KEY and SECRET_KEY must be set together")

@@ -81,11 +81,9 @@ func newFiberApp(d FiberAppDependency) *fiber.App {
 			})
 		}),
 	}
-	if d.Config.App.Env == "production" {
-		// Trust forwarded scheme only from private/loopback reverse proxies so
-		// Helmet can emit HSTS after TLS termination without trusting public clients.
+	if trust := trustProxyConfig(d.Config.App); trust != nil {
 		fiberConfig.TrustProxy = true
-		fiberConfig.TrustProxyConfig = fiber.TrustProxyConfig{Loopback: true, Private: true}
+		fiberConfig.TrustProxyConfig = *trust
 	}
 	app := fiber.New(fiberConfig)
 	d.Log.Infow("Fiber configured")
@@ -95,6 +93,21 @@ func newFiberApp(d FiberAppDependency) *fiber.App {
 // registerStaticAssets serves the Vite build output and the public root files.
 // Inertia switches to dev-server URLs while public/hot exists, so the same
 // binary keeps working with and without the Vite dev server.
+// trustProxyConfig binds forwarded headers to the deployment's own proxies.
+// Private and loopback peers cover a reverse proxy on the same host or network;
+// TRUSTED_PROXIES adds a load balancer that answers from a public address,
+// which would otherwise make every client share one rate-limit bucket.
+func trustProxyConfig(app config.AppConfig) *fiber.TrustProxyConfig {
+	if app.Env != "production" && len(app.TrustedProxies) == 0 {
+		return nil
+	}
+	return &fiber.TrustProxyConfig{
+		Loopback: true,
+		Private:  true,
+		Proxies:  app.TrustedProxies,
+	}
+}
+
 func registerStaticAssets(app *fiber.App) {
 	assert.Assert(app != nil, "fiber app is required")
 

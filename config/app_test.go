@@ -105,3 +105,32 @@ func TestAppConfigRequiresStrongBreakGlassSecret(t *testing.T) {
 		t.Fatalf("32-byte SECRET_KEY should be accepted: %v", err)
 	}
 }
+
+func TestTrustedProxiesAcceptsAddressesAndRejectsNames(t *testing.T) {
+	cfg := AppConfig{
+		Name:                "KinStack",
+		Env:                 "production",
+		URL:                 "https://example.test",
+		Port:                3000,
+		SessionIdleTimeout:  time.Hour,
+		AuthRateLimitMax:    10,
+		AuthRateLimitWindow: time.Minute,
+		APIRateLimitMax:     10,
+		APIRateLimitWindow:  time.Minute,
+		HTTPBodyLimit:       1024,
+		HTTPReadTimeout:     time.Second,
+		HTTPWriteTimeout:    time.Second,
+		HTTPIdleTimeout:     time.Second,
+		AccessKey:           "superadmin",
+		SecretKey:           "q4Rz!Kw9tP2mXb7VnHc5YdL8sJfG3aEw",
+	}
+	cfg.TrustedProxies = []string{"203.0.113.7", "10.0.0.0/8", "2001:db8::/32"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid proxies rejected: %v", err)
+	}
+
+	cfg.TrustedProxies = []string{"proxy.internal"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("hostnames must not be accepted as trusted proxies")
+	}
+}

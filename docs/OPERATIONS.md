@@ -87,6 +87,21 @@ local ports and defaults live in `deploy/compose.yml` and `.env.example`.
 | Media storage | storage unavailable errors | Check object storage and credentials |
 | TLS certificate | < 14 days | Renew at the reverse proxy |
 
+## Reverse proxy and client address
+
+Rate limiting, the auth lockout, CSP reports, and audit records key on the
+client address. Set `TRUSTED_PROXIES` to the proxy addresses only; every other
+peer is treated as the client.
+
+- A proxy on the same host or private network needs no configuration.
+- A load balancer or CDN that answers from a public address must be listed
+  (`TRUSTED_PROXIES=203.0.113.10,198.51.100.0/24`), otherwise all requests look
+  like they come from the balancer: one attacker can exhaust the shared
+  rate-limit bucket and lock out every account.
+- Never list `0.0.0.0/0`: any client could then forge its own address.
+- Behind TLS termination, the proxy must send `X-Forwarded-Proto: https` so
+  cookies stay `Secure` and HSTS is emitted.
+
 ## Deployment
 
 1. Run `just verify` on the release commit.
