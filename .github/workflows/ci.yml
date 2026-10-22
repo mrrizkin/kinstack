@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# CI verifies; it never writes refs. Releases are tagged by hand.
+permissions:
+  contents: read
+
 jobs:
   go:
     runs-on: ubuntu-latest
