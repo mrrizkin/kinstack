@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,19 +10,28 @@ import (
 
 	"kinstack/config"
 	"kinstack/internal/pkg/log"
+	"kinstack/internal/platform/actor"
 
 	"github.com/gofiber/fiber/v3"
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/gofiber/storage/memory/v2"
 )
 
-// The transport and CSRF layers are assembled directly: NewApp also needs a
-// database and every feature slice, which these assertions do not exercise.
+// The middleware layers are assembled directly: NewApp also needs a database
+// and every feature slice, which these assertions do not exercise.
 func newSecurityStack(t *testing.T, env string) *fiber.App {
 	t.Helper()
 
 	cfg := config.Config{
-		App:      config.AppConfig{Name: "KinStack", Env: env, URL: "http://localhost:3000"},
+		App: config.AppConfig{
+			Name:                "KinStack",
+			Env:                 env,
+			URL:                 "http://localhost:3000",
+			APIRateLimitMax:     1,
+			APIRateLimitWindow:  time.Minute,
+			AuthRateLimitMax:    3,
+			AuthRateLimitWindow: time.Minute,
+		},
 		Security: config.SecurityConfig{CSPEnabled: true},
 		Log: config.LogConfig{
 			Level:     "error",
@@ -40,16 +50,31 @@ func newSecurityStack(t *testing.T, env string) *fiber.App {
 	})
 	app := fiber.New()
 	dependency := GlobalMiddlewareDependency{
-		App:          app,
-		Config:       cfg,
-		Log:          log.NewLogger(log.LoggerDependency{Config: cfg}),
-		SessionStore: store,
+		App:           app,
+		Config:        cfg,
+		Log:           log.NewLogger(log.LoggerDependency{Config: cfg}),
+		SessionStore:  store,
+		Session:       func(c fiber.Ctx) error { return c.Next() },
+		SharedStorage: memory.New(),
+		Actor:         actor.New(actor.Dependency{Repository: knownActorRepository{}}),
+		BearerAuth: func(_ context.Context, raw string) (*actor.SessionActor, error) {
+			if raw != "known-token" {
+				return nil, actor.ErrNotFound
+			}
+			return &actor.SessionActor{
+				PublicID: "token-owner",
+				Role:     "member",
+				Scopes:   []string{"api"},
+			}, nil
+		},
 	}
 	registerTransportMiddleware(dependency)
-	registerCSRFMiddleware(dependency)
+	registerAccessMiddleware(dependency)
 
 	ok := func(c fiber.Ctx) error { return c.SendString("ok") }
 	app.Get("/page", ok)
+	app.Post("/login", ok)
+	app.Get("/api", ok)
 	app.Post("/page", ok)
 	app.Post("/login/oauth/callback", ok)
 	app.Post("/login/saml/acs", ok)
@@ -156,7 +181,7 @@ func TestCSRFExemptsBearerAndProviderCallbacks(t *testing.T) {
 	}{
 		"bearer": {
 			path:    "/page",
-			headers: map[string]string{"Authorization": "Bearer token"},
+			headers: map[string]string{"Authorization": "Bearer known-token"},
 		},
 		"oauth callback": {path: "/login/oauth/callback"},
 		"saml acs":       {path: "/login/saml/acs"},
@@ -167,5 +192,51 @@ func TestCSRFExemptsBearerAndProviderCallbacks(t *testing.T) {
 		if response.StatusCode != fiber.StatusOK {
 			t.Fatalf("%s: status = %d, want %d", name, response.StatusCode, fiber.StatusOK)
 		}
+	}
+}
+
+func TestAccessMiddlewareFailsClosedOnUnknownBearerTokens(t *testing.T) {
+	app := newSecurityStack(t, "production")
+	response := doRequest(t, app, fiber.MethodGet, "/api", map[string]string{
+		"Authorization": "Bearer unknown-token",
+	})
+
+	if response.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", response.StatusCode, fiber.StatusUnauthorized)
+	}
+}
+
+func TestAccessMiddlewareRateLimitsBearerTrafficPerToken(t *testing.T) {
+	app := newSecurityStack(t, "production")
+	bearer := map[string]string{"Authorization": "Bearer known-token"}
+	first := doRequest(t, app, fiber.MethodGet, "/api", bearer)
+	second := doRequest(t, app, fiber.MethodGet, "/api", bearer)
+
+	if first.StatusCode != fiber.StatusOK {
+		t.Fatalf("first request: status = %d", first.StatusCode)
+	}
+	if second.StatusCode != fiber.StatusTooManyRequests {
+		t.Fatalf("second request for one token: status = %d", second.StatusCode)
+	}
+	other := doRequest(
+		t,
+		app,
+		fiber.MethodGet,
+		"/api",
+		map[string]string{"Authorization": "Bearer known-token-2"},
+	)
+	if other.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("another token must use its own bucket, got %d", other.StatusCode)
+	}
+}
+
+func TestAccessMiddlewareRateLimitsAuthPosts(t *testing.T) {
+	app := newSecurityStack(t, "production")
+	var last int
+	for attempt := 0; attempt <= 12; attempt++ {
+		last = doRequest(t, app, fiber.MethodPost, "/login", nil).StatusCode
+	}
+	if last != fiber.StatusTooManyRequests {
+		t.Fatalf("auth posts must be rate limited, got %d", last)
 	}
 }
