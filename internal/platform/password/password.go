@@ -134,7 +134,9 @@ func Compare(encoded, password string) error {
 	return nil
 }
 
-// DummyHash returns a stable hash used to keep unknown-user authentication timing consistent.
+// DummyHash returns a stable hash used to keep unknown-user authentication
+// timing consistent. Callers burn the comparison and discard the result: the
+// value answers no credential question.
 func DummyHash() string {
 	return dummyHash
 }

@@ -35,6 +35,8 @@ conventions and principles.
 - Reuse existing components and helpers; do not create duplicates.
 - Icon names live in `resources/js/lib/icons.ts`; components use `icons.<key>`.
 - Use the existing i18n boundaries and English copy.
+- Parse page props with `usePageSchema` and a schema in
+  `resources/js/lib/contracts`; infer domain types from the schema.
 - Do not commit `.env`, secrets, build output, `node_modules`, or local state.
 
 ## Verification

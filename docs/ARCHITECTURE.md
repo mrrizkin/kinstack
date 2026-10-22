@@ -103,6 +103,9 @@ account, and the base never provisions accounts from a provider.
 - Reuse the existing components and helpers before creating new ones.
 - Tables use the existing table wrapper and tooling. Narrow viewports use the
   existing mobile list component.
+- Page props cross the trust boundary through `usePageSchema` and the zod
+  schemas in `resources/js/lib/contracts`; domain types are inferred from those
+  schemas instead of being declared twice.
 - Go responses use the message registry in `internal/platform/i18n`. Shared
   frontend chrome uses `vue-i18n`. Page copy is English.
 
