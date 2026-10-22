@@ -1,13 +1,14 @@
 name: Build and Publish Docker Image
 
+# Releases are cut by hand: tag a commit, push the tag, and this job publishes
+# that tag. Pushing to main only runs CI.
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    tags:
+      - "v*"
 
 concurrency:
-  group: docker-build-main
+  group: docker-build-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -15,7 +16,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 jobs:
@@ -26,27 +27,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Compute version tag
-        id: version
-        run: |
-          YEAR_WEEK=$(date -u +'%Y.%V')
-          # Find the highest existing patch number for this year+week, then bump it.
-          git fetch --tags --quiet
-          LAST_PATCH=$(git tag -l "v${YEAR_WEEK}.*" | sed -E "s/^v${YEAR_WEEK}\.([0-9]+)$/\1/" | sort -n | tail -1)
-          if [ -z "$LAST_PATCH" ]; then
-            PATCH=0
-          else
-            PATCH=$((LAST_PATCH + 1))
-          fi
-          VERSION="v${YEAR_WEEK}.${PATCH}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: ${VERSION}"
-
-      - name: Tag commit with version
-        run: |
-          git tag "${{ steps.version.outputs.version }}"
-          git push origin "${{ steps.version.outputs.version }}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -64,8 +44,10 @@ jobs:
           context: .
           file: ./Containerfile
           push: true
+          build-args: |
+            VERSION=${{ github.ref_name }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -74,5 +56,6 @@ jobs:
         run: |
           echo "### Image published :rocket:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Built from \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"

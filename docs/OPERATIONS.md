@@ -102,6 +102,21 @@ peer is treated as the client.
 - Behind TLS termination, the proxy must send `X-Forwarded-Proto: https` so
   cookies stay `Secure` and HSTS is emitted.
 
+## Release
+
+Tagging is manual: CI never creates a tag.
+
+```bash
+git switch main && git pull
+just verify
+git tag -a v1.2.0 -m "v1.2.0"
+git push origin v1.2.0
+```
+
+Pushing the tag builds the image and publishes
+`ghcr.io/<owner>/kinstack:v1.2.0` plus `latest`. Pushes to `main` run CI only.
+Tag a commit that CI already passed, and never move a published tag.
+
 ## Deployment
 
 1. Run `just verify` on the release commit.
