@@ -11,8 +11,10 @@ type NotificationDTO struct {
 	ReadAt    string `json:"read_at,omitempty"`
 }
 
-// ListPageProps is the public contract for the notification center page.
+// ListPageProps is one chunk of the notification center; NextCursor is empty on
+// the last chunk, which hides the "Load more" control.
 type ListPageProps struct {
 	Notifications []NotificationDTO `json:"notifications"`
 	Unread        int               `json:"unread"`
+	NextCursor    string            `json:"next_cursor"`
 }

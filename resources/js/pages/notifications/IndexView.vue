@@ -7,6 +7,7 @@ import { z } from "zod";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
+import { notificationFeedSchema } from "@/lib/contracts/notifications";
 import { unreadCount } from "@/lib/dashboard";
 import { formatDateTime } from "@/lib/formatters";
 import { requestJson } from "@/lib/http";
@@ -25,12 +26,15 @@ interface Notification {
   read_at?: string;
 }
 
-const props = defineProps<{ notifications: Notification[]; unread: number }>();
+const props = defineProps<{ notifications: Notification[]; unread: number; next_cursor: string }>();
 
 const { csrfToken } = usePageProps();
 const { t } = useI18n();
 const notifications = ref([...props.notifications]);
 const unread = ref(props.unread);
+// Keyset paging: an arrival between clicks cannot duplicate a shown row.
+const nextCursor = ref(props.next_cursor);
+const loadingMore = ref(false);
 const error = ref("");
 const markingId = ref("");
 const markingAll = ref(false);
@@ -56,6 +60,26 @@ async function markRead(notification: Notification) {
     error.value = t("shell.notifications.markError");
   } finally {
     markingId.value = "";
+  }
+}
+
+async function loadMore() {
+  if (loadingMore.value || !nextCursor.value) return;
+  loadingMore.value = true;
+  error.value = "";
+  try {
+    const payload = await requestJson(
+      `/notifications/feed?cursor=${encodeURIComponent(nextCursor.value)}`,
+      notificationFeedSchema,
+    );
+    notifications.value = [...notifications.value, ...payload.notifications];
+    nextCursor.value = payload.next_cursor;
+    unread.value = payload.unread;
+    unreadCount.value = payload.unread;
+  } catch {
+    error.value = t("shell.notifications.loadError");
+  } finally {
+    loadingMore.value = false;
   }
 }
 
@@ -142,6 +166,16 @@ async function markAllRead() {
               @click="markRead(notification)" />
           </div>
         </UCard>
+
+        <div v-if="nextCursor" class="flex justify-center pt-2">
+          <UButton
+            color="neutral"
+            variant="outline"
+            :icon="icons.unfoldMore"
+            label="Load more"
+            :loading="loadingMore"
+            @click="loadMore" />
+        </div>
       </div>
     </template>
   </UDashboardPanel>

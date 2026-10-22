@@ -3,6 +3,8 @@ package media
 import (
 	"context"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 // Asset is the persistence projection of one stored media object.
@@ -28,7 +30,7 @@ type CreateAssetInput struct {
 
 // Repository is the persistence contract owned by the media slice.
 type Repository interface {
-	List(context.Context, string) ([]Asset, error)
+	List(context.Context, string, pagination.Query) ([]Asset, error)
 	Count(context.Context, string) (int, error)
 	Create(context.Context, CreateAssetInput) (Asset, error)
 	Find(context.Context, string, string) (Asset, error)

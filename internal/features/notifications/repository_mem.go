@@ -12,9 +12,10 @@ import (
 // MemoryRepository is the deterministic in-memory repository used by service
 // tests. It is never selected by production wiring.
 type MemoryRepository struct {
-	mu    sync.Mutex
-	items map[string]Notification
-	order []string
+	mu     sync.Mutex
+	items  map[string]Notification
+	order  []string
+	nextID int64
 }
 
 var _ Repository = (*MemoryRepository)(nil)
@@ -31,33 +32,53 @@ func (r *MemoryRepository) Seed(notification Notification) {
 	if notification.Status == "" {
 		notification.Status = "unread"
 	}
+	// Mirror the Postgres timestamp precision: the keyset cursor travels as
+	// microseconds, so a finer value here would repeat one row per chunk.
 	if notification.CreatedAt.IsZero() {
 		notification.CreatedAt = time.Now().UTC()
 	}
+	notification.CreatedAt = notification.CreatedAt.UTC().Truncate(time.Microsecond)
+	notification.ID = r.nextID + 1
+	r.nextID = notification.ID
 	r.items[notification.PublicID] = notification
 	r.order = append(r.order, notification.PublicID)
 }
 
-// List returns the newest notifications of the recipient.
+// List returns one keyset window of the recipient's notifications, newest first.
 func (r *MemoryRepository) List(
 	_ context.Context,
 	recipientPublicID string,
-	limit int,
+	query ListQuery,
 ) ([]Notification, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	items := make([]Notification, 0, limit)
-	for index := len(r.order) - 1; index >= 0 && len(items) < limit; index-- {
-		item := r.items[r.order[index]]
-		if item.RecipientPublicID == recipientPublicID {
-			items = append(items, item)
+	matching := make([]Notification, 0)
+	for _, notification := range r.items {
+		if notification.RecipientPublicID != recipientPublicID {
+			continue
 		}
+		if query.Before != nil && !beforeCursor(notification, *query.Before) {
+			continue
+		}
+		matching = append(matching, notification)
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[i].CreatedAt.After(items[j].CreatedAt)
+	sort.SliceStable(matching, func(i, j int) bool {
+		if !matching[i].CreatedAt.Equal(matching[j].CreatedAt) {
+			return matching[i].CreatedAt.After(matching[j].CreatedAt)
+		}
+		return matching[i].ID > matching[j].ID
 	})
-	return items, nil
+	return matching[:min(len(matching), query.Limit)], nil
+}
+
+// beforeCursor reports whether the notification sorts after the cursor, which is
+// exactly the next chunk.
+func beforeCursor(notification Notification, cursor Cursor) bool {
+	if !notification.CreatedAt.Equal(cursor.CreatedAt) {
+		return notification.CreatedAt.Before(cursor.CreatedAt)
+	}
+	return notification.ID < cursor.ID
 }
 
 // UnreadCount returns how many notifications are still unread.
@@ -80,14 +101,16 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateInput) (Notific
 	defer r.mu.Unlock()
 
 	notification := Notification{
+		ID:                r.nextID + 1,
 		PublicID:          input.PublicID,
 		RecipientPublicID: input.RecipientPublicID,
 		Kind:              input.Kind,
 		Title:             input.Title,
 		Body:              input.Body,
 		Status:            "unread",
-		CreatedAt:         time.Now().UTC(),
+		CreatedAt:         time.Now().UTC().Truncate(time.Microsecond),
 	}
+	r.nextID = notification.ID
 	r.items[notification.PublicID] = notification
 	r.order = append(r.order, notification.PublicID)
 	return notification, nil

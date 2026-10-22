@@ -2,6 +2,8 @@ import { router } from "@inertiajs/vue3";
 import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed, type ComputedRef, isRef, ref } from "vue";
 
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "./pagination";
+
 /**
  * Client-side table view state (hidden columns and page size).
  *
@@ -39,7 +41,7 @@ interface StoredState {
 
 const states = ref<Record<string, StoredState>>({});
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const PAGE_SIZE_OPTIONS: readonly number[] = PAGE_SIZES;
 
 interface ColumnShape {
   id?: string;
@@ -84,7 +86,7 @@ export function useTableView<T>(
   options: TableViewOptions = {},
 ): TableView {
   const paged = options.paged ?? true;
-  const defaultPerPage = options.defaultPerPage ?? 25;
+  const defaultPerPage = options.defaultPerPage ?? DEFAULT_PAGE_SIZE;
   const state = ensureState(key);
 
   const sourceColumns = computed<TableColumn<unknown>[]>(

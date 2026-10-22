@@ -3,9 +3,12 @@ package apitoken
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 func newTestService() (*Service, *MemoryRepository) {
@@ -44,12 +47,15 @@ func TestCreateReturnsUsableTokenOnce(t *testing.T) {
 		t.Fatalf("unexpected scopes: %#v", scopes)
 	}
 
-	tokens, err := service.List(context.Background(), "user-1")
+	page, err := service.List(context.Background(), "user-1", pagination.New(1, 10))
 	if err != nil {
 		t.Fatalf("list tokens: %v", err)
 	}
-	if len(tokens) != 1 || tokens[0].PublicID != created.APIToken.PublicID {
-		t.Fatalf("unexpected token list: %#v", tokens)
+	if len(page.Tokens) != 1 || page.Tokens[0].PublicID != created.APIToken.PublicID {
+		t.Fatalf("unexpected token list: %#v", page.Tokens)
+	}
+	if page.Page.Total != 1 {
+		t.Fatalf("unexpected page: %+v", page.Page)
 	}
 }
 
@@ -242,5 +248,58 @@ func TestRevokeAllRevokesEveryToken(t *testing.T) {
 	}
 	if repository == nil {
 		t.Fatal("expected a repository")
+	}
+}
+
+func TestListPaginatesActiveTokens(t *testing.T) {
+	service, _ := newTestService()
+	for index := 1; index <= 7; index++ {
+		if _, err := service.Create(
+			context.Background(),
+			"user-1",
+			fmt.Sprintf("token-%d", index),
+			0,
+			[]string{"users.view"},
+		); err != nil {
+			t.Fatalf("create token %d: %v", index, err)
+		}
+	}
+	if _, err := service.Create(
+		context.Background(),
+		"user-2",
+		"other user",
+		0,
+		[]string{"users.view"},
+	); err != nil {
+		t.Fatalf("create other token: %v", err)
+	}
+
+	first, err := service.List(context.Background(), "user-1", pagination.New(1, 5))
+	if err != nil {
+		t.Fatalf("list first page: %v", err)
+	}
+	if first.Page.Total != 7 || first.Page.TotalPages != 2 || len(first.Tokens) != 5 {
+		t.Fatalf("unexpected first page: %+v (%d tokens)", first.Page, len(first.Tokens))
+	}
+
+	second, err := service.List(context.Background(), "user-1", pagination.New(2, 5))
+	if err != nil {
+		t.Fatalf("list second page: %v", err)
+	}
+	if len(second.Tokens) != 2 || second.Page.From != 6 || second.Page.To != 7 {
+		t.Fatalf("unexpected second page: %+v (%d tokens)", second.Page, len(second.Tokens))
+	}
+	for _, token := range append(first.Tokens, second.Tokens...) {
+		if token.Name == "other user" {
+			t.Fatal("listing leaked another user's token")
+		}
+	}
+
+	clamped, err := service.List(context.Background(), "user-1", pagination.New(9, 5))
+	if err != nil {
+		t.Fatalf("list clamped: %v", err)
+	}
+	if clamped.Page.Page != 2 || len(clamped.Tokens) != 2 {
+		t.Fatalf("unexpected clamped page: %+v", clamped.Page)
 	}
 }

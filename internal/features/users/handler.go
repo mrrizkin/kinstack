@@ -3,11 +3,12 @@ package users
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strconv"
-	"strings"
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
 	"kinstack/internal/platform/i18n"
@@ -16,21 +17,22 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the service, actor boundary, Inertia adapter, and
-// logger used by the handler.
+// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
-	Service *Service
-	Actor   *actor.Actor
-	Logger  log.Log
-	Inertia *platforminertia.Adapter
+	Service  *Service
+	Actor    *actor.Actor
+	PageSize pagination.PageSizeReader
+	Logger   log.Log
+	Inertia  *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for user management.
 type Handler struct {
-	service *Service
-	actor   *actor.Actor
-	logger  log.Log
-	inertia *platforminertia.Adapter
+	service  *Service
+	actor    *actor.Actor
+	pageSize pagination.PageSizeReader
+	logger   log.Log
+	inertia  *platforminertia.Adapter
 }
 
 // NewHandler constructs the users HTTP handler.
@@ -41,10 +43,11 @@ func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Inertia != nil, "users inertia adapter is required")
 
 	return &Handler{
-		service: d.Service,
-		actor:   d.Actor,
-		logger:  d.Logger,
-		inertia: d.Inertia,
+		service:  d.Service,
+		actor:    d.Actor,
+		pageSize: d.PageSize,
+		logger:   d.Logger,
+		inertia:  d.Inertia,
 	}
 }
 
@@ -57,26 +60,34 @@ func (h *Handler) context(c fiber.Ctx) context.Context {
 	return c.Context()
 }
 
+func (h *Handler) defaultPerPage(c fiber.Ctx) int {
+	session := h.actor.ActorFromContext(c)
+	if session == nil {
+		return pagination.DefaultPerPage
+	}
+	return pagination.ResolvePageSize(c.Context(), h.pageSize, session.PublicID)
+}
+
 func (h *Handler) usersPath() string {
 	return "/users"
 }
 
 // accessPathFor keeps the user on the access page they were viewing after a
-// successful mutation. Invalid values fall back to the first page.
+// successful mutation. The two tabs page independently, so both hints are
+// preserved; invalid values fall back to the first page.
 func (h *Handler) accessPathFor(c fiber.Ctx) string {
-	raw := strings.TrimSpace(c.Query("page"))
-	if raw == "" {
+	params := url.Values{}
+	if page := pagination.PageHint(c.Query("page")); page > 1 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	if page := pagination.PageHint(c.Query("roles_page")); page > 1 {
+		params.Set("roles_page", strconv.Itoa(page))
+	}
+	if len(params) == 0 {
 		return h.accessPath()
 	}
-	page, err := strconv.Atoi(raw)
-	if err != nil || page < 1 || page > maxAccessPage {
-		return h.accessPath()
-	}
-	return h.accessPath() + "?page=" + strconv.Itoa(page)
+	return h.accessPath() + "?" + params.Encode()
 }
-
-// maxAccessPage bounds the page number accepted from a redirect hint.
-const maxAccessPage = 10_000
 
 func (h *Handler) accessPath() string {
 	return "/access"
@@ -102,7 +113,7 @@ func (h *Handler) Mount(router fiber.Router) {
 }
 
 func (h *Handler) index(c fiber.Ctx) error {
-	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"))
+	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"), h.defaultPerPage(c))
 	if err != nil {
 		return h.invalidPagination(c, h.usersPath())
 	}
@@ -124,17 +135,26 @@ func (h *Handler) index(c fiber.Ctx) error {
 }
 
 func (h *Handler) access(c fiber.Ctx) error {
-	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"))
+	query, err := ParsePageQuery(c.Query("page"), c.Query("per_page"), h.defaultPerPage(c))
 	if err != nil {
 		return h.invalidPagination(c, h.accessPath())
 	}
-	props, err := h.service.AccessView(c.Context(), query)
+	rolesQuery, err := ParsePageQuery(
+		c.Query("roles_page"),
+		c.Query("per_page"),
+		h.defaultPerPage(c),
+	)
+	if err != nil {
+		return h.invalidPagination(c, h.accessPath())
+	}
+	props, err := h.service.AccessView(c.Context(), query, rolesQuery)
 	if err != nil {
 		h.logger.Errorw("access view", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("access/IndexView", fiber.Map{
 		"roles":       props.Roles,
+		"roles_page":  props.RolesPage,
 		"permissions": props.Permissions,
 		"categories":  props.Categories,
 		"users":       props.Users,

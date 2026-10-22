@@ -3,12 +3,14 @@ import QRCode from "qrcode";
 import { ref, watch } from "vue";
 
 import { useServerErrors } from "@/lib/errors";
+import { queryString } from "@/lib/query";
 
 import type { ActiveSession, Profile, TwoFactor } from "../types";
 
 interface SecurityFormsProps {
   profile: Profile;
   sessions: ActiveSession[];
+  sessions_page?: { page: number };
   two_factor: TwoFactor;
 }
 
@@ -17,6 +19,8 @@ export type TwoFactorAction = "disable" | "regenerate";
 
 export function useSecurityForms(props: SecurityFormsProps) {
   const { message: fieldError, formError } = useServerErrors();
+  const pageQuery = () =>
+    queryString({ page: (props.sessions_page?.page ?? 1) > 1 ? props.sessions_page?.page : undefined });
 
   const passwordForm = useForm({
     current_password: "",
@@ -122,7 +126,7 @@ export function useSecurityForms(props: SecurityFormsProps) {
   function confirmRevokeSession() {
     const target = pendingSession.value;
     if (!target || revokingSession.value) return;
-    router.post(`/profile/sessions/${target.public_id}/revoke`, undefined, {
+    router.post(`/profile/sessions/${target.public_id}/revoke${pageQuery()}`, undefined, {
       preserveScroll: true,
       onStart: () => (revokingSession.value = true),
       onFinish: () => {
@@ -138,7 +142,7 @@ export function useSecurityForms(props: SecurityFormsProps) {
 
   function confirmRevokeOtherSessions() {
     if (revokingOthers.value) return;
-    router.post("/profile/sessions/revoke-others", undefined, {
+    router.post(`/profile/sessions/revoke-others${pageQuery()}`, undefined, {
       preserveScroll: true,
       onStart: () => (revokingOthers.value = true),
       onFinish: () => {

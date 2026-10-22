@@ -26,6 +26,7 @@ const props = defineProps<{
   categories: string[];
   users: UserAccess[];
   page: PageInfo;
+  roles_page: PageInfo;
 }>();
 
 const {
@@ -146,7 +147,9 @@ const overrideOpen = computed({
             :menu-items="accessUserMenuItems"
             :assign-role="assignRole"
             :assigning-role-id="assigningRoleId" />
+          <!-- Each tab pages independently; paging one drops the other's key. -->
           <AppPagination v-if="item.value === 'users'" :page="page" url="/access" />
+          <AppPagination v-else :page="props.roles_page" url="/access" page-param="roles_page" />
         </template>
       </UTabs>
     </template>

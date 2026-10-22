@@ -7,6 +7,7 @@ import AppInputDate from "@/components/AppInputDate.vue";
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
 import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
+import AppQuickFilters from "@/components/AppQuickFilters.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
 import AppCellBadge from "@/components/cells/AppCellBadge.vue";
 import AppCellStack from "@/components/cells/AppCellStack.vue";
@@ -14,20 +15,25 @@ import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { icons } from "@/lib/icons";
+import { usePageProps } from "@/lib/page-props";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { useTableView } from "@/lib/table-view";
 
 import { actionLabel, createAuditColumns, type Entry, outcomeColor, outcomeLabel, statusColor } from "./columns";
+import {
+  ALL_FILTER,
+  RESET_FILTER_KEY,
+  createAuditPresets,
+  createQuickFilterItems,
+  isPresetActive,
+  togglePreset,
+  utcToday,
+  type AuditFilterState,
+} from "./presets";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
-interface Filters {
-  actor_key: string;
-  action: string;
-  outcome: string;
-  search: string;
-  from: string;
-  to: string;
-}
+type Filters = AuditFilterState;
 
 const props = defineProps<{
   entries: Entry[];
@@ -38,16 +44,21 @@ const props = defineProps<{
   pages: number;
 }>();
 
-const ALL_FILTER = "all";
+const { actor } = usePageProps();
 
-const form = ref<Filters>({
+/** Applied filters, normalized into the shape the form and presets share. */
+const currentFilters = computed<Filters>(() => ({
   actor_key: props.filters.actor_key ?? "",
   action: props.filters.action || ALL_FILTER,
   outcome: props.filters.outcome || ALL_FILTER,
   search: props.filters.search ?? "",
   from: props.filters.from ? props.filters.from.slice(0, 10) : "",
   to: props.filters.to ? props.filters.to.slice(0, 10) : "",
-});
+}));
+
+const form = ref<Filters>({ ...currentFilters.value });
+
+const presets = createAuditPresets({ today: utcToday(), actorKey: actor.value?.public_id ?? "" });
 
 const actionOptions = [
   { label: "All actions", value: ALL_FILTER },
@@ -64,7 +75,7 @@ const outcomeOptions = [
 
 const pageInfo = computed<PageInfo>(() => ({
   page: props.page ?? 1,
-  per_page: props.per_page ?? 25,
+  per_page: props.per_page ?? DEFAULT_PAGE_SIZE,
   total: props.total ?? 0,
   total_pages: props.pages ?? 0,
   from: props.total === 0 ? 0 : (props.page - 1) * props.per_page + 1,
@@ -73,21 +84,26 @@ const pageInfo = computed<PageInfo>(() => ({
   has_next: props.page < props.pages,
 }));
 
-const activeFilters = computed<Record<string, string>>(() => {
+function toQuery(state: Filters): Record<string, string> {
   const query: Record<string, string> = {};
-  if (form.value.actor_key) query.actor_key = form.value.actor_key;
-  if (form.value.action !== ALL_FILTER) query.action = form.value.action;
-  if (form.value.outcome !== ALL_FILTER) query.outcome = form.value.outcome;
-  if (form.value.search) query.search = form.value.search;
-  if (form.value.from) query.from = form.value.from;
-  if (form.value.to) query.to = form.value.to;
+  if (state.actor_key) query.actor_key = state.actor_key;
+  if (state.action !== ALL_FILTER) query.action = state.action;
+  if (state.outcome !== ALL_FILTER) query.outcome = state.outcome;
+  if (state.search) query.search = state.search;
+  if (state.from) query.from = state.from;
+  if (state.to) query.to = state.to;
   return query;
-});
+}
+
+// Pagination must carry the filters the server actually applied, not a draft.
+const activeFilters = computed<Record<string, string>>(() => toQuery(currentFilters.value));
 
 const applying = ref(false);
 const activeFilterCount = computed(() => Object.keys(activeFilters.value).length);
 const hasFilters = computed(() => activeFilterCount.value > 0);
 
+// Reset trails the presets so the presets keep a stable position in the row.
+const quickFilters = computed(() => createQuickFilterItems(presets, currentFilters.value, icons.reset));
 const filterMenu = useTemplateRef<{ close: () => void }>("filterMenu");
 
 const MAX_SEARCH = 200;
@@ -117,10 +133,12 @@ const emptyActions = computed(() =>
     : [{ label: "Back to dashboard", icon: icons.arrowLeft, to: "/dashboard" }],
 );
 
-function applyFilters() {
-  if (!validateFilters()) return;
-  filterMenu.value?.close();
-  router.get("/audit", activeFilters.value, {
+function clearFilterErrors() {
+  filterErrors.value = { search: "", from: "", to: "" };
+}
+
+function navigate(query: Record<string, string>) {
+  router.get("/audit", query, {
     preserveState: true,
     preserveScroll: true,
     replace: true,
@@ -129,28 +147,34 @@ function applyFilters() {
   });
 }
 
-function resetFilters() {
-  form.value.actor_key = "";
-  form.value.action = ALL_FILTER;
-  form.value.outcome = ALL_FILTER;
-  form.value.search = "";
-  form.value.from = "";
-  form.value.to = "";
-  filterErrors.value.search = "";
-  filterErrors.value.from = "";
-  filterErrors.value.to = "";
+function applyFilters() {
+  if (!validateFilters()) return;
   filterMenu.value?.close();
-  router.get(
-    "/audit",
-    {},
-    {
-      preserveState: true,
-      preserveScroll: true,
-      replace: true,
-      onStart: () => (applying.value = true),
-      onFinish: () => (applying.value = false),
-    },
-  );
+  navigate(toQuery(form.value));
+}
+
+/**
+ * A quick filter composes with the applied values, so a chip click can never
+ * submit an unvalidated draft from the form. Unapplied edits are replaced.
+ */
+function selectQuickFilter(key: string) {
+  if (key === RESET_FILTER_KEY) {
+    resetFilters();
+    return;
+  }
+  const preset = presets.find((item) => item.key === key);
+  if (!preset) return;
+  const next = togglePreset(currentFilters.value, preset);
+  form.value = { ...next };
+  clearFilterErrors();
+  navigate(toQuery(next));
+}
+
+function resetFilters() {
+  form.value = { actor_key: "", action: ALL_FILTER, outcome: ALL_FILTER, search: "", from: "", to: "" };
+  clearFilterErrors();
+  filterMenu.value?.close();
+  navigate({});
 }
 
 const view = useTableView("audit", createAuditColumns(), { paged: false });
@@ -173,7 +197,8 @@ const view = useTableView("audit", createAuditColumns(), { paged: false });
 
     <template #body>
       <div class="space-y-6">
-        <div class="flex items-center justify-end">
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <AppQuickFilters class="mr-auto" :items="quickFilters" :disabled="applying" @select="selectQuickFilter" />
           <AppFilterMenu
             ref="filterMenu"
             :active-count="activeFilterCount"

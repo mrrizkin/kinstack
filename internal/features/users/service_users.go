@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"kinstack/internal/pkg/pagination"
@@ -16,44 +15,13 @@ import (
 )
 
 // Page size bounds for the users list.
-const (
-	DefaultPerPage = pagination.DefaultPerPage
-	MaxPerPage     = pagination.MaxPerPage
-)
-
-// ParsePageQuery validates raw page/per-page query strings. Invalid values are
-// rejected rather than clamped so the API stays fail-closed.
-func ParsePageQuery(rawPage, rawPerPage string) (pagination.Query, error) {
-	page, err := parsePositive(rawPage)
+// ParsePageQuery maps a malformed request onto ErrInvalidInput.
+func ParsePageQuery(rawPage, rawPerPage string, fallbackPerPage int) (pagination.Query, error) {
+	query, err := pagination.ParseRequest(rawPage, rawPerPage, fallbackPerPage)
 	if err != nil {
-		return pagination.Query{}, err
-	}
-	perPage, err := parsePositive(rawPerPage)
-	if err != nil {
-		return pagination.Query{}, err
-	}
-	if perPage == 0 {
-		perPage = DefaultPerPage
-	}
-	if perPage > MaxPerPage {
 		return pagination.Query{}, ErrInvalidInput
 	}
-	if page == 0 {
-		page = 1
-	}
-	return pagination.Query{Page: page, PerPage: perPage}, nil
-}
-
-func parsePositive(raw string) (int, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, nil
-	}
-	value, err := strconv.Atoi(raw)
-	if err != nil || value < 1 {
-		return 0, ErrInvalidInput
-	}
-	return value, nil
+	return query, nil
 }
 
 // UserList is one page of accounts plus its display window.

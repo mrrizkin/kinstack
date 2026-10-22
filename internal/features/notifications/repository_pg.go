@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"kinstack/internal/pkg/assert"
 	platformdatabase "kinstack/internal/platform/database"
@@ -13,6 +14,7 @@ import (
 )
 
 const notificationProjection = `
+id,
 public_id,
 recipient_public_id,
 kind,
@@ -27,8 +29,9 @@ const (
 SELECT ` + notificationProjection + `
 FROM notifications
 WHERE recipient_public_id = $1
+  AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3))
 ORDER BY created_at DESC, id DESC
-LIMIT $2`
+LIMIT $4`
 
 	unreadCountQuery = `
 SELECT count(*)
@@ -109,14 +112,28 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// List returns the newest notifications of the recipient.
+// List returns one keyset window of the recipient's notifications, newest first.
+// The tuple comparison keeps the window stable while new notifications arrive.
 func (r *SQLRepository) List(
 	ctx context.Context,
 	recipientPublicID string,
-	limit int,
+	query ListQuery,
 ) ([]Notification, error) {
+	var before *time.Time
+	var beforeID int64
+	if query.Before != nil {
+		before = &query.Before.CreatedAt
+		beforeID = query.Before.ID
+	}
 	items := make([]Notification, 0)
-	if err := r.listStmt.SelectContext(ctx, &items, recipientPublicID, limit); err != nil {
+	if err := r.listStmt.SelectContext(
+		ctx,
+		&items,
+		recipientPublicID,
+		before,
+		beforeID,
+		query.Limit,
+	); err != nil {
 		return nil, fmt.Errorf("list notifications: %w", err)
 	}
 	return items, nil

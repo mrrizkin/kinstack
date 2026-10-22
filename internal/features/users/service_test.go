@@ -233,7 +233,14 @@ func TestParsePageQueryRejectsInvalidValues(t *testing.T) {
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := ParsePageQuery(test.page, test.perPage); !errors.Is(err, ErrInvalidInput) {
+			if _, err := ParsePageQuery(
+				test.page,
+				test.perPage,
+				0,
+			); !errors.Is(
+				err,
+				ErrInvalidInput,
+			) {
 				t.Fatalf("expected ErrInvalidInput, got %v", err)
 			}
 		})
@@ -241,20 +248,36 @@ func TestParsePageQueryRejectsInvalidValues(t *testing.T) {
 }
 
 func TestParsePageQueryAppliesDefaults(t *testing.T) {
-	query, err := ParsePageQuery("", "")
+	query, err := ParsePageQuery("", "", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if query.Page != 1 || query.PerPage != DefaultPerPage {
+	if query.Page != 1 || query.PerPage != pagination.DefaultPerPage {
 		t.Fatalf("unexpected query: %+v", query)
 	}
 
-	query, err = ParsePageQuery("3", "100")
+	query, err = ParsePageQuery("", "", 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if query.Page != 3 || query.PerPage != MaxPerPage {
-		t.Fatalf("unexpected query: %+v", query)
+	if query.PerPage != 50 {
+		t.Fatalf("expected the account page size, got %+v", query)
+	}
+
+	query, err = ParsePageQuery("", "", 7)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if query.PerPage != pagination.DefaultPerPage {
+		t.Fatalf("invalid preference must fall back, got %+v", query)
+	}
+
+	query, err = ParsePageQuery("3", "100", 50)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if query.Page != 3 || query.PerPage != pagination.MaxPerPage {
+		t.Fatalf("explicit page size must win, got %+v", query)
 	}
 }
 
@@ -365,7 +388,11 @@ func TestAccessViewPaginatesUsersAndBatchesOverrides(t *testing.T) {
 		Authorization: authz.New(authz.ServiceDependency{Repository: authorizationRepository}),
 	})
 
-	props, err := service.AccessView(testContext(), pagination.Query{Page: 1, PerPage: 2})
+	props, err := service.AccessView(
+		testContext(),
+		pagination.Query{Page: 1, PerPage: 2},
+		pagination.Query{Page: 1, PerPage: 10},
+	)
 	if err != nil {
 		t.Fatalf("access view: %v", err)
 	}
@@ -407,5 +434,56 @@ func TestAccessViewPaginatesUsersAndBatchesOverrides(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("expected staff-a on the first page")
+	}
+}
+
+func TestAccessViewPaginatesRolesIndependently(t *testing.T) {
+	service := NewService(ServiceDependency{
+		Repository:    newSeededRepository(),
+		Authorization: newSeededAuthorization(),
+	})
+
+	first, err := service.AccessView(
+		testContext(),
+		pagination.Query{Page: 1, PerPage: 5},
+		pagination.Query{Page: 1, PerPage: 1},
+	)
+	if err != nil {
+		t.Fatalf("access view first page: %v", err)
+	}
+	if len(first.Roles) != 1 || first.RolesPage.Total != 2 || first.RolesPage.TotalPages != 2 {
+		t.Fatalf("unexpected roles page: %+v (%d roles)", first.RolesPage, len(first.Roles))
+	}
+
+	second, err := service.AccessView(
+		testContext(),
+		pagination.Query{Page: 1, PerPage: 5},
+		pagination.Query{Page: 2, PerPage: 1},
+	)
+	if err != nil {
+		t.Fatalf("access view second page: %v", err)
+	}
+	if len(second.Roles) != 1 || second.Roles[0].Code == first.Roles[0].Code {
+		t.Fatalf("expected the other role, got %#v", second.Roles)
+	}
+	for _, user := range second.Users {
+		if user.RoleName == "" {
+			t.Fatalf("user %q lost its role name on roles page 2", user.PublicID)
+		}
+	}
+	if second.Page.Total != first.Page.Total {
+		t.Fatalf("roles paging must not move the users page: %+v vs %+v", first.Page, second.Page)
+	}
+
+	clamped, err := service.AccessView(
+		testContext(),
+		pagination.Query{Page: 1, PerPage: 5},
+		pagination.Query{Page: 8, PerPage: 1},
+	)
+	if err != nil {
+		t.Fatalf("access view clamped: %v", err)
+	}
+	if clamped.RolesPage.Page != 2 || len(clamped.Roles) != 1 {
+		t.Fatalf("unexpected clamped roles page: %+v", clamped.RolesPage)
 	}
 }

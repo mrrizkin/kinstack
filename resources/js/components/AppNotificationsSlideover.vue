@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { router } from "@inertiajs/vue3";
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { z } from "zod";
@@ -36,7 +37,7 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    const payload = await requestJson("/notifications/feed", notificationFeedSchema);
+    const payload = await requestJson("/notifications/feed?limit=10", notificationFeedSchema);
     notifications.value = payload.notifications;
     unread.value = payload.unread;
   } catch (caught) {

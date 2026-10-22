@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"kinstack/internal/pkg/pagination"
+
 	"github.com/lib/pq"
 )
 
@@ -35,7 +37,8 @@ type CreateTokenInput struct {
 // Repository is the persistence contract owned by the apitoken feature.
 type Repository interface {
 	Create(context.Context, CreateTokenInput) (TokenResult, error)
-	ListByUser(context.Context, string) ([]TokenResult, error)
+	ListByUser(context.Context, string, pagination.Query) ([]TokenResult, error)
+	CountByUser(context.Context, string) (int, error)
 	FindByPublicID(context.Context, string) (TokenResult, error)
 	Revoke(context.Context, string, string) error
 	RevokeAll(context.Context, string) (int, error)

@@ -2,6 +2,7 @@
 import { Head } from "@inertiajs/vue3";
 import { useI18n } from "vue-i18n";
 
+import type { PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
@@ -16,6 +17,7 @@ defineOptions({ layout: [BaseLayout, AppLayout, SettingsLayout] });
 const props = defineProps<{
   profile: Profile;
   sessions: ActiveSession[];
+  sessions_page: PageInfo;
   two_factor: TwoFactor;
 }>();
 
@@ -67,6 +69,7 @@ const {
     :two-factor-password-form="twoFactorPasswordForm"
     :two-factor="two_factor"
     :sessions="sessions"
+    :sessions-page="sessions_page"
     :qr-data-url="qrDataUrl"
     :field-error="fieldError"
     :revoking-session="revokingSession"

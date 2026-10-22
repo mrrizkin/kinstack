@@ -19,7 +19,8 @@ const props = defineProps<{
 
 const { t } = useI18n();
 
-const { preferencesForm, themeOptions, fieldError, formError, submitPreferences } = usePreferencesForm(props);
+const { preferencesForm, themeOptions, rowsPerPageOptions, fieldError, formError, submitPreferences } =
+  usePreferencesForm(props);
 </script>
 
 <template>
@@ -30,6 +31,7 @@ const { preferencesForm, themeOptions, fieldError, formError, submitPreferences 
   <PreferencesPanel
     :preferences-form="preferencesForm"
     :theme-options="themeOptions"
+    :rows-per-page-options="rowsPerPageOptions"
     :field-error="fieldError"
     :submit-preferences="submitPreferences" />
 </template>

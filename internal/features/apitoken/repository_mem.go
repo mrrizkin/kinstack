@@ -5,6 +5,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 // MemoryRepository is the deterministic in-memory repository used by service
@@ -43,10 +45,11 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateTokenInput) (To
 	return result, nil
 }
 
-// ListByUser returns the active tokens of one user, newest first.
+// ListByUser returns one page of the user's active tokens, newest first.
 func (r *MemoryRepository) ListByUser(
 	_ context.Context,
 	userPublicID string,
+	query pagination.Query,
 ) ([]TokenResult, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -59,7 +62,21 @@ func (r *MemoryRepository) ListByUser(
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].CreatedAt.After(results[j].CreatedAt)
 	})
-	return results[:min(len(results), 100)], nil
+	start, end := pagination.Window(query, len(results))
+	return results[start:end], nil
+}
+
+// CountByUser returns how many active tokens the user owns.
+func (r *MemoryRepository) CountByUser(_ context.Context, userPublicID string) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	count := 0
+	for _, result := range r.tokens {
+		if result.UserPublicID == userPublicID && result.RevokedAt == nil {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // FindByPublicID resolves one token by its public identifier.

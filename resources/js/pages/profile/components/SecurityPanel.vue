@@ -2,6 +2,7 @@
 import { computed } from "vue";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
+import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import { formatDateTime } from "@/lib/formatters";
 import { icons } from "@/lib/icons";
 
@@ -31,6 +32,7 @@ const props = defineProps<{
   twoFactorPasswordForm: TwoFactorPasswordForm;
   twoFactor: TwoFactor;
   sessions: ActiveSession[];
+  sessionsPage: PageInfo;
   qrDataUrl: string;
   revokingSession: boolean;
   revokingOthers: boolean;
@@ -237,6 +239,7 @@ const enrollLabel = computed(() => (props.twoFactor.pending_secret ? "Continue s
           <UButton to="/help" size="xs" color="neutral" variant="link" label="View help" />
         </li>
       </ul>
+      <AppPagination :page="sessionsPage" url="/profile/security" />
     </UCard>
 
     <PasswordDialog

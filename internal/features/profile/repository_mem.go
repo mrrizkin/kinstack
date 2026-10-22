@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 )
 
 // MemoryRepository is the deterministic in-memory repository used by service
@@ -79,12 +80,22 @@ func (r *MemoryRepository) UpdateDisplayName(
 	return record.profile, nil
 }
 
+func (r *MemoryRepository) FindPageSize(_ context.Context, publicID string) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	record, ok := r.records[publicID]
+	if !ok {
+		return 0, ErrNotFound
+	}
+	return record.profile.PageSize, nil
+}
+
 // UpdatePreferences stores personalization settings.
 func (r *MemoryRepository) UpdatePreferences(
 	_ context.Context,
 	publicID string,
-	theme string,
-	soundEnabled bool,
+	update PreferencesUpdate,
 ) (PreferencesResult, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -93,10 +104,11 @@ func (r *MemoryRepository) UpdatePreferences(
 	if !ok {
 		return PreferencesResult{}, ErrNotFound
 	}
-	record.profile.ThemePreference = theme
-	record.profile.SoundEnabled = soundEnabled
+	record.profile.ThemePreference = update.ThemePreference
+	record.profile.SoundEnabled = update.SoundEnabled
+	record.profile.PageSize = update.PageSize
 	r.records[publicID] = record
-	return PreferencesResult{ThemePreference: theme, SoundEnabled: soundEnabled}, nil
+	return PreferencesResult(update), nil
 }
 
 // MarkPasswordSet stores a new password hash and clears the invited marker.
@@ -130,6 +142,7 @@ func SeedDefault(repository *MemoryRepository, publicID, displayName, hash strin
 		Role:            "administrator",
 		ThemePreference: "system",
 		SoundEnabled:    true,
+		PageSize:        pagination.DefaultPerPage,
 		LastLoginAt:     &now,
 		CreatedAt:       now,
 	}, hash)

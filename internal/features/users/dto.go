@@ -97,6 +97,7 @@ type UserAccessDTO struct {
 // AccessPageProps is the public contract for the access management page.
 type AccessPageProps struct {
 	Roles       []RoleDTO       `json:"roles"`
+	RolesPage   pagination.Page `json:"roles_page"`
 	Permissions []PermissionDTO `json:"permissions"`
 	Categories  []string        `json:"categories"`
 	Users       []UserAccessDTO `json:"users"`

@@ -4,6 +4,7 @@ package users
 import (
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
 	platforminertia "kinstack/internal/platform/inertia"
@@ -19,6 +20,7 @@ type Dependency struct {
 	Inviter       Inviter
 	Revoker       CredentialRevoker
 	Actor         *actor.Actor
+	PageSize      pagination.PageSizeReader
 	Logger        applog.Log
 	Inertia       *platforminertia.Adapter
 }
@@ -43,10 +45,11 @@ func New(d Dependency) *Feature {
 		Revoker:       d.Revoker,
 	})
 	handler := NewHandler(HandlerDependency{
-		Service: service,
-		Actor:   d.Actor,
-		Logger:  d.Logger,
-		Inertia: d.Inertia,
+		Service:  service,
+		Actor:    d.Actor,
+		PageSize: d.PageSize,
+		Logger:   d.Logger,
+		Inertia:  d.Inertia,
 	})
 	return &Feature{service: service, handler: handler}
 }

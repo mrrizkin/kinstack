@@ -63,11 +63,14 @@ func newAppDependencies(d AppDependency, inertiaAdapter *inertia.Adapter) *appDe
 	})
 
 	revoker := &credentialRevoker{log: d.Log}
-	deps.Media = newMediaFeature(d, deps, inertiaAdapter)
-	deps.Notifications = newNotificationsFeature(d, deps, inertiaAdapter)
 	deps.SessionRegistry = newSessionRegistry(deps, d)
 	revoker.sessions = deps.SessionRegistry
 	deps.TwoFactor = newTwoFactor(deps, d)
+	// Profile owns the account page-size preference, so it is built before every
+	// list feature: only the composition root may connect two slices.
+	deps.Profile = newProfileFeature(d, deps, repositories.profile, inertiaAdapter)
+	deps.Media = newMediaFeature(d, deps, inertiaAdapter)
+	deps.Notifications = newNotificationsFeature(d, deps, inertiaAdapter)
 
 	deps.Auth = newAuthFeature(d, authFeatureDependency{
 		repositories: repositories,
@@ -76,13 +79,14 @@ func newAppDependencies(d AppDependency, inertiaAdapter *inertia.Adapter) *appDe
 		saml:         newSAMLProvider(d),
 	})
 	deps.Users = newUsersFeature(d, deps, repositories.users, revoker, inertiaAdapter)
-	deps.Profile = newProfileFeature(d, deps, repositories.profile, inertiaAdapter)
 	deps.System = system.New(system.Dependency{
 		Repository: system.NewStaticRepository(),
 		Logger:     d.Log,
 	})
 	deps.Audit = auditfeature.New(auditfeature.Dependency{
 		Repository: repositories.audit,
+		Actor:      d.Actor,
+		PageSize:   deps.Profile.Service(),
 		Logger:     d.Log,
 		Inertia:    inertiaAdapter,
 	})
@@ -90,6 +94,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *inertia.Adapter) *appDe
 		Repository:    repositories.apiToken,
 		Actor:         d.Actor,
 		Authorization: deps.Authorization,
+		PageSize:      deps.Profile.Service(),
 		Logger:        d.Log,
 		Inertia:       inertiaAdapter,
 	})
@@ -98,6 +103,7 @@ func newAppDependencies(d AppDependency, inertiaAdapter *inertia.Adapter) *appDe
 		AppURL:     d.Config.App.URL,
 		Auth:       deps.Auth,
 		Actor:      d.Actor,
+		PageSize:   deps.Profile.Service(),
 		Logger:     d.Log,
 	})
 
@@ -168,6 +174,7 @@ func newMediaFeature(
 		Repository: repository,
 		Storage:    storage,
 		Actor:      d.Actor,
+		PageSize:   deps.Profile.Service(),
 		Logger:     d.Log,
 		Inertia:    inertiaAdapter,
 	})
@@ -187,6 +194,7 @@ func newNotificationsFeature(
 	return notificationsfeature.New(notificationsfeature.Dependency{
 		Repository: repository,
 		Actor:      d.Actor,
+		PageSize:   deps.Profile.Service(),
 		Logger:     d.Log,
 		Inertia:    inertiaAdapter,
 	})
@@ -281,6 +289,7 @@ func newUsersFeature(
 		Inviter:       deps.Auth.Service(),
 		Revoker:       revoker,
 		Actor:         d.Actor,
+		PageSize:      deps.Profile.Service(),
 		Logger:        d.Log,
 		Inertia:       inertiaAdapter,
 	})

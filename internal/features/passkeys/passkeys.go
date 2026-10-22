@@ -9,6 +9,7 @@ import (
 	"kinstack/internal/features/auth"
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
 	platformactor "kinstack/internal/platform/actor"
 
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -22,6 +23,7 @@ type Dependency struct {
 	AppURL     string
 	Auth       *auth.Feature
 	Actor      *platformactor.Actor
+	PageSize   pagination.PageSizeReader
 	Logger     applog.Log
 }
 
@@ -54,6 +56,7 @@ func New(d Dependency) *Feature {
 			Service:  service,
 			WebAuthn: webAuthn,
 			Auth:     d.Auth,
+			PageSize: d.PageSize,
 			Logger:   d.Logger,
 		}),
 	}

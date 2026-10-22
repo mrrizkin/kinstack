@@ -13,6 +13,7 @@ export interface Profile {
 export interface Preferences {
   theme: string;
   sound_enabled: boolean;
+  page_size: number;
 }
 
 export interface ActiveSession {
@@ -54,8 +55,14 @@ export interface PasswordForm {
 export interface PreferencesForm {
   theme: ThemePreference;
   sound_enabled: boolean;
-  errors: { theme?: string };
+  page_size: number;
+  errors: { theme?: string; page_size?: string };
   processing: boolean;
+}
+
+export interface SelectOption {
+  label: string;
+  value: string;
 }
 
 export interface TwoFactorCodeForm {

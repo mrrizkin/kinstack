@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	platformdatabase "kinstack/internal/platform/database"
 
 	"github.com/jmoiron/sqlx"
@@ -36,7 +37,13 @@ FROM api_tokens
 WHERE user_public_id = $1
   AND revoked_at IS NULL
 ORDER BY created_at DESC, id DESC
-LIMIT 100`
+LIMIT $2 OFFSET $3`
+
+	countTokensQuery = `
+SELECT count(*)
+FROM api_tokens
+WHERE user_public_id = $1
+  AND revoked_at IS NULL`
 
 	findTokenQuery = `
 SELECT ` + tokenColumns + `
@@ -69,6 +76,7 @@ type SQLRepository struct {
 	owner     *platformdatabase.StatementOwner
 	create    *sqlx.Stmt
 	list      *sqlx.Stmt
+	count     *sqlx.Stmt
 	find      *sqlx.Stmt
 	revoke    *sqlx.Stmt
 	revokeAll *sqlx.Stmt
@@ -95,6 +103,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	}{
 		{&repository.create, "api_token_create", createTokenQuery},
 		{&repository.list, "api_token_list", listTokensQuery},
+		{&repository.count, "api_token_count", countTokensQuery},
 		{&repository.find, "api_token_find", findTokenQuery},
 		{&repository.revoke, "api_token_revoke", revokeTokenQuery},
 		{&repository.revokeAll, "api_token_revoke_all", revokeAllTokensQuery},
@@ -140,16 +149,32 @@ func (r *SQLRepository) Create(
 	return result, nil
 }
 
-// ListByUser returns the active tokens of one user.
+// ListByUser returns one page of the user's active tokens, newest first.
 func (r *SQLRepository) ListByUser(
 	ctx context.Context,
 	userPublicID string,
+	query pagination.Query,
 ) ([]TokenResult, error) {
 	results := make([]TokenResult, 0)
-	if err := r.list.SelectContext(ctx, &results, userPublicID); err != nil {
+	if err := r.list.SelectContext(
+		ctx,
+		&results,
+		userPublicID,
+		query.Limit(),
+		query.Offset(),
+	); err != nil {
 		return nil, fmt.Errorf("list api tokens: %w", err)
 	}
 	return results, nil
+}
+
+// CountByUser returns how many active tokens the user owns.
+func (r *SQLRepository) CountByUser(ctx context.Context, userPublicID string) (int, error) {
+	var count int
+	if err := r.count.GetContext(ctx, &count, userPublicID); err != nil {
+		return 0, fmt.Errorf("count api tokens: %w", err)
+	}
+	return count, nil
 }
 
 // FindByPublicID resolves one token by its public identifier.

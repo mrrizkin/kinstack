@@ -26,11 +26,11 @@ func (s *Service) RoleOptions(ctx context.Context) ([]RoleDTO, error) {
 	return options, nil
 }
 
-// AccessView builds the access management payload: roles with their permission
-// sets, the permission catalog, and one page of users with their overrides.
+// AccessView pages roles and users independently, so each tab keeps its own
+// window.
 func (s *Service) AccessView(
 	ctx context.Context,
-	query pagination.Query,
+	usersQuery, rolesQuery pagination.Query,
 ) (AccessPageProps, error) {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
@@ -40,40 +40,67 @@ func (s *Service) AccessView(
 	if err != nil {
 		return AccessPageProps{}, err
 	}
-	codes := make([]string, 0, len(roles))
+	// Role names label the users table on every role page.
+	roleNames := make(map[string]string, len(roles))
 	for _, role := range roles {
+		roleNames[role.Code] = role.Name
+	}
+	roleDTOs, rolesPage, err := rolePage(ctx, authorization, roles, rolesQuery)
+	if err != nil {
+		return AccessPageProps{}, err
+	}
+	userDTOs, usersPage, err := s.userPage(ctx, authorization, roleNames, usersQuery)
+	if err != nil {
+		return AccessPageProps{}, err
+	}
+	return AccessPageProps{
+		Roles:       roleDTOs,
+		RolesPage:   rolesPage,
+		Permissions: permissionCatalog(),
+		Categories:  authz.CategoryOrder(),
+		Users:       userDTOs,
+		Page:        usersPage,
+	}, nil
+}
+
+func rolePage(
+	ctx context.Context,
+	authorization *authz.Service,
+	roles []authz.Role,
+	query pagination.Query,
+) ([]RoleDTO, pagination.Page, error) {
+	query = pagination.ClampPage(query, len(roles))
+	start, end := pagination.Window(query, len(roles))
+	windowed := roles[start:end]
+	codes := make([]string, 0, len(windowed))
+	for _, role := range windowed {
 		codes = append(codes, role.Code)
 	}
 	permissionsByRole, err := authorization.RolePermissionsMany(ctx, codes)
 	if err != nil {
-		return AccessPageProps{}, err
+		return nil, pagination.Page{}, err
 	}
-	roleDTOs := make([]RoleDTO, 0, len(roles))
-	roleNames := make(map[string]string, len(roles))
-	for _, role := range roles {
-		roleNames[role.Code] = role.Name
-		roleDTOs = append(roleDTOs, roleToDTO(role, permissionsByRole[role.Code]))
+	dtos := make([]RoleDTO, 0, len(windowed))
+	for _, role := range windowed {
+		dtos = append(dtos, roleToDTO(role, permissionsByRole[role.Code]))
 	}
+	return dtos, pagination.NewPage(query, len(roles)), nil
+}
 
-	definitions := authz.SortByCategory()
-	permissionDTOs := make([]PermissionDTO, 0, len(definitions))
-	for _, definition := range definitions {
-		permissionDTOs = append(permissionDTOs, PermissionDTO{
-			Code:        string(definition.Code),
-			Category:    definition.Category,
-			Label:       definition.Label,
-			Description: definition.Description,
-		})
-	}
-
+func (s *Service) userPage(
+	ctx context.Context,
+	authorization *authz.Service,
+	roleNames map[string]string,
+	query pagination.Query,
+) ([]UserAccessDTO, pagination.Page, error) {
 	counts, err := s.repository.CountUsers(ctx)
 	if err != nil {
-		return AccessPageProps{}, err
+		return nil, pagination.Page{}, err
 	}
 	query = pagination.ClampPage(query, counts.Total)
 	users, err := s.repository.ListUsers(ctx, query)
 	if err != nil {
-		return AccessPageProps{}, err
+		return nil, pagination.Page{}, err
 	}
 	publicIDs := make([]string, 0, len(users))
 	for _, user := range users {
@@ -81,12 +108,12 @@ func (s *Service) AccessView(
 	}
 	overridesByUser, err := authorization.UserOverridesMany(ctx, publicIDs)
 	if err != nil {
-		return AccessPageProps{}, err
+		return nil, pagination.Page{}, err
 	}
-	userDTOs := make([]UserAccessDTO, 0, len(users))
 	now := time.Now()
+	dtos := make([]UserAccessDTO, 0, len(users))
 	for _, user := range users {
-		userDTOs = append(userDTOs, UserAccessDTO{
+		dtos = append(dtos, UserAccessDTO{
 			PublicID:    user.PublicID,
 			Username:    user.Username,
 			DisplayName: user.DisplayName,
@@ -96,14 +123,21 @@ func (s *Service) AccessView(
 			Overrides:   overridesToDTO(overridesByUser[user.PublicID], now),
 		})
 	}
+	return dtos, pagination.NewPage(query, counts.Total), nil
+}
 
-	return AccessPageProps{
-		Roles:       roleDTOs,
-		Permissions: permissionDTOs,
-		Categories:  authz.CategoryOrder(),
-		Users:       userDTOs,
-		Page:        pagination.NewPage(query, counts.Total),
-	}, nil
+func permissionCatalog() []PermissionDTO {
+	definitions := authz.SortByCategory()
+	dtos := make([]PermissionDTO, 0, len(definitions))
+	for _, definition := range definitions {
+		dtos = append(dtos, PermissionDTO{
+			Code:        string(definition.Code),
+			Category:    definition.Category,
+			Label:       definition.Label,
+			Description: definition.Description,
+		})
+	}
+	return dtos
 }
 
 // CreateRole validates and persists a new role.

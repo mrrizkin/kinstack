@@ -26,6 +26,7 @@ COALESCE((
 ), '') AS role,
 COALESCE(p.theme_preference, 'system') AS theme_preference,
 COALESCE(p.sound_enabled, true) AS sound_enabled,
+COALESCE(p.page_size, 5) AS page_size,
 (u.invited_at IS NOT NULL) AS invited,
 u.last_login_at,
 u.created_at`
@@ -44,6 +45,14 @@ SELECT password_hash
 FROM users
 WHERE public_id = $1
   AND deleted_at IS NULL
+LIMIT 1`
+
+	findPageSizeQuery = `
+SELECT COALESCE(p.page_size, 5) AS page_size
+FROM users u
+LEFT JOIN user_preferences p ON p.user_id = u.id
+WHERE u.public_id = $1
+  AND u.deleted_at IS NULL
 LIMIT 1`
 
 	updateDisplayNameQuery = `
@@ -66,14 +75,15 @@ WITH target AS (
     WHERE public_id = $1
       AND deleted_at IS NULL
 )
-INSERT INTO user_preferences (user_id, theme_preference, sound_enabled, updated_at)
-SELECT id, $2, $3, now()
+INSERT INTO user_preferences (user_id, theme_preference, sound_enabled, page_size, updated_at)
+SELECT id, $2, $3, $4, now()
 FROM target
 ON CONFLICT (user_id) DO UPDATE
 SET theme_preference = EXCLUDED.theme_preference,
     sound_enabled = EXCLUDED.sound_enabled,
+    page_size = EXCLUDED.page_size,
     updated_at = now()
-RETURNING theme_preference, sound_enabled`
+RETURNING theme_preference, sound_enabled, page_size`
 
 	markPasswordSetQuery = `
 UPDATE users
@@ -89,6 +99,7 @@ type SQLRepository struct {
 	owner        *platformdatabase.StatementOwner
 	findProfile  *sqlx.Stmt
 	findPassword *sqlx.Stmt
+	findPageSize *sqlx.Stmt
 	updateName   *sqlx.Stmt
 	updatePrefs  *sqlx.Stmt
 	markPassword *sqlx.Stmt
@@ -114,6 +125,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	}{
 		{&repository.findProfile, "profile_find", findProfileQuery},
 		{&repository.findPassword, "profile_find_password", findPasswordHashQuery},
+		{&repository.findPageSize, "profile_find_page_size", findPageSizeQuery},
 		{&repository.updateName, "profile_update_name", updateDisplayNameQuery},
 		{&repository.updatePrefs, "profile_update_preferences", updatePreferencesQuery},
 		{&repository.markPassword, "profile_mark_password_set", markPasswordSetQuery},
@@ -176,15 +188,32 @@ func (r *SQLRepository) UpdateDisplayName(
 	return result, nil
 }
 
+func (r *SQLRepository) FindPageSize(ctx context.Context, publicID string) (int, error) {
+	var size int
+	if err := r.findPageSize.GetContext(ctx, &size, publicID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, fmt.Errorf("find page size: %w", err)
+	}
+	return size, nil
+}
+
 // UpdatePreferences stores personalization settings.
 func (r *SQLRepository) UpdatePreferences(
 	ctx context.Context,
 	publicID string,
-	theme string,
-	soundEnabled bool,
+	update PreferencesUpdate,
 ) (PreferencesResult, error) {
 	var result PreferencesResult
-	if err := r.updatePrefs.GetContext(ctx, &result, publicID, theme, soundEnabled); err != nil {
+	if err := r.updatePrefs.GetContext(
+		ctx,
+		&result,
+		publicID,
+		update.ThemePreference,
+		update.SoundEnabled,
+		update.PageSize,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return PreferencesResult{}, ErrNotFound
 		}

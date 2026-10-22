@@ -7,6 +7,7 @@ import (
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
@@ -17,8 +18,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the service, actor boundary, session registry,
-// Inertia adapter, and logger used by the handler.
+// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
 	Service   *Service
 	Actor     *actor.Actor
@@ -65,7 +65,7 @@ func (h *Handler) profilePathFor(c fiber.Ctx) string {
 	case strings.HasPrefix(path, "/profile/password"),
 		strings.Contains(path, "/sessions/"),
 		strings.Contains(path, "/two-factor/"):
-		return "/profile/security"
+		return "/profile/security" + pagination.PageQuery(c.Query("page"))
 	default:
 		return "/profile"
 	}
@@ -131,10 +131,12 @@ func (h *Handler) show(c fiber.Ctx) error {
 	}
 	switch profileSection(c.Path()) {
 	case "security":
+		sessions, page := h.activeSessions(c)
 		return c.Render("profile/SecurityView", fiber.Map{
-			"profile":    props.Profile,
-			"sessions":   h.activeSessions(c),
-			"two_factor": h.twoFactorState(c, props),
+			"profile":       props.Profile,
+			"sessions":      sessions,
+			"sessions_page": page,
+			"two_factor":    h.twoFactorState(c, props),
 		})
 	case "preferences":
 		return c.Render("profile/PreferencesView", fiber.Map{
@@ -170,19 +172,29 @@ func (h *Handler) twoFactorState(c fiber.Ctx, props ProfilePageProps) TwoFactorD
 	return state
 }
 
-// activeSessions lists the signed-in browser sessions for the security tab.
-func (h *Handler) activeSessions(c fiber.Ctx) []ActiveSessionDTO {
+// activeSessions windows in memory because the registry returns the whole
+// (small) set; session storage stays unpaginated.
+func (h *Handler) activeSessions(c fiber.Ctx) ([]ActiveSessionDTO, pagination.Page) {
 	sessions := make([]ActiveSessionDTO, 0)
+	perPage := pagination.ResolvePageSize(c.Context(), h.service, h.actorPublicID(c))
+	query, err := pagination.ParseRequest(c.Query("page"), c.Query("per_page"), perPage)
+	if err != nil {
+		// A malformed page link must not block the password and two-factor
+		// controls on this tab, so it renders page one instead of failing.
+		query = pagination.New(1, perPage)
+	}
 	if h.sessions == nil {
-		return sessions
+		return sessions, pagination.NewPage(query, 0)
 	}
 	results, err := h.sessions.List(c.Context(), h.actorPublicID(c))
 	if err != nil {
 		h.logger.Errorw("list active sessions", "request_id", c.RequestID(), "error", err)
-		return sessions
+		return sessions, pagination.NewPage(query, 0)
 	}
+	query = pagination.ClampPage(query, len(results))
 	currentID := platformsession.CurrentID(c)
-	for _, result := range results {
+	start, end := pagination.Window(query, len(results))
+	for _, result := range results[start:end] {
 		sessions = append(sessions, ActiveSessionDTO{
 			PublicID:   result.PublicID,
 			IP:         result.IP,
@@ -192,7 +204,7 @@ func (h *Handler) activeSessions(c fiber.Ctx) []ActiveSessionDTO {
 			Current:    result.SessionID == currentID,
 		})
 	}
-	return sessions
+	return sessions, pagination.NewPage(query, len(results))
 }
 
 func (h *Handler) writeError(c fiber.Ctx, err error, field string) error {
@@ -213,6 +225,13 @@ func (h *Handler) writeError(c fiber.Ctx, err error, field string) error {
 		h.logger.Errorw("profile request failed", "request_id", c.RequestID(), "error", err)
 		return fiber.ErrInternalServerError
 	}
+}
+
+func preferencesField(err error) string {
+	if errors.Is(err, ErrInvalidPageSize) {
+		return "page_size"
+	}
+	return "theme"
 }
 
 // passwordField maps a validation error onto the password form field.

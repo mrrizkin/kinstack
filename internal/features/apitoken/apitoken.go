@@ -5,6 +5,7 @@ package apitoken
 import (
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
 	platforminertia "kinstack/internal/platform/inertia"
@@ -18,6 +19,7 @@ type Dependency struct {
 	Repository    Repository
 	Actor         *actor.Actor
 	Authorization *authz.Service
+	PageSize      pagination.PageSizeReader
 	Logger        applog.Log
 	Inertia       *platforminertia.Adapter
 }
@@ -40,6 +42,7 @@ func New(d Dependency) *Feature {
 		Service:       service,
 		Actor:         d.Actor,
 		Authorization: d.Authorization,
+		PageSize:      d.PageSize,
 		Logger:        d.Logger,
 		Inertia:       d.Inertia,
 	})

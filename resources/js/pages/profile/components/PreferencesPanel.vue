@@ -2,11 +2,12 @@
 import { icons } from "@/lib/icons";
 import { previewNotificationSound } from "@/lib/sound";
 
-import type { PreferencesForm, ThemeOption } from "../types";
+import type { PreferencesForm, SelectOption, ThemeOption } from "../types";
 
 defineProps<{
   preferencesForm: PreferencesForm;
   themeOptions: ThemeOption[];
+  rowsPerPageOptions: SelectOption[];
   fieldError: (field: string, local?: Record<string, unknown>) => string | undefined;
   submitPreferences: () => void;
 }>();
@@ -26,6 +27,18 @@ function previewSound(enabled: boolean) {
           description="Applies across all devices after saving."
           :error="fieldError('theme', preferencesForm.errors)">
           <USelect v-model="preferencesForm.theme" :items="themeOptions" class="w-full" />
+        </UFormField>
+
+        <UFormField
+          label="Rows per page"
+          description="Default page size when a list opens."
+          :error="fieldError('page_size', preferencesForm.errors)">
+          <USelect
+            :model-value="String(preferencesForm.page_size)"
+            :items="rowsPerPageOptions"
+            class="w-full"
+            aria-label="Rows per page"
+            @update:model-value="(value) => (preferencesForm.page_size = Number(value))" />
         </UFormField>
 
         <UFormField label="Notification sound">

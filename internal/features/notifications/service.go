@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,11 +11,13 @@ import (
 )
 
 const (
-	defaultListLimit = 50
-	maxListLimit     = 100
-	maxKindLength    = 60
-	maxTitleLength   = 200
-	maxBodyLength    = 2000
+	// feedLimit is the dashboard summary size; the center uses the account
+	// page size instead.
+	feedLimit      = 10
+	maxListLimit   = 100
+	maxKindLength  = 60
+	maxTitleLength = 200
+	maxBodyLength  = 2000
 )
 
 // ServiceDependency contains the persistence boundary used by the service.
@@ -60,15 +63,43 @@ func (s *Service) Notify(
 	return toDTO(created), nil
 }
 
-// List returns the recipient notification center page.
-func (s *Service) List(ctx context.Context, recipientPublicID string) (ListPageProps, error) {
+// List returns one chunk of the recipient's notification center. A zero limit
+// uses the dashboard feed size; an empty before starts at the newest item.
+func (s *Service) List(
+	ctx context.Context,
+	recipientPublicID, before string,
+	limit int,
+) (ListPageProps, error) {
 	recipientPublicID = strings.TrimSpace(recipientPublicID)
 	if recipientPublicID == "" {
 		return ListPageProps{}, ErrInvalidInput
 	}
-	items, err := s.repository.List(ctx, recipientPublicID, defaultListLimit)
+	if limit <= 0 {
+		limit = feedLimit
+	}
+	if limit > maxListLimit {
+		limit = maxListLimit
+	}
+	cursor, err := decodeCursor(before)
 	if err != nil {
 		return ListPageProps{}, err
+	}
+
+	// One extra row tells us whether another chunk exists without a count query.
+	items, err := s.repository.List(
+		ctx,
+		recipientPublicID,
+		ListQuery{Limit: limit + 1, Before: cursor},
+	)
+	if err != nil {
+		return ListPageProps{}, err
+	}
+	next := ""
+	if len(items) > limit {
+		items = items[:limit]
+		if len(items) > 0 {
+			next = encodeCursor(items[len(items)-1])
+		}
 	}
 	unread, err := s.repository.UnreadCount(ctx, recipientPublicID)
 	if err != nil {
@@ -78,7 +109,34 @@ func (s *Service) List(ctx context.Context, recipientPublicID string) (ListPageP
 	for _, item := range items {
 		notifications = append(notifications, toDTO(item))
 	}
-	return ListPageProps{Notifications: notifications, Unread: unread}, nil
+	return ListPageProps{Notifications: notifications, Unread: unread, NextCursor: next}, nil
+}
+
+// encodeCursor keeps microseconds, the Postgres timestamp precision, so a page
+// never repeats or skips a row.
+func encodeCursor(notification Notification) string {
+	return strconv.FormatInt(notification.CreatedAt.UnixMicro(), 10) + ":" +
+		strconv.FormatInt(notification.ID, 10)
+}
+
+func decodeCursor(value string) (*Cursor, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	rawTime, rawID, ok := strings.Cut(value, ":")
+	if !ok {
+		return nil, ErrInvalidInput
+	}
+	micros, err := strconv.ParseInt(rawTime, 10, 64)
+	if err != nil {
+		return nil, ErrInvalidInput
+	}
+	id, err := strconv.ParseInt(rawID, 10, 64)
+	if err != nil {
+		return nil, ErrInvalidInput
+	}
+	return &Cursor{CreatedAt: time.UnixMicro(micros).UTC(), ID: id}, nil
 }
 
 // MarkRead marks one owned notification as read.

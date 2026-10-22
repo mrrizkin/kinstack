@@ -7,6 +7,7 @@ import (
 
 // Notification is the persistence projection of one in-app notification.
 type Notification struct {
+	ID                int64      `db:"id"`
 	PublicID          string     `db:"public_id"`
 	RecipientPublicID string     `db:"recipient_public_id"`
 	Kind              string     `db:"kind"`
@@ -26,9 +27,22 @@ type CreateInput struct {
 	Body              string
 }
 
+// Cursor is the keyset position in the newest-first order, so a chunk resumes
+// after the last row even while new notifications arrive.
+type Cursor struct {
+	CreatedAt time.Time
+	ID        int64
+}
+
+// ListQuery windows the feed; a nil Before starts at the newest notification.
+type ListQuery struct {
+	Limit  int
+	Before *Cursor
+}
+
 // Repository is the persistence contract owned by the notifications slice.
 type Repository interface {
-	List(context.Context, string, int) ([]Notification, error)
+	List(context.Context, string, ListQuery) ([]Notification, error)
 	UnreadCount(context.Context, string) (int, error)
 	Create(context.Context, CreateInput) (Notification, error)
 	MarkRead(context.Context, string, string) (Notification, error)

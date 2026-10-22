@@ -15,6 +15,7 @@ type ProfileDTO struct {
 type PreferencesDTO struct {
 	Theme        string `json:"theme"`
 	SoundEnabled bool   `json:"sound_enabled"`
+	PageSize     int    `json:"page_size"`
 }
 
 // ActiveSessionDTO describes one signed-in browser session of the account.
@@ -50,6 +51,7 @@ type UpdateProfileRequest struct {
 type UpdatePreferencesRequest struct {
 	Theme        string `json:"theme"`
 	SoundEnabled bool   `json:"sound_enabled"`
+	PageSize     int    `json:"page_size"`
 }
 
 // UpdateThemeRequest is the payload accepted from the quick theme menu, which

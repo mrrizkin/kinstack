@@ -14,6 +14,7 @@ type ProfileResult struct {
 	Invited         bool       `db:"invited"`
 	ThemePreference string     `db:"theme_preference"`
 	SoundEnabled    bool       `db:"sound_enabled"`
+	PageSize        int        `db:"page_size"`
 	LastLoginAt     *time.Time `db:"last_login_at"`
 	CreatedAt       time.Time  `db:"created_at"`
 }
@@ -22,13 +23,23 @@ type ProfileResult struct {
 type PreferencesResult struct {
 	ThemePreference string `db:"theme_preference"`
 	SoundEnabled    bool   `db:"sound_enabled"`
+	PageSize        int    `db:"page_size"`
+}
+
+// PreferencesUpdate is the full personalization state written in one statement,
+// so a form submit cannot drop a preference it does not render.
+type PreferencesUpdate struct {
+	ThemePreference string
+	SoundEnabled    bool
+	PageSize        int
 }
 
 // Repository is the persistence contract owned by the profile slice.
 type Repository interface {
 	FindProfile(context.Context, string) (ProfileResult, error)
 	FindPasswordHash(context.Context, string) (string, error)
+	FindPageSize(context.Context, string) (int, error)
 	UpdateDisplayName(context.Context, string, string) (ProfileResult, error)
-	UpdatePreferences(context.Context, string, string, bool) (PreferencesResult, error)
+	UpdatePreferences(context.Context, string, PreferencesUpdate) (PreferencesResult, error)
 	MarkPasswordSet(context.Context, string, string) error
 }

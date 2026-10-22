@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	platformdatabase "kinstack/internal/platform/database"
 
 	"github.com/jmoiron/sqlx"
@@ -28,7 +29,7 @@ FROM media_assets
 WHERE owner_public_id = $1
   AND deleted_at IS NULL
 ORDER BY created_at DESC, id DESC
-LIMIT 100`
+LIMIT $2 OFFSET $3`
 
 	countAssetsQuery = `
 SELECT COUNT(*)
@@ -110,10 +111,20 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// List returns every active asset owned by the actor, newest first.
-func (r *SQLRepository) List(ctx context.Context, ownerPublicID string) ([]Asset, error) {
+// List returns one page of the actor's active assets, newest first.
+func (r *SQLRepository) List(
+	ctx context.Context,
+	ownerPublicID string,
+	query pagination.Query,
+) ([]Asset, error) {
 	assets := make([]Asset, 0)
-	if err := r.listStmt.SelectContext(ctx, &assets, ownerPublicID); err != nil {
+	if err := r.listStmt.SelectContext(
+		ctx,
+		&assets,
+		ownerPublicID,
+		query.Limit(),
+		query.Offset(),
+	); err != nil {
 		return nil, fmt.Errorf("list media: %w", err)
 	}
 	return assets, nil

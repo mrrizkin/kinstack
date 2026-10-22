@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, router, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppNotificationBell from "@/components/AppNotificationBell.vue";
+import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { fieldMessage } from "@/lib/errors";
@@ -11,6 +12,7 @@ import { formatDateTime } from "@/lib/formatters";
 import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
+import { queryString } from "@/lib/query";
 
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
@@ -23,7 +25,7 @@ interface Asset {
   created_at: string;
 }
 
-const props = defineProps<{ assets: Asset[] }>();
+const props = defineProps<{ assets: Asset[]; page: PageInfo }>();
 
 const { can } = usePermissions();
 const { actor } = usePageProps();
@@ -33,6 +35,8 @@ const canManage = can(PERMISSIONS.mediaManage) && !isSuperuser;
 const MAX_UPLOAD = 10 * 1024 * 1024;
 const ACCEPTED = "image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/csv";
 const ACCEPTED_LABEL = "JPG, PNG, WebP, GIF, PDF, TXT, or CSV · up to 10 MB";
+
+const pageQuery = computed(() => queryString({ page: props.page.page > 1 ? props.page.page : undefined }));
 
 const form = useForm<{ file: File | null }>({ file: null });
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -79,7 +83,7 @@ function onDrop(event: DragEvent) {
 
 function upload() {
   if (!form.file) return;
-  form.post("/media", {
+  form.post(`/media${pageQuery.value}`, {
     forceFormData: true,
     preserveScroll: true,
     onSuccess: () => {
@@ -101,7 +105,7 @@ function remove(asset: Asset) {
 function confirmRemove() {
   const asset = deleteTarget.value;
   if (!asset || deleting.value) return;
-  router.post(`/media/${asset.public_id}/delete`, undefined, {
+  router.post(`/media/${asset.public_id}/delete${pageQuery.value}`, undefined, {
     preserveScroll: true,
     onStart: () => (deleting.value = true),
     onFinish: () => {
@@ -222,6 +226,7 @@ function isImage(contentType: string) {
             </div>
           </UCard>
         </div>
+        <AppPagination :page="props.page" url="/media" />
       </div>
     </template>
   </UDashboardPanel>

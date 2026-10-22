@@ -14,7 +14,9 @@ type EntryDTO struct {
 	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
-// Filters is the normalized filter set echoed back to the page.
+// Filters is the filter set echoed back to the page. Date bounds are echoed as
+// requested, so a date-only `to` stays inclusive and the viewer reopens on the
+// day the user picked.
 type Filters struct {
 	ActorKey string `json:"actor_key"`
 	Action   string `json:"action"`

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/pkg/publicid"
 )
 
@@ -155,21 +156,30 @@ func (s *Service) Count(ctx context.Context, ownerPublicID string) (int, error) 
 	return s.repository.Count(ctx, ownerPublicID)
 }
 
-// List returns every active asset owned by the actor, newest first.
-func (s *Service) List(ctx context.Context, ownerPublicID string) ([]AssetDTO, error) {
+// List returns one page of the actor's active assets, newest first.
+func (s *Service) List(
+	ctx context.Context,
+	ownerPublicID string,
+	query pagination.Query,
+) (MediaPage, error) {
 	ownerPublicID = strings.TrimSpace(ownerPublicID)
 	if ownerPublicID == "" {
-		return nil, ErrInvalidInput
+		return MediaPage{}, ErrInvalidInput
 	}
-	assets, err := s.repository.List(ctx, ownerPublicID)
+	total, err := s.repository.Count(ctx, ownerPublicID)
 	if err != nil {
-		return nil, err
+		return MediaPage{}, err
+	}
+	query = pagination.ClampPage(query, total)
+	assets, err := s.repository.List(ctx, ownerPublicID, query)
+	if err != nil {
+		return MediaPage{}, err
 	}
 	items := make([]AssetDTO, 0, len(assets))
 	for _, asset := range assets {
 		items = append(items, s.toDTO(asset))
 	}
-	return items, nil
+	return MediaPage{Assets: items, Page: pagination.NewPage(query, total)}, nil
 }
 
 // Delete removes one owned asset from storage and marks it deleted.

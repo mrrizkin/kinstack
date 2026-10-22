@@ -4,10 +4,11 @@ import { onMounted, watch } from "vue";
 import { parseThemePreference } from "@/lib/contracts/preferences";
 import { useServerErrors } from "@/lib/errors";
 import { icons } from "@/lib/icons";
+import { pageSizeOptions } from "@/lib/pagination";
 import { useNotificationSound } from "@/lib/sound";
 import { useTheme } from "@/lib/theme";
 
-import type { Preferences, ThemeOption } from "../types";
+import type { Preferences, SelectOption, ThemeOption } from "../types";
 
 interface PreferencesFormProps {
   preferences: Preferences;
@@ -22,7 +23,10 @@ export function usePreferencesForm(props: PreferencesFormProps) {
   const preferencesForm = useForm({
     theme: preference.value,
     sound_enabled: props.preferences.sound_enabled,
+    page_size: props.preferences.page_size,
   });
+
+  const rowsPerPageOptions: SelectOption[] = pageSizeOptions(props.preferences.page_size);
 
   const themeOptions: ThemeOption[] = [
     { label: "Light", value: "light", icon: icons.light },
@@ -58,5 +62,5 @@ export function usePreferencesForm(props: PreferencesFormProps) {
 
   const { message: fieldError, formError } = useServerErrors();
 
-  return { preferencesForm, themeOptions, fieldError, formError, submitPreferences };
+  return { preferencesForm, themeOptions, rowsPerPageOptions, fieldError, formError, submitPreferences };
 }

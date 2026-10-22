@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/i18n"
 	"kinstack/internal/platform/password"
 )
@@ -43,11 +44,21 @@ func (s *Service) Show(ctx context.Context, publicID string) (ProfilePageProps, 
 	}
 	return ProfilePageProps{
 		Profile: toProfileDTO(result),
-		Preferences: PreferencesDTO{
-			Theme:        result.ThemePreference,
-			SoundEnabled: result.SoundEnabled,
-		},
+		Preferences: toPreferencesDTO(PreferencesResult{
+			ThemePreference: result.ThemePreference,
+			SoundEnabled:    result.SoundEnabled,
+			PageSize:        result.PageSize,
+		}),
 	}, nil
+}
+
+// PageSize degrades a stored size the list views cannot render to the default.
+func (s *Service) PageSize(ctx context.Context, publicID string) (int, error) {
+	size, err := s.repository.FindPageSize(ctx, publicID)
+	if err != nil {
+		return 0, err
+	}
+	return pagination.SizeOrDefault(size), nil
 }
 
 // UpdateDisplayName stores a new display name for the signed-in user.
@@ -82,18 +93,21 @@ func (s *Service) UpdatePreferences(
 	switch theme {
 	case "light", "dark", "system":
 	default:
-		return PreferencesDTO{}, fmt.Errorf(
-			"%w: %s",
-			ErrInvalidInput,
-			i18n.T("profile.theme_invalid"),
-		)
+		return PreferencesDTO{}, fmt.Errorf("%w: %w", ErrInvalidInput, ErrInvalidTheme)
+	}
+	if pagination.SizeOrDefault(request.PageSize) != request.PageSize {
+		return PreferencesDTO{}, fmt.Errorf("%w: %w", ErrInvalidInput, ErrInvalidPageSize)
 	}
 
-	result, err := s.repository.UpdatePreferences(ctx, publicID, theme, request.SoundEnabled)
+	result, err := s.repository.UpdatePreferences(ctx, publicID, PreferencesUpdate{
+		ThemePreference: theme,
+		SoundEnabled:    request.SoundEnabled,
+		PageSize:        request.PageSize,
+	})
 	if err != nil {
 		return PreferencesDTO{}, err
 	}
-	return PreferencesDTO{Theme: result.ThemePreference, SoundEnabled: result.SoundEnabled}, nil
+	return toPreferencesDTO(result), nil
 }
 
 // UpdateTheme stores the theme without changing other personalization.
@@ -105,6 +119,7 @@ func (s *Service) UpdateTheme(ctx context.Context, publicID, theme string) (Pref
 	return s.UpdatePreferences(ctx, publicID, UpdatePreferencesRequest{
 		Theme:        theme,
 		SoundEnabled: current.SoundEnabled,
+		PageSize:     current.PageSize,
 	})
 }
 
@@ -203,4 +218,12 @@ func toProfileDTO(result ProfileResult) ProfileDTO {
 // IsNotFound reports whether the error is a missing profile.
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)
+}
+
+func toPreferencesDTO(result PreferencesResult) PreferencesDTO {
+	return PreferencesDTO{
+		Theme:        result.ThemePreference,
+		SoundEnabled: result.SoundEnabled,
+		PageSize:     pagination.SizeOrDefault(result.PageSize),
+	}
 }

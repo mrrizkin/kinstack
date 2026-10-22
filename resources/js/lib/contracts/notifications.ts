@@ -12,8 +12,13 @@ export const notificationSchema = z.looseObject({
 });
 export type NotificationItem = z.infer<typeof notificationSchema>;
 
+/**
+ * `next_cursor` is empty on the last chunk, which hides the "Load more" control;
+ * the dashboard summary ignores it.
+ */
 export const notificationFeedSchema = z.looseObject({
   notifications: z.array(notificationSchema).default([]),
   unread: z.number().int().nonnegative().default(0),
+  next_cursor: z.string().default(""),
 });
 export type NotificationFeed = z.infer<typeof notificationFeedSchema>;

@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"io"
 	"strings"
 	"testing"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 type recordingStorage struct {
@@ -179,12 +182,12 @@ func TestListScopesToOwner(t *testing.T) {
 	SeedDefault(repository, "user-1", "asset-1", "a.png")
 	SeedDefault(repository, "user-2", "asset-2", "b.png")
 
-	items, err := service.List(context.Background(), "user-1")
+	page, err := service.List(context.Background(), "user-1", pagination.New(1, 10))
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(items) != 1 || items[0].PublicID != "asset-1" {
-		t.Fatalf("unexpected list: %#v", items)
+	if len(page.Assets) != 1 || page.Assets[0].PublicID != "asset-1" {
+		t.Fatalf("unexpected list: %#v", page.Assets)
 	}
 }
 
@@ -215,5 +218,48 @@ func TestDeleteRejectsForeignKey(t *testing.T) {
 		ErrNotFound,
 	) {
 		t.Fatalf("expected not found for other owner, got %v", err)
+	}
+}
+
+func TestListPaginatesAndClamps(t *testing.T) {
+	service, repository, _ := newTestService()
+	for index := 1; index <= 12; index++ {
+		SeedDefault(
+			repository,
+			"user-1",
+			fmt.Sprintf("asset-%02d", index),
+			fmt.Sprintf("%02d.png", index),
+		)
+	}
+
+	page, err := service.List(context.Background(), "user-1", pagination.New(2, 5))
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(page.Assets) != 5 || page.Page.Total != 12 || page.Page.From != 6 || page.Page.To != 10 {
+		t.Fatalf("unexpected page: %+v (%d assets)", page.Page, len(page.Assets))
+	}
+	if !page.Page.HasPrev || !page.Page.HasNext {
+		t.Fatalf("expected a middle page: %+v", page.Page)
+	}
+
+	clamped, err := service.List(context.Background(), "user-1", pagination.New(99, 5))
+	if err != nil {
+		t.Fatalf("list clamped: %v", err)
+	}
+	if clamped.Page.Page != 3 || len(clamped.Assets) != 2 {
+		t.Fatalf("unexpected clamped page: %+v (%d assets)", clamped.Page, len(clamped.Assets))
+	}
+
+	capped, err := service.List(
+		context.Background(),
+		"user-1",
+		pagination.Query{Page: 1, PerPage: 1000},
+	)
+	if err != nil {
+		t.Fatalf("list capped: %v", err)
+	}
+	if capped.Page.Page != 1 || len(capped.Assets) != 12 {
+		t.Fatalf("unexpected capped page: %+v (%d assets)", capped.Page, len(capped.Assets))
 	}
 }

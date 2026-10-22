@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/pkg/publicid"
 	"kinstack/internal/platform/authz"
 	"kinstack/internal/platform/i18n"
@@ -124,16 +125,29 @@ func (s *Service) Create(
 }
 
 // List returns every active token of one user, newest first.
-func (s *Service) List(ctx context.Context, userPublicID string) ([]APITokenDTO, error) {
-	results, err := s.repository.ListByUser(ctx, strings.TrimSpace(userPublicID))
+func (s *Service) List(
+	ctx context.Context,
+	userPublicID string,
+	query pagination.Query,
+) (TokenPage, error) {
+	userPublicID = strings.TrimSpace(userPublicID)
+	if userPublicID == "" {
+		return TokenPage{}, ErrInvalidInput
+	}
+	total, err := s.repository.CountByUser(ctx, userPublicID)
 	if err != nil {
-		return nil, err
+		return TokenPage{}, err
+	}
+	query = pagination.ClampPage(query, total)
+	results, err := s.repository.ListByUser(ctx, userPublicID, query)
+	if err != nil {
+		return TokenPage{}, err
 	}
 	tokens := make([]APITokenDTO, 0, len(results))
 	for _, result := range results {
 		tokens = append(tokens, toDTO(result))
 	}
-	return tokens, nil
+	return TokenPage{Tokens: tokens, Page: pagination.NewPage(query, total)}, nil
 }
 
 // Revoke marks one token owned by the user as revoked.

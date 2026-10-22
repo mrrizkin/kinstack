@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 )
 
 // MemoryRepository is the deterministic in-memory repository used by service
@@ -30,8 +31,12 @@ func (r *MemoryRepository) Seed(asset Asset) {
 	r.assets[asset.PublicID] = asset
 }
 
-// List returns every active asset owned by the actor, newest first.
-func (r *MemoryRepository) List(_ context.Context, ownerPublicID string) ([]Asset, error) {
+// List returns one page of the actor's active assets, newest first.
+func (r *MemoryRepository) List(
+	_ context.Context,
+	ownerPublicID string,
+	query pagination.Query,
+) ([]Asset, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -44,7 +49,8 @@ func (r *MemoryRepository) List(_ context.Context, ownerPublicID string) ([]Asse
 	sort.SliceStable(assets, func(i, j int) bool {
 		return assets[i].CreatedAt.After(assets[j].CreatedAt)
 	})
-	return assets[:min(len(assets), 100)], nil
+	start, end := pagination.Window(query, len(assets))
+	return assets[start:end], nil
 }
 
 // Create persists one uploaded asset.

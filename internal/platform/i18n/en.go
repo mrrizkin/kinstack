@@ -80,6 +80,7 @@ var catalogs = map[Locale]map[string]string{
 		"profile.password_mismatch":         "Password confirmation does not match.",
 		"profile.display_name_length":       "Display name must be between %d and %d characters.",
 		"profile.theme_invalid":             "Theme must be light, dark, or system.",
+		"profile.page_size_invalid":         "Rows per page must be 5, 10, 25, 50, or 100.",
 		"profile.password_required":         "Password is required.",
 		"profile.new_password_min":          "New password must be at least %d characters.",
 		"profile.new_password_max":          "New password must be at most %d characters.",

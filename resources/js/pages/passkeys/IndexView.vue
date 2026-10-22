@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { z } from "zod";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
+import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
@@ -25,7 +26,7 @@ interface Passkey {
   last_used_at?: string;
 }
 
-const props = defineProps<{ passkeys: Passkey[] }>();
+const props = defineProps<{ passkeys: Passkey[]; page: PageInfo }>();
 
 const { csrfToken } = usePageProps();
 const { t } = useI18n();
@@ -160,6 +161,7 @@ const emptyActions = computed(() =>
           </UButton>
         </li>
       </ul>
+      <AppPagination :page="props.page" url="/passkeys" />
     </UCard>
 
     <UAlert

@@ -60,7 +60,7 @@ describe("page props contracts", () => {
 
 describe("notification contracts", () => {
   test("defaults a missing feed", () => {
-    expect(notificationFeedSchema.parse({})).toEqual({ notifications: [], unread: 0 });
+    expect(notificationFeedSchema.parse({})).toEqual({ notifications: [], unread: 0, next_cursor: "" });
   });
 
   test("rejects a malformed notification", () => {

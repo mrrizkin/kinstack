@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
+import AppPagination, { type PageInfo } from "@/components/AppPagination.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
@@ -25,7 +26,7 @@ interface APIToken {
   created_at: string;
 }
 
-const props = defineProps<{ tokens: APIToken[]; created_token?: string }>();
+const props = defineProps<{ tokens: APIToken[]; page: PageInfo; created_token?: string }>();
 
 const { permissions } = usePageProps();
 const { t } = useI18n();
@@ -70,7 +71,8 @@ function revoke(token: APIToken) {
 function confirmRevoke() {
   const token = revokeTarget.value;
   if (!token || revoking.value) return;
-  router.post(`/api-tokens/${token.public_id}/revoke`, undefined, {
+  const page = props.page.page > 1 ? `?page=${props.page.page}` : "";
+  router.post(`/api-tokens/${token.public_id}/revoke${page}`, undefined, {
     preserveScroll: true,
     onStart: () => (revoking.value = true),
     onFinish: () => {
@@ -158,6 +160,7 @@ async function copyToken() {
           </UButton>
         </li>
       </ul>
+      <AppPagination :page="props.page" url="/api-tokens" />
     </UCard>
   </div>
 

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"kinstack/internal/pkg/pagination"
 )
 
 func newSeededRepository() *MemoryRepository {
@@ -60,7 +62,7 @@ func TestListReturnsNewestFirst(t *testing.T) {
 	if props.Entries[0].RequestID != "req-other" || props.Entries[2].RequestID != "req-read" {
 		t.Fatalf("expected newest-first ordering: %#v", props.Entries)
 	}
-	if props.PerPage != defaultPerPage || props.Page != 1 || props.Pages != 1 {
+	if props.PerPage != pagination.DefaultPerPage || props.Page != 1 || props.Pages != 1 {
 		t.Fatalf("unexpected pagination: %#v", props)
 	}
 }
@@ -132,5 +134,60 @@ func TestListFiltersByDateRange(t *testing.T) {
 	}
 	if props.Total != 0 {
 		t.Fatalf("expected empty future range, got %#v", props)
+	}
+}
+
+func TestListDefaultsAndClampsPerPage(t *testing.T) {
+	service := newTestService()
+
+	props, err := service.List(context.Background(), FilterRequest{})
+	if err != nil {
+		t.Fatalf("list audit: %v", err)
+	}
+	if props.PerPage != pagination.DefaultPerPage {
+		t.Fatalf("expected the package default, got %d", props.PerPage)
+	}
+
+	props, err = service.List(context.Background(), FilterRequest{PerPage: 10})
+	if err != nil {
+		t.Fatalf("list audit: %v", err)
+	}
+	if props.PerPage != 10 {
+		t.Fatalf("explicit per_page must win, got %d", props.PerPage)
+	}
+
+	props, err = service.List(
+		context.Background(),
+		FilterRequest{PerPage: pagination.MaxPerPage + 1},
+	)
+	if err != nil {
+		t.Fatalf("list audit: %v", err)
+	}
+	if props.PerPage != pagination.MaxPerPage {
+		t.Fatalf("per_page must clamp to the cap, got %d", props.PerPage)
+	}
+}
+
+func TestListEchoesRequestedDateBounds(t *testing.T) {
+	service := newTestService()
+	props, err := service.List(context.Background(), FilterRequest{
+		From: "2026-02-01",
+		To:   "2026-02-01",
+	})
+	if err != nil {
+		t.Fatalf("list audit: %v", err)
+	}
+	// A date-only `to` is expanded to an exclusive end-of-day instant for the
+	// query, but the page must keep showing the inclusive day the user picked.
+	if props.Filters.To != "2026-02-01" || props.Filters.From != "2026-02-01" {
+		t.Fatalf("expected requested bounds, got %#v", props.Filters)
+	}
+
+	props, err = service.List(context.Background(), FilterRequest{To: "2026-02-01T06:00:00Z"})
+	if err != nil {
+		t.Fatalf("list audit: %v", err)
+	}
+	if props.Filters.To != "2026-02-01T06:00:00Z" {
+		t.Fatalf("expected exact instant, got %q", props.Filters.To)
 	}
 }

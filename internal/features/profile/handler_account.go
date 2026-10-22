@@ -29,7 +29,7 @@ func (h *Handler) updatePreferences(c fiber.Ctx) error {
 		return h.validationError(c, i18n.T("common.invalid_payload"), "form")
 	}
 	if _, err := h.service.UpdatePreferences(c.Context(), h.actorPublicID(c), request); err != nil {
-		return h.writeError(c, err, "theme")
+		return h.writeError(c, err, preferencesField(err))
 	}
 	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),

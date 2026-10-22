@@ -7,6 +7,7 @@ import (
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
@@ -14,21 +15,22 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the service, actor boundary, Inertia adapter, and
-// logger used by the handler.
+// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
-	Service *Service
-	Actor   *actor.Actor
-	Logger  log.Log
-	Inertia *platforminertia.Adapter
+	Service  *Service
+	Actor    *actor.Actor
+	PageSize pagination.PageSizeReader
+	Logger   log.Log
+	Inertia  *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for media management.
 type Handler struct {
-	service *Service
-	actor   *actor.Actor
-	logger  log.Log
-	inertia *platforminertia.Adapter
+	service  *Service
+	actor    *actor.Actor
+	pageSize pagination.PageSizeReader
+	logger   log.Log
+	inertia  *platforminertia.Adapter
 }
 
 // NewHandler constructs the media HTTP handler.
@@ -38,11 +40,29 @@ func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Logger != nil, "media logger is required")
 	assert.Assert(d.Inertia != nil, "media inertia adapter is required")
 
-	return &Handler{service: d.Service, actor: d.Actor, logger: d.Logger, inertia: d.Inertia}
+	return &Handler{
+		service:  d.Service,
+		actor:    d.Actor,
+		pageSize: d.PageSize,
+		logger:   d.Logger,
+		inertia:  d.Inertia,
+	}
 }
 
 func (h *Handler) mediaPath() string {
 	return "/media"
+}
+
+func (h *Handler) mediaPathFor(c fiber.Ctx) string {
+	return h.mediaPath() + pagination.PageQuery(c.Query("page"))
+}
+
+func (h *Handler) defaultPerPage(c fiber.Ctx) int {
+	session := h.actor.ActorFromContext(c)
+	if session == nil {
+		return pagination.DefaultPerPage
+	}
+	return pagination.ResolvePageSize(c.Context(), h.pageSize, session.PublicID)
 }
 
 // Mount registers media routes on the guarded group.
@@ -54,11 +74,26 @@ func (h *Handler) Mount(router fiber.Router) {
 }
 
 func (h *Handler) index(c fiber.Ctx) error {
-	assets, err := h.service.List(c.Context(), h.actorPublicID(c))
+	query, err := pagination.ParseRequest(c.Query("page"), c.Query("per_page"), h.defaultPerPage(c))
+	if err != nil {
+		return h.invalidPagination(c)
+	}
+	page, err := h.service.List(c.Context(), h.actorPublicID(c), query)
 	if err != nil {
 		return h.internalServerError(c, "list media", err)
 	}
-	return c.Render("media/IndexView", fiber.Map{"assets": assets})
+	return c.Render("media/IndexView", fiber.Map{
+		"assets": page.Assets,
+		"page":   page.Page,
+	})
+}
+
+func (h *Handler) invalidPagination(c fiber.Ctx) error {
+	message := i18n.T("common.invalid_page")
+	if platforminertia.WantsJSON(c) {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": message})
+	}
+	return h.inertia.RedirectWithFlash(c, h.mediaPath(), message)
 }
 
 func (h *Handler) file(c fiber.Ctx) error {
@@ -131,7 +166,7 @@ func headerSafeFilename(filename string) string {
 func (h *Handler) upload(c fiber.Ctx) error {
 	if session := h.actor.ActorFromContext(c); session != nil && session.Superuser {
 		return h.inertia.FailedAction(c,
-			h.mediaPath(),
+			h.mediaPathFor(c),
 			fiber.StatusForbidden,
 			i18n.T("media.upload_regular_only"),
 		)
@@ -164,12 +199,12 @@ func (h *Handler) upload(c fiber.Ctx) error {
 			return h.internalServerError(c, "upload media", err)
 		}
 	}
-	return h.inertia.RedirectWithFlash(c, h.mediaPath(), i18n.T("media.uploaded"))
+	return h.inertia.RedirectWithFlash(c, h.mediaPathFor(c), i18n.T("media.uploaded"))
 }
 
 func (h *Handler) uploadValidationError(c fiber.Ctx, message string) error {
 	return h.inertia.ValidationErrors(c,
-		h.mediaPath(),
+		h.mediaPathFor(c),
 		map[string]string{"file": message},
 	)
 }
@@ -180,13 +215,13 @@ func (h *Handler) delete(c fiber.Ctx) error {
 		case errors.Is(err, ErrNotFound):
 			return h.inertia.FailedAction(
 				c,
-				h.mediaPath(),
+				h.mediaPathFor(c),
 				fiber.StatusNotFound,
 				ErrNotFound.Error(),
 			)
 		case errors.Is(err, ErrInvalidInput):
 			return h.inertia.FailedAction(c,
-				h.mediaPath(),
+				h.mediaPathFor(c),
 				fiber.StatusUnprocessableEntity,
 				ErrInvalidInput.Error(),
 			)
@@ -194,7 +229,7 @@ func (h *Handler) delete(c fiber.Ctx) error {
 			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
 			return h.inertia.FailedAction(
 				c,
-				h.mediaPath(),
+				h.mediaPathFor(c),
 				fiber.StatusServiceUnavailable,
 				ErrStorage.Error(),
 			)
@@ -202,7 +237,7 @@ func (h *Handler) delete(c fiber.Ctx) error {
 			return h.internalServerError(c, "delete media", err)
 		}
 	}
-	return h.inertia.RedirectWithFlash(c, h.mediaPath(), i18n.T("media.deleted"))
+	return h.inertia.RedirectWithFlash(c, h.mediaPathFor(c), i18n.T("media.deleted"))
 }
 
 func (h *Handler) actorPublicID(c fiber.Ctx) string {

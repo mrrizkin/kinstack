@@ -12,6 +12,7 @@ import (
 	"kinstack/internal/features/auth"
 	"kinstack/internal/pkg/assert"
 	applog "kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
 	platformactor "kinstack/internal/platform/actor"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -19,6 +20,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 )
+
+const passkeysPath = "/passkeys"
 
 // ceremonySessionKey names the session entry holding one pending WebAuthn ceremony.
 const ceremonySessionKey = "auth.passkey.ceremony"
@@ -30,6 +33,7 @@ type HandlerDependency struct {
 	WebAuthn *webauthn.WebAuthn
 	Auth     *auth.Feature
 	Actor    *platformactor.Actor
+	PageSize pagination.PageSizeReader
 	Logger   applog.Log
 }
 
@@ -39,6 +43,7 @@ type Handler struct {
 	webAuthn *webauthn.WebAuthn
 	auth     *auth.Feature
 	actor    *platformactor.Actor
+	pageSize pagination.PageSizeReader
 	logger   applog.Log
 }
 
@@ -55,6 +60,7 @@ func NewHandler(d HandlerDependency) *Handler {
 		webAuthn: d.WebAuthn,
 		auth:     d.Auth,
 		actor:    d.Actor,
+		pageSize: d.PageSize,
 		logger:   d.Logger,
 	}
 }
@@ -93,7 +99,22 @@ func (h *Handler) passkeys(c fiber.Ctx) error {
 		}
 		return h.internalServerError(c, "unable to load passkeys", err)
 	}
-	return c.Render("passkeys/IndexView", fiber.Map{"passkeys": items})
+	// Passkeys per account are few, so the window is applied to the loaded slice
+	// rather than pushed into the credential query.
+	query, err := pagination.ParseRequest(
+		c.Query("page"),
+		c.Query("per_page"),
+		pagination.ResolvePageSize(c.Context(), h.pageSize, actor.PublicID),
+	)
+	if err != nil {
+		return c.Redirect().Status(fiber.StatusSeeOther).To(passkeysPath)
+	}
+	query = pagination.ClampPage(query, len(items))
+	start, end := pagination.Window(query, len(items))
+	return c.Render("passkeys/IndexView", fiber.Map{
+		"passkeys": items[start:end],
+		"page":     pagination.NewPage(query, len(items)),
+	})
 }
 
 type passkeyCeremony struct {

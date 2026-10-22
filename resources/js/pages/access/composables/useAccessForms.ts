@@ -14,6 +14,7 @@ interface AccessProps {
   categories: string[];
   users: UserAccess[];
   page?: { page: number };
+  roles_page?: { page: number };
 }
 
 export function useAccessForms(props: AccessProps) {
@@ -23,6 +24,11 @@ export function useAccessForms(props: AccessProps) {
   const pageQuery = computed(() => {
     const current = props.page?.page ?? 1;
     return queryString({ page: current > 1 ? current : undefined });
+  });
+  // Role mutations stay on the roles tab, so they preserve that tab's page.
+  const rolesPageQuery = computed(() => {
+    const current = props.roles_page?.page ?? 1;
+    return queryString({ roles_page: current > 1 ? current : undefined });
   });
   const tab = ref("roles");
   const { message } = useServerErrors();
@@ -58,7 +64,7 @@ export function useAccessForms(props: AccessProps) {
     const role = editingRole.value;
     if (!role || savingPermissions.value) return;
     router.post(
-      accessURL(`/roles/${role.code}/permissions`),
+      accessURL(`/roles/${role.code}/permissions${rolesPageQuery.value}`),
       { permissions: selectedPermissions.value },
       {
         preserveScroll: true,
@@ -74,7 +80,7 @@ export function useAccessForms(props: AccessProps) {
   const createRoleForm = useForm({ code: "", name: "", description: "", rank: 20 });
 
   function submitCreateRole() {
-    createRoleForm.post(accessURL("/roles"), {
+    createRoleForm.post(accessURL(`/roles${rolesPageQuery.value}`), {
       preserveScroll: true,
       onSuccess: () => {
         createRoleForm.reset();
@@ -95,7 +101,7 @@ export function useAccessForms(props: AccessProps) {
     const role = pendingDeleteRole.value;
     if (!role || deletingRole.value) return;
     router.post(
-      accessURL(`/roles/${role.code}/delete`),
+      accessURL(`/roles/${role.code}/delete${rolesPageQuery.value}`),
       {},
       {
         preserveScroll: true,
@@ -123,7 +129,7 @@ export function useAccessForms(props: AccessProps) {
   function submitEditRole() {
     const role = editingRoleMeta.value;
     if (!role) return;
-    editRoleForm.put(accessURL(`/roles/${role.code}`), {
+    editRoleForm.put(accessURL(`/roles/${role.code}${rolesPageQuery.value}`), {
       preserveScroll: true,
       onSuccess: () => (editingRoleMeta.value = null),
     });

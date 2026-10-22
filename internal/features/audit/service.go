@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/i18n"
 )
 
 const (
-	defaultPerPage  = 25
-	maxPerPage      = 100
+	maxPerPage      = pagination.MaxPerPage
 	maxSearchLength = 200
 )
 
@@ -45,11 +45,11 @@ func NewService(dependency ServiceDependency) *Service {
 
 // List returns one page of audit entries for the supplied filter.
 func (s *Service) List(ctx context.Context, request FilterRequest) (PageProps, error) {
-	query, err := normalizeFilter(request)
+	filter, err := normalizeFilter(request)
 	if err != nil {
 		return PageProps{}, err
 	}
-	page, err := s.repository.List(ctx, query)
+	page, err := s.repository.List(ctx, filter.Query)
 	if err != nil {
 		return PageProps{}, err
 	}
@@ -58,6 +58,7 @@ func (s *Service) List(ctx context.Context, request FilterRequest) (PageProps, e
 	for _, entry := range page.Entries {
 		entries = append(entries, toEntryDTO(entry))
 	}
+	query := filter.Query
 	pages := 0
 	if query.Limit > 0 {
 		pages = (page.Total + query.Limit - 1) / query.Limit
@@ -69,8 +70,8 @@ func (s *Service) List(ctx context.Context, request FilterRequest) (PageProps, e
 			Action:   query.Action,
 			Outcome:  query.Outcome,
 			Search:   query.Search,
-			From:     formatFilterTime(query.From),
-			To:       formatFilterTime(query.To),
+			From:     filter.From,
+			To:       filter.To,
 		},
 		Total:   page.Total,
 		Page:    query.Offset/query.Limit + 1,
@@ -79,7 +80,13 @@ func (s *Service) List(ctx context.Context, request FilterRequest) (PageProps, e
 	}, nil
 }
 
-func normalizeFilter(request FilterRequest) (Query, error) {
+type normalizedFilter struct {
+	Query Query
+	From  string
+	To    string
+}
+
+func normalizeFilter(request FilterRequest) (normalizedFilter, error) {
 	query := Query{
 		ActorKey: strings.TrimSpace(request.ActorKey),
 		Action:   strings.TrimSpace(request.Action),
@@ -88,16 +95,24 @@ func normalizeFilter(request FilterRequest) (Query, error) {
 	}
 	if query.Action != "" {
 		if _, ok := allowedActions[query.Action]; !ok {
-			return Query{}, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("audit.unknown_action"))
+			return normalizedFilter{}, fmt.Errorf(
+				"%w: %s",
+				ErrInvalidInput,
+				i18n.T("audit.unknown_action"),
+			)
 		}
 	}
 	if query.Outcome != "" {
 		if _, ok := allowedOutcomes[query.Outcome]; !ok {
-			return Query{}, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("audit.unknown_outcome"))
+			return normalizedFilter{}, fmt.Errorf(
+				"%w: %s",
+				ErrInvalidInput,
+				i18n.T("audit.unknown_outcome"),
+			)
 		}
 	}
 	if len(query.Search) > maxSearchLength {
-		return Query{}, fmt.Errorf(
+		return normalizedFilter{}, fmt.Errorf(
 			"%w: %s",
 			ErrInvalidInput,
 			i18n.T("audit.search_too_long", maxSearchLength),
@@ -105,10 +120,10 @@ func normalizeFilter(request FilterRequest) (Query, error) {
 	}
 
 	perPage := request.PerPage
-	switch {
-	case perPage <= 0:
-		perPage = defaultPerPage
-	case perPage > maxPerPage:
+	if perPage <= 0 {
+		perPage = pagination.DefaultPerPage
+	}
+	if perPage > maxPerPage {
 		perPage = maxPerPage
 	}
 	page := request.Page
@@ -120,15 +135,19 @@ func normalizeFilter(request FilterRequest) (Query, error) {
 
 	from, err := parseTimeFilter(request.From, false)
 	if err != nil {
-		return Query{}, err
+		return normalizedFilter{}, err
 	}
 	to, err := parseTimeFilter(request.To, true)
 	if err != nil {
-		return Query{}, err
+		return normalizedFilter{}, err
 	}
 	query.From = from
 	query.To = to
-	return query, nil
+	return normalizedFilter{
+		Query: query,
+		From:  strings.TrimSpace(request.From),
+		To:    strings.TrimSpace(request.To),
+	}, nil
 }
 
 func parseTimeFilter(value string, endOfDay bool) (*time.Time, error) {
@@ -148,13 +167,6 @@ func parseTimeFilter(value string, endOfDay bool) (*time.Time, error) {
 		return &utc, nil
 	}
 	return nil, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("audit.invalid_date"))
-}
-
-func formatFilterTime(value *time.Time) string {
-	if value == nil {
-		return ""
-	}
-	return value.UTC().Format(time.RFC3339)
 }
 
 func toEntryDTO(entry Entry) EntryDTO {

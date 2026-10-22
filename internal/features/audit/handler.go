@@ -2,27 +2,33 @@ package audit
 
 import (
 	"errors"
-	"strconv"
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
+	"kinstack/internal/pkg/pagination"
+	"kinstack/internal/platform/actor"
+	"kinstack/internal/platform/i18n"
 	platforminertia "kinstack/internal/platform/inertia"
 
 	"github.com/gofiber/fiber/v3"
 )
 
-// HandlerDependency contains the service and logging boundaries used by the handler.
+// HandlerDependency contains the boundaries used by the handler.
 type HandlerDependency struct {
-	Service *Service
-	Logger  log.Log
-	Inertia *platforminertia.Adapter
+	Service  *Service
+	Actor    *actor.Actor
+	PageSize pagination.PageSizeReader
+	Logger   log.Log
+	Inertia  *platforminertia.Adapter
 }
 
 // Handler owns the HTTP boundary for the audit viewer.
 type Handler struct {
-	service *Service
-	logger  log.Log
-	inertia *platforminertia.Adapter
+	service  *Service
+	actor    *actor.Actor
+	pageSize pagination.PageSizeReader
+	logger   log.Log
+	inertia  *platforminertia.Adapter
 }
 
 // NewHandler constructs the audit HTTP handler.
@@ -31,7 +37,13 @@ func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Logger != nil, "audit logger is required")
 	assert.Assert(d.Inertia != nil, "audit inertia adapter is required")
 
-	return &Handler{service: d.Service, logger: d.Logger, inertia: d.Inertia}
+	return &Handler{
+		service:  d.Service,
+		actor:    d.Actor,
+		pageSize: d.PageSize,
+		logger:   d.Logger,
+		inertia:  d.Inertia,
+	}
 }
 
 // Mount registers the audit viewer routes on the guarded group.
@@ -40,6 +52,14 @@ func (h *Handler) Mount(router fiber.Router) {
 }
 
 func (h *Handler) index(c fiber.Ctx) error {
+	page, err := pagination.ParseRequest(c.Query("page"), c.Query("per_page"), h.defaultPerPage(c))
+	if err != nil {
+		return h.inertia.FailedAction(c,
+			"/audit",
+			fiber.StatusUnprocessableEntity,
+			i18n.T("common.invalid_page"),
+		)
+	}
 	props, err := h.service.List(c.Context(), FilterRequest{
 		ActorKey: c.Query("actor_key"),
 		Action:   c.Query("action"),
@@ -47,8 +67,8 @@ func (h *Handler) index(c fiber.Ctx) error {
 		Search:   c.Query("search"),
 		From:     c.Query("from"),
 		To:       c.Query("to"),
-		Page:     queryInt(c, "page"),
-		PerPage:  queryInt(c, "per_page"),
+		Page:     page.Page,
+		PerPage:  page.PerPage,
 	})
 	if err != nil {
 		if errors.Is(err, ErrInvalidInput) {
@@ -71,10 +91,10 @@ func (h *Handler) index(c fiber.Ctx) error {
 	})
 }
 
-func queryInt(c fiber.Ctx, key string) int {
-	value, err := strconv.Atoi(c.Query(key))
-	if err != nil {
-		return 0
+func (h *Handler) defaultPerPage(c fiber.Ctx) int {
+	session := h.actor.ActorFromContext(c)
+	if session == nil {
+		return pagination.DefaultPerPage
 	}
-	return value
+	return pagination.ResolvePageSize(c.Context(), h.pageSize, session.PublicID)
 }

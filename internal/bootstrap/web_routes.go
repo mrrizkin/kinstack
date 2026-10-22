@@ -137,7 +137,8 @@ func dashboardMetrics(c fiber.Ctx, d WebRoutesDependency) fiber.Map {
 				metrics["media_total"] = count
 			}
 		}
-		if page, err := d.Notifications.Service().List(c.Context(), session.PublicID); err == nil {
+		if page, err := d.Notifications.Service().
+			List(c.Context(), session.PublicID, "", 1); err == nil {
 			metrics["notifications_unread"] = page.Unread
 		}
 	}

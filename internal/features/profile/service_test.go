@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"kinstack/internal/pkg/pagination"
 	"kinstack/internal/platform/password"
 )
 
@@ -76,7 +77,7 @@ func TestUpdatePreferencesValidatesTheme(t *testing.T) {
 	if _, err := service.UpdatePreferences(
 		context.Background(),
 		publicID,
-		UpdatePreferencesRequest{Theme: "neon"},
+		UpdatePreferencesRequest{Theme: "neon", PageSize: 5},
 	); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput for unknown theme, got %v", err)
 	}
@@ -84,13 +85,53 @@ func TestUpdatePreferencesValidatesTheme(t *testing.T) {
 	saved, err := service.UpdatePreferences(
 		context.Background(),
 		publicID,
-		UpdatePreferencesRequest{Theme: "Dark", SoundEnabled: false},
+		UpdatePreferencesRequest{Theme: "Dark", SoundEnabled: false, PageSize: 50},
 	)
 	if err != nil {
 		t.Fatalf("update preferences: %v", err)
 	}
-	if saved.Theme != "dark" || saved.SoundEnabled {
+	if saved.Theme != "dark" || saved.SoundEnabled || saved.PageSize != 50 {
 		t.Fatalf("unexpected saved preferences: %#v", saved)
+	}
+}
+
+func TestUpdatePreferencesValidatesPageSize(t *testing.T) {
+	service, _, publicID := newService(t)
+
+	_, err := service.UpdatePreferences(
+		context.Background(),
+		publicID,
+		UpdatePreferencesRequest{Theme: "system", PageSize: 7},
+	)
+	if !errors.Is(err, ErrInvalidPageSize) || !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected a typed page size error, got %v", err)
+	}
+}
+
+func TestPageSizeFallsBackToDefault(t *testing.T) {
+	service, _, publicID := newService(t)
+
+	size, err := service.PageSize(context.Background(), publicID)
+	if err != nil {
+		t.Fatalf("read page size: %v", err)
+	}
+	if size != pagination.DefaultPerPage {
+		t.Fatalf("unexpected default page size: %d", size)
+	}
+
+	if _, err := service.UpdatePreferences(
+		context.Background(),
+		publicID,
+		UpdatePreferencesRequest{Theme: "system", PageSize: 100},
+	); err != nil {
+		t.Fatalf("save preferences: %v", err)
+	}
+	size, err = service.PageSize(context.Background(), publicID)
+	if err != nil {
+		t.Fatalf("read page size: %v", err)
+	}
+	if size != 100 {
+		t.Fatalf("expected the stored page size, got %d", size)
 	}
 }
 
@@ -100,7 +141,7 @@ func TestUpdateThemeKeepsSoundPreference(t *testing.T) {
 	if _, err := service.UpdatePreferences(
 		context.Background(),
 		publicID,
-		UpdatePreferencesRequest{Theme: "light", SoundEnabled: false},
+		UpdatePreferencesRequest{Theme: "light", SoundEnabled: false, PageSize: 25},
 	); err != nil {
 		t.Fatalf("seed preferences: %v", err)
 	}
@@ -109,8 +150,8 @@ func TestUpdateThemeKeepsSoundPreference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update theme: %v", err)
 	}
-	if saved.Theme != "dark" || saved.SoundEnabled {
-		t.Fatalf("unexpected saved preferences: %#v", saved)
+	if saved.Theme != "dark" || saved.SoundEnabled || saved.PageSize != 25 {
+		t.Fatalf("theme update must keep the page size: %#v", saved)
 	}
 
 	if _, err := service.UpdateTheme(
