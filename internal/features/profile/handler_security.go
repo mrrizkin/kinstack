@@ -3,6 +3,8 @@ package profile
 import (
 	"errors"
 
+	"kinstack/internal/pkg/log"
+
 	"kinstack/internal/platform/i18n"
 	platformsession "kinstack/internal/platform/session"
 	"kinstack/internal/platform/sessionregistry"
@@ -20,7 +22,7 @@ func (h *Handler) revokeSession(c fiber.Ctx) error {
 		if errors.Is(err, sessionregistry.ErrNotFound) {
 			return h.validationError(c, i18n.T("profile.session_not_found"), "form")
 		}
-		h.logger.Errorw("revoke session", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("revoke session", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return h.inertia.RedirectWithFlash(c,
@@ -39,7 +41,7 @@ func (h *Handler) revokeOtherSessions(c fiber.Ctx) error {
 		h.actorPublicID(c),
 		platformsession.CurrentID(c),
 	); err != nil {
-		h.logger.Errorw("revoke other sessions", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("revoke other sessions", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return h.inertia.RedirectWithFlash(c,
@@ -82,7 +84,7 @@ func (h *Handler) confirmTwoFactor(c fiber.Ctx) error {
 		return h.writeTwoFactorError(c, err, "code")
 	}
 	if err := platformsession.SetRecoveryCodes(c, codes); err != nil {
-		h.logger.Errorw("store recovery codes", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("store recovery codes", "error", err)
 	}
 	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),
@@ -136,7 +138,7 @@ func (h *Handler) regenerateRecoveryCodes(c fiber.Ctx) error {
 		return h.writeTwoFactorError(c, err, "")
 	}
 	if err := platformsession.SetRecoveryCodes(c, codes); err != nil {
-		h.logger.Errorw("store recovery codes", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("store recovery codes", "error", err)
 	}
 	return h.inertia.RedirectWithFlash(c,
 		h.profilePathFor(c),
@@ -161,7 +163,7 @@ func (h *Handler) writeTwoFactorError(c fiber.Ctx, err error, field string) erro
 		errors.Is(err, twofactor.ErrNotConfigured):
 		return h.validationError(c, err.Error(), field)
 	default:
-		h.logger.Errorw("two-factor request failed", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("two-factor request failed", "error", err)
 		return fiber.ErrInternalServerError
 	}
 }

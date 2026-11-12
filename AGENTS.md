@@ -9,10 +9,13 @@ just verify
 just test
 just audit
 just migrate
+just fuzz            # coverage-guided, on demand
+just check-secrets   # needs gitleaks on PATH; CI runs it
 ```
 
-Run `just verify` before finishing a change. Follow `docs/STYLE.md` for code
-conventions and principles.
+Run `just verify` before finishing a change. `PILLARS.md` is the standard:
+every rule there names the command that enforces it or the review question that
+does.
 
 ## Layout
 

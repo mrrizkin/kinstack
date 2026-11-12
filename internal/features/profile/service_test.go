@@ -12,7 +12,7 @@ import (
 
 func newService(t *testing.T) (*Service, *MemoryRepository, string) {
 	t.Helper()
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	hash, err := password.Hash("rahasia12345")
 	if err != nil {
 		t.Fatalf("hash password: %v", err)
@@ -222,7 +222,7 @@ func TestChangePasswordRules(t *testing.T) {
 }
 
 func TestChangePasswordAllowsInvitedAccountWithoutCurrentPassword(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.Seed(ProfileResult{
 		PublicID:        "invited-1",
 		Username:        "invited",

@@ -148,11 +148,6 @@ func (s *Service) ConsumeMagicLink(ctx context.Context, rawToken string) (Sessio
 	return session, nil
 }
 
-// now is overridable in tests; production uses time.Now.
-func (s *Service) now() time.Time {
-	return time.Now()
-}
-
 func newMagicToken() (string, string, error) {
 	buffer := make([]byte, 32)
 	if _, err := rand.Read(buffer); err != nil {

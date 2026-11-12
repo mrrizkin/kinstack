@@ -1,0 +1,33 @@
+# Secret scanning (PILLARS.md §5). The default gitleaks ruleset, minus the noise
+# that makes a scanner easy to ignore.
+#
+# `generic-api-key` fires on every identifier containing "key", including
+# ActorKey in a test table, so the two places that hold placeholder values are
+# allowlisted by path. The cost is real: a genuine secret pasted into a _test.go
+# file or .env.example would not be reported. Reviewers still read those diffs.
+# Everywhere else, nothing is exempt.
+
+title = "kinstack"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Placeholder credentials in fixtures and example configuration"
+paths = ['''(^|/).*_test\.go$''', '''(^|/)\.env\.example$''']
+
+# The default ruleset knows about cloud providers and private keys. It does not
+# know what a kinstack credential looks like, so the shape is declared here.
+[[rules]]
+id = "kinstack-api-token"
+description = "Kinstack personal API token (plaintext, returned once at creation)"
+regex = '''\bhus_[A-Za-z0-9_-]{21}\.[A-Za-z0-9_-]{40,}'''
+keywords = ["hus_"]
+tags = ["kinstack", "secret"]
+
+[[rules]]
+id = "kinstack-session-secret"
+description = "Kinstack session or encryption key assigned a literal value"
+regex = '''(?i)\b(SESSION_SECRET|ENCRYPTION_KEY|VALKEY_PASSWORD|SMTP_PASSWORD)\s*[:=]\s*["']?[A-Za-z0-9+/=_-]{16,}'''
+keywords = ["session_secret", "encryption_key", "valkey_password", "smtp_password"]
+tags = ["kinstack", "secret"]

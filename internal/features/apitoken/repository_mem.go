@@ -6,11 +6,12 @@ import (
 	"sync"
 	"time"
 
+	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/pagination"
 )
 
 // MemoryRepository is the deterministic in-memory repository used by service
-// tests. It is never selected by production wiring.
+// tests and by simulation runs. It is never selected by production wiring.
 type MemoryRepository struct {
 	mu     sync.RWMutex
 	tokens map[string]TokenResult
@@ -19,11 +20,15 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-func NewMemoryRepository() *MemoryRepository {
-	return &MemoryRepository{
-		tokens: map[string]TokenResult{},
-		now:    func() time.Time { return time.Now().UTC() },
-	}
+// NewMemoryRepositoryAt reads the supplied clock. A simulation passes the same
+// clock to the service, so created and revoked timestamps advance with the run.
+func NewMemoryRepositoryAt(now func() time.Time) *MemoryRepository {
+	assert.Assert(now != nil, "api token repository clock is required")
+	return &MemoryRepository{tokens: map[string]TokenResult{}, now: now}
+}
+
+func NewMemoryRepository(now func() time.Time) *MemoryRepository {
+	return NewMemoryRepositoryAt(now)
 }
 
 func (r *MemoryRepository) Create(_ context.Context, input CreateTokenInput) (TokenResult, error) {

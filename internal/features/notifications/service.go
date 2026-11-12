@@ -33,17 +33,30 @@ func NewService(d ServiceDependency) *Service {
 	return &Service{repository: d.Repository}
 }
 
+// requireRecipient trims and validates the recipient once. The rule lives here
+// so four methods cannot drift into four slightly different checks.
+func requireRecipient(recipientPublicID string) (string, error) {
+	trimmed := strings.TrimSpace(recipientPublicID)
+	if trimmed == "" {
+		return "", ErrInvalidInput
+	}
+	return trimmed, nil
+}
+
 // Notify creates one notification for a recipient. Other slices use this to
 // emit user-facing events without coupling to the HTTP boundary.
 func (s *Service) Notify(
 	ctx context.Context,
 	recipientPublicID, kind, title, body string,
 ) (NotificationDTO, error) {
-	recipientPublicID = strings.TrimSpace(recipientPublicID)
+	recipientPublicID, err := requireRecipient(recipientPublicID)
+	if err != nil {
+		return NotificationDTO{}, err
+	}
 	kind = strings.TrimSpace(kind)
 	title = strings.TrimSpace(title)
 	body = strings.TrimSpace(body)
-	if recipientPublicID == "" || kind == "" || title == "" || body == "" ||
+	if kind == "" || title == "" || body == "" ||
 		len(kind) > maxKindLength || len(title) > maxTitleLength || len(body) > maxBodyLength {
 		return NotificationDTO{}, ErrInvalidInput
 	}
@@ -67,9 +80,9 @@ func (s *Service) List(
 	recipientPublicID, before string,
 	limit int,
 ) (ListPageProps, error) {
-	recipientPublicID = strings.TrimSpace(recipientPublicID)
-	if recipientPublicID == "" {
-		return ListPageProps{}, ErrInvalidInput
+	recipientPublicID, err := requireRecipient(recipientPublicID)
+	if err != nil {
+		return ListPageProps{}, err
 	}
 	if limit <= 0 {
 		limit = feedLimit
@@ -138,9 +151,12 @@ func decodeCursor(value string) (*Cursor, error) {
 
 // MarkRead marks one owned notification as read.
 func (s *Service) MarkRead(ctx context.Context, recipientPublicID, publicID string) error {
-	recipientPublicID = strings.TrimSpace(recipientPublicID)
+	recipientPublicID, err := requireRecipient(recipientPublicID)
+	if err != nil {
+		return err
+	}
 	publicID = strings.TrimSpace(publicID)
-	if recipientPublicID == "" || publicID == "" {
+	if publicID == "" {
 		return ErrInvalidInput
 	}
 	if _, err := s.repository.MarkRead(ctx, recipientPublicID, publicID); err != nil {
@@ -151,9 +167,9 @@ func (s *Service) MarkRead(ctx context.Context, recipientPublicID, publicID stri
 
 // MarkAllRead marks every unread notification of the recipient as read.
 func (s *Service) MarkAllRead(ctx context.Context, recipientPublicID string) error {
-	recipientPublicID = strings.TrimSpace(recipientPublicID)
-	if recipientPublicID == "" {
-		return ErrInvalidInput
+	recipientPublicID, err := requireRecipient(recipientPublicID)
+	if err != nil {
+		return err
 	}
 	if _, err := s.repository.MarkAllRead(ctx, recipientPublicID); err != nil {
 		return err
@@ -171,7 +187,7 @@ func toDTO(notification Notification) NotificationDTO {
 		Kind:      notification.Kind,
 		Title:     notification.Title,
 		Body:      notification.Body,
-		Read:      notification.Status == "read",
+		Read:      notification.Status == StatusRead,
 		CreatedAt: notification.CreatedAt.UTC().Format(time.RFC3339),
 		ReadAt:    readAt,
 	}

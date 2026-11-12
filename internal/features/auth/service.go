@@ -5,9 +5,11 @@ import (
 	"crypto/subtle"
 	"errors"
 	"strings"
+	"time"
 
 	"kinstack/internal/pkg/assert"
 	platformactor "kinstack/internal/platform/actor"
+	"kinstack/internal/platform/clock"
 	"kinstack/internal/platform/email"
 	platformpassword "kinstack/internal/platform/password"
 )
@@ -21,6 +23,7 @@ type ServiceDependency struct {
 	BaseURL    string
 	Lockout    *Lockout
 	Revoker    CredentialRevoker
+	Now        func() time.Time
 }
 
 // CredentialRevoker revokes every browser session and personal API token of a
@@ -39,10 +42,16 @@ type Service struct {
 	baseURL    string
 	lockout    *Lockout
 	revoker    CredentialRevoker
+	now        func() time.Time
 }
 
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "auth repository is required")
+
+	now := dependency.Now
+	if now == nil {
+		now = clock.System
+	}
 
 	return &Service{
 		repository: dependency.Repository,
@@ -53,6 +62,7 @@ func NewService(dependency ServiceDependency) *Service {
 		baseURL:    strings.TrimRight(strings.TrimSpace(dependency.BaseURL), "/"),
 		lockout:    dependency.Lockout,
 		revoker:    dependency.Revoker,
+		now:        now,
 	}
 }
 
@@ -118,51 +128,30 @@ func (s *Service) LoginFrom(
 		return SessionResponse{}, ErrInvalidInput
 	}
 	breakGlass := s.accessKey != "" && strings.EqualFold(username, s.accessKey)
-	if s.lockout != nil {
-		allowed := s.lockout.AllowedPair(ctx, username, client)
-		if allowed && !breakGlass {
-			allowed = !s.lockout.AccountLocked(ctx, username)
-		}
-		if !allowed {
-			return SessionResponse{}, ErrAccountLocked
-		}
+	if !s.lockoutAllows(ctx, username, client, breakGlass) {
+		return SessionResponse{}, ErrAccountLocked
 	}
-
 	if s.isSuperAdmin(username, rawPassword) {
-		if s.lockout != nil {
-			s.lockout.Success(ctx, username, client)
-		}
+		s.recordLoginSuccess(ctx, username, client)
 		return s.superAdminSession(username), nil
 	}
-
 	result, err := s.repository.FindUserByUsername(ctx, username)
 	if errors.Is(err, ErrNotFound) {
 		// Hash a dummy value so response timing does not reveal whether the
 		// username exists.
 		_ = platformpassword.Compare(platformpassword.DummyHash(), rawPassword)
-		if s.lockout != nil {
-			s.lockout.Failure(ctx, username, client, true)
-		}
-		return SessionResponse{}, ErrInvalidCredentials
+		return SessionResponse{}, s.rejectLogin(ctx, username, client, ErrInvalidCredentials)
 	}
 	if err != nil {
 		return SessionResponse{}, err
 	}
 	if err := platformpassword.Compare(result.PasswordHash, rawPassword); err != nil {
-		if s.lockout != nil {
-			s.lockout.Failure(ctx, username, client, true)
-		}
-		return SessionResponse{}, ErrInvalidCredentials
+		return SessionResponse{}, s.rejectLogin(ctx, username, client, ErrInvalidCredentials)
 	}
 	if !result.IsActive {
-		if s.lockout != nil {
-			s.lockout.Failure(ctx, username, client, true)
-		}
-		return SessionResponse{}, ErrInactiveUser
+		return SessionResponse{}, s.rejectLogin(ctx, username, client, ErrInactiveUser)
 	}
-	if s.lockout != nil {
-		s.lockout.Success(ctx, username, client)
-	}
+	s.recordLoginSuccess(ctx, username, client)
 	if err := s.repository.TouchLastLogin(ctx, result.PublicID); err != nil {
 		return SessionResponse{}, err
 	}
@@ -172,6 +161,44 @@ func (s *Service) LoginFrom(
 		DisplayName: result.DisplayName,
 		Role:        result.Role,
 	}, nil
+}
+
+// lockoutAllows is the one place the lockout question is asked, so a new
+// credential path cannot forget it. The break-glass account skips the
+// account-wide lock and keeps its own pair limit.
+func (s *Service) lockoutAllows(
+	ctx context.Context,
+	username, client string,
+	breakGlass bool,
+) bool {
+	if s.lockout == nil {
+		return true
+	}
+	allowed := s.lockout.AllowedPair(ctx, username, client)
+	if allowed && !breakGlass {
+		allowed = !s.lockout.AccountLocked(ctx, username)
+	}
+	return allowed
+}
+
+// rejectLogin records the failure before returning the error the caller sees.
+// The absent user, the wrong password, and the inactive account all count the
+// same way, so timing and lockout behavior do not reveal which one it was.
+func (s *Service) rejectLogin(
+	ctx context.Context,
+	username, client string,
+	reason error,
+) error {
+	if s.lockout != nil {
+		s.lockout.Failure(ctx, username, client, true)
+	}
+	return reason
+}
+
+func (s *Service) recordLoginSuccess(ctx context.Context, username, client string) {
+	if s.lockout != nil {
+		s.lockout.Success(ctx, username, client)
+	}
 }
 
 // Session loads the authenticated session actor for an account that has

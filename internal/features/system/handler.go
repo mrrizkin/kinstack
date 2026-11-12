@@ -38,9 +38,9 @@ func (h *Handler) Mount(router fiber.Router) {
 }
 
 const (
-	// maxCSPReportBytes bounds how much of a browser report is read. Anything
+	// cspReportBytesMax bounds how much of a browser report is read. Anything
 	// larger is discarded; the endpoint never buffers an unbounded body.
-	maxCSPReportBytes = 8 * 1024
+	cspReportBytesMax = 8 * 1024
 	// maxCSPLogValue bounds each structured field written to the log so a
 	// hostile document cannot flood or forge log lines. It counts runes, not
 	// bytes, so truncation never splits a UTF-8 sequence.
@@ -67,13 +67,13 @@ func (h *Handler) cspReport(c fiber.Ctx) error {
 	if stream := c.Request().BodyStream(); stream != nil {
 		reader = stream
 	}
-	body, err := io.ReadAll(io.LimitReader(reader, maxCSPReportBytes+1))
+	body, err := io.ReadAll(io.LimitReader(reader, cspReportBytesMax+1))
 	if err != nil {
 		body = nil
 	}
-	truncated := len(body) > maxCSPReportBytes
+	truncated := len(body) > cspReportBytesMax
 	if truncated {
-		body = body[:maxCSPReportBytes]
+		body = body[:cspReportBytesMax]
 	}
 
 	payload := cspReportPayload{}
@@ -83,9 +83,8 @@ func (h *Handler) cspReport(c fiber.Ctx) error {
 		directive = payload.Report.Violated
 	}
 
-	h.logger.Warnw(
+	log.ForRequest(h.logger, c.RequestID()).Warnw(
 		"csp violation report",
-		"request_id", c.RequestID(),
 		"content_type", sanitizeCSPValue(c.Get(fiber.HeaderContentType)),
 		"report_bytes", len(body),
 		"report_truncated", truncated,
@@ -121,7 +120,7 @@ func (h *Handler) notFound(c fiber.Ctx) error {
 		"message": props.Message,
 	})
 	if err != nil {
-		h.logger.Errorw("render system not-found page", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("render system not-found page", "error", err)
 	}
 	return err
 }
@@ -145,7 +144,7 @@ func (h *Handler) page(c fiber.Ctx) error {
 		"shortcuts": props.Shortcuts,
 	})
 	if err != nil {
-		h.logger.Errorw("render system state page", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("render system state page", "error", err)
 	}
 	return err
 }

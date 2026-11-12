@@ -60,7 +60,7 @@ assets/                 embedded build assets
 ## Documentation
 
 - [Architecture](./docs/ARCHITECTURE.md)
-- [Style](./docs/STYLE.md)
+- [Engineering pillars](./PILLARS.md)
 - [Operations](./docs/OPERATIONS.md)
 - [Agent instructions](./AGENTS.md)
 - [Security policy](./SECURITY.md)

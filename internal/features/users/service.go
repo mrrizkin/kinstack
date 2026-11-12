@@ -9,12 +9,15 @@ import (
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/platform/authz"
+	"kinstack/internal/platform/clock"
 )
 
 const (
 	minPasswordLength = 8
 	maxUsernameLength = 32
-	maxEmailLength    = 254
+	// inviteUsernameAttempts bounds the retry when a generated username collides.
+	inviteUsernameAttempts = 5
+	maxEmailLength         = 254
 )
 
 var (
@@ -42,6 +45,7 @@ type ServiceDependency struct {
 	Authorization *authz.Service
 	Inviter       Inviter
 	Revoker       CredentialRevoker
+	Now           func() time.Time
 }
 
 type Service struct {
@@ -49,16 +53,23 @@ type Service struct {
 	authorization *authz.Service
 	inviter       Inviter
 	revoker       CredentialRevoker
+	now           func() time.Time
 }
 
 func NewService(dependency ServiceDependency) *Service {
 	assert.Assert(dependency.Repository != nil, "users repository is required")
+
+	now := dependency.Now
+	if now == nil {
+		now = clock.System
+	}
 
 	return &Service{
 		repository:    dependency.Repository,
 		authorization: dependency.Authorization,
 		inviter:       dependency.Inviter,
 		revoker:       dependency.Revoker,
+		now:           now,
 	}
 }
 

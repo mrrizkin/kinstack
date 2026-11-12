@@ -24,7 +24,7 @@ func seededResetService(
 	rawToken string,
 ) (*Service, *MemoryRepository) {
 	t.Helper()
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	seedUser(t, repository, "rahasia123")
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:     "usr_1",

@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	platformoauth "kinstack/internal/platform/oauth"
 )
 
 func newIdentityTestService() (*Service, *MemoryRepository) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:    "usr_1",
 		Username:    "admin",

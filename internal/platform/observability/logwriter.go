@@ -13,7 +13,7 @@ import (
 	otellog "go.opentelemetry.io/otel/log"
 )
 
-const maxLogLineBytes = 1 << 20
+const logLineBytesMax = 1 << 20
 
 // LogWriter is an io.Writer that turns zerolog JSON lines into OpenTelemetry
 // log records. It buffers partial lines because zerolog writers may split a
@@ -48,7 +48,7 @@ func (w *LogWriter) Write(p []byte) (int, error) {
 		w.buffer = w.buffer[index+1:]
 		w.emit(line)
 	}
-	if len(w.buffer) > maxLogLineBytes {
+	if len(w.buffer) > logLineBytesMax {
 		line := w.buffer
 		w.buffer = nil
 		w.emit(line)
@@ -79,6 +79,7 @@ func (w *LogWriter) emit(line []byte) {
 
 	fields := map[string]any{}
 	if err := json.Unmarshal(line, &fields); err != nil {
+		//kinstack:allow-nondeterminism a log record is stamped when it is written
 		w.emitRecord(time.Now(), otellog.SeverityInfo, "info", string(line), nil)
 		return
 	}
@@ -110,7 +111,9 @@ func (w *LogWriter) emitRecord(
 ) {
 	var record otellog.Record
 	record.SetTimestamp(timestamp)
-	record.SetObservedTimestamp(time.Now())
+	record.SetObservedTimestamp(
+		time.Now(),
+	) //kinstack:allow-nondeterminism observed time is the point
 	record.SetSeverity(level)
 	record.SetSeverityText(strings.ToUpper(levelText))
 	record.SetBody(attribute.StringValue(body))
@@ -151,7 +154,7 @@ func recordTime(value any) time.Time {
 			return unixTime(parsed)
 		}
 	}
-	return time.Now()
+	return time.Now() //kinstack:allow-nondeterminism clock source
 }
 
 func unixTime(value int64) time.Time {

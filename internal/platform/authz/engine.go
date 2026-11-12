@@ -3,8 +3,8 @@ package authz
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"kinstack/internal/platform/clock"
 	"kinstack/internal/platform/i18n"
 )
 
@@ -38,7 +38,7 @@ func DefaultEngine() *Engine {
 // A deny from any policy wins; an allow may lift a base denial.
 func (e *Engine) Evaluate(req Request, base Decision) Decision {
 	if req.Now.IsZero() {
-		req.Now = time.Now()
+		req.Now = clock.System()
 	}
 	decision := base
 	if decision.Source == "" {
@@ -127,6 +127,6 @@ func (e *Engine) Decide(
 		Principal:  principal,
 		Permission: permission,
 		Resource:   resource,
-		Now:        time.Now(),
+		Now:        clock.System(),
 	}, base)
 }

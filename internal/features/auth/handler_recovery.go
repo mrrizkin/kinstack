@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 
+	"kinstack/internal/pkg/log"
+
 	"kinstack/internal/platform/i18n"
 
 	"github.com/gofiber/fiber/v3"
@@ -23,7 +25,7 @@ func (h *Handler) requestMagicLink(c fiber.Ctx) error {
 				"errors": fiber.Map{"email": i18n.T("auth.email_invalid")},
 			})
 		}
-		h.logger.Errorw("request magic link", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("request magic link", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("auth/LoginView", fiber.Map{
@@ -39,7 +41,7 @@ func (h *Handler) consumeMagicLink(c fiber.Ctx) error {
 		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrInvalidInput) {
 			return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
 		}
-		h.logger.Errorw("consume magic link", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("consume magic link", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return h.completeLogin(c, session)
@@ -52,7 +54,7 @@ func (h *Handler) forgotPasswordPage(c fiber.Ctx) error {
 	}
 	err := c.Render("auth/ForgotPasswordView", fiber.Map{})
 	if err != nil {
-		h.logger.Errorw("render forgot password page", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("render forgot password page", "error", err)
 	}
 	return err
 }
@@ -76,7 +78,7 @@ func (h *Handler) requestPasswordReset(c fiber.Ctx) error {
 				fiber.Map{"errors": fiber.Map{"email": i18n.T("auth.email_invalid")}},
 			)
 		}
-		h.logger.Errorw("request password reset", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("request password reset", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("auth/ForgotPasswordView", fiber.Map{
@@ -91,7 +93,7 @@ func (h *Handler) resetPasswordPage(c fiber.Ctx) error {
 	}
 	err := c.Render("auth/ResetPasswordView", fiber.Map{"token": c.Params("token")})
 	if err != nil {
-		h.logger.Errorw("render reset password page", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("render reset password page", "error", err)
 	}
 	return err
 }
@@ -126,7 +128,7 @@ func (h *Handler) resetPassword(c fiber.Ctx) error {
 					"errors": fiber.Map{"new_password": err.Error()},
 				})
 		default:
-			h.logger.Errorw("reset password", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).Errorw("reset password", "error", err)
 			return fiber.ErrInternalServerError
 		}
 	}

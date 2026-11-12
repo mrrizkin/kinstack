@@ -129,54 +129,95 @@ func (p *Provider) Complete(
 	if trimmed := strings.TrimSpace(requestID); trimmed != "" {
 		ids = append(ids, trimmed)
 	}
-	assertion, err := p.serviceProvider.ParseResponse(request, ids)
+	assertion, err := parseResponseSafely(p.serviceProvider, request, ids)
 	if err != nil {
 		return platformoauth.Identity{}, fmt.Errorf("%w: %v", ErrInvalidResponse, err)
 	}
 	return identityFromAssertion(assertion)
 }
 
+// parseResponseSafely isolates the upstream parser. GO-2026-6909 reports a
+// nil-pointer panic reachable from an unauthenticated response with no patched
+// release; a hostile assertion must reject the login, not end the process. See
+// the recorded deviation in PILLARS.md.
+func parseResponseSafely(
+	provider *saml.ServiceProvider,
+	request *http.Request,
+	ids []string,
+) (assertion *saml.Assertion, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			assertion = nil
+			err = fmt.Errorf("%w: parser panic", ErrInvalidResponse)
+		}
+	}()
+	return provider.ParseResponse(request, ids)
+}
+
 // identityFromAssertion extracts the base identity fields. A subject that is
 // missing or explicitly transient cannot be bound to an account: accepting it
 // would create a new identity row on every login.
 func identityFromAssertion(assertion *saml.Assertion) (platformoauth.Identity, error) {
-	identity := platformoauth.Identity{Provider: "saml"}
-	if assertion.Subject != nil && assertion.Subject.NameID != nil {
-		nameID := assertion.Subject.NameID
-		if isTransientNameIDFormat(nameID.Format) {
-			return platformoauth.Identity{}, ErrUnstableSubject
-		}
-		identity.Subject = strings.TrimSpace(nameID.Value)
+	subject, err := stableSubject(assertion.Subject)
+	if err != nil {
+		return platformoauth.Identity{}, err
 	}
-	if identity.Subject == "" {
-		return platformoauth.Identity{}, ErrUnstableSubject
-	}
-	for _, statement := range assertion.AttributeStatements {
-		for _, attribute := range statement.Attributes {
-			name := strings.ToLower(strings.TrimSpace(attribute.Name))
-			if friendly := strings.ToLower(
-				strings.TrimSpace(attribute.FriendlyName),
-			); friendly != "" {
-				name = friendly
-			}
-			value := ""
-			if len(attribute.Values) > 0 {
-				value = strings.TrimSpace(attribute.Values[0].Value)
-			}
-			switch {
-			case identity.Email == "" && isEmailAttribute(name):
-				identity.Email = value
-			case identity.DisplayName == "" && isNameAttribute(name):
-				identity.DisplayName = value
-			}
-		}
-	}
+	identity := platformoauth.Identity{Provider: "saml", Subject: subject}
+	fillFromAttributes(&identity, assertion.AttributeStatements)
 	identity.Email = strings.ToLower(identity.Email)
 	if identity.DisplayName == "" {
 		identity.DisplayName = identity.Email
 	}
 	identity.EmailVerified = identity.Email != ""
 	return identity, nil
+}
+
+// stableSubject extracts the only identifier that may be bound to an account. A
+// subject that is missing, or explicitly transient, changes on every login and
+// would create a new identity row each time.
+func stableSubject(subject *saml.Subject) (string, error) {
+	if subject == nil || subject.NameID == nil {
+		return "", ErrUnstableSubject
+	}
+	if isTransientNameIDFormat(subject.NameID.Format) {
+		return "", ErrUnstableSubject
+	}
+	value := strings.TrimSpace(subject.NameID.Value)
+	if value == "" {
+		return "", ErrUnstableSubject
+	}
+	return value, nil
+}
+
+// fillFromAttributes takes the first email and the first display name the
+// assertion offers. Later attributes of the same kind are ignored rather than
+// overwriting an earlier truth.
+func fillFromAttributes(
+	identity *platformoauth.Identity,
+	statements []saml.AttributeStatement,
+) {
+	for _, statement := range statements {
+		for _, attribute := range statement.Attributes {
+			applyAttribute(identity, attribute)
+		}
+	}
+}
+
+func applyAttribute(identity *platformoauth.Identity, attribute saml.Attribute) {
+	name := strings.ToLower(strings.TrimSpace(attribute.Name))
+	if friendly := strings.ToLower(strings.TrimSpace(attribute.FriendlyName)); friendly != "" {
+		name = friendly
+	}
+	value := ""
+	if len(attribute.Values) > 0 {
+		value = strings.TrimSpace(attribute.Values[0].Value)
+	}
+	switch {
+	case identity.Email == "" && isEmailAttribute(name):
+		identity.Email = value
+	case identity.DisplayName == "" && isNameAttribute(name):
+		identity.DisplayName = value
+	}
 }
 
 // transientNameIDFormat is the SAML 2.0 transient NameID format. Identities in

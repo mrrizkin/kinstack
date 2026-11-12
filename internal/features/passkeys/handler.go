@@ -14,6 +14,7 @@ import (
 	applog "kinstack/internal/pkg/log"
 	"kinstack/internal/pkg/pagination"
 	platformactor "kinstack/internal/platform/actor"
+	"kinstack/internal/platform/clock"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -40,6 +41,10 @@ type HandlerDependency struct {
 	Actor    *platformactor.Actor
 	PageSize pagination.PageSizeReader
 	Logger   applog.Log
+
+	// Now supplies the wall clock for ceremony expiry and credential
+	// timestamps. Nil falls back to the system clock.
+	Now func() time.Time
 }
 
 type Handler struct {
@@ -49,6 +54,7 @@ type Handler struct {
 	actor    *platformactor.Actor
 	pageSize pagination.PageSizeReader
 	logger   applog.Log
+	now      func() time.Time
 }
 
 func NewHandler(d HandlerDependency) *Handler {
@@ -58,6 +64,11 @@ func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Actor != nil, "passkeys actor boundary is required")
 	assert.Assert(d.Logger != nil, "passkeys logger is required")
 
+	now := d.Now
+	if now == nil {
+		now = clock.System
+	}
+
 	return &Handler{
 		service:  d.Service,
 		webAuthn: d.WebAuthn,
@@ -65,6 +76,7 @@ func NewHandler(d HandlerDependency) *Handler {
 		actor:    d.Actor,
 		pageSize: d.PageSize,
 		logger:   d.Logger,
+		now:      now,
 	}
 }
 
@@ -83,7 +95,7 @@ func (h *Handler) MountWorkspace(router fiber.Router) {
 }
 
 func (h *Handler) internalServerError(c fiber.Ctx, message string, err error) error {
-	h.logger.Errorw(message, "request_id", c.RequestID(), "error", err)
+	applog.ForRequest(h.logger, c.RequestID()).Errorw(message, "error", err)
 	return fiber.NewError(fiber.StatusInternalServerError, message)
 }
 
@@ -140,7 +152,11 @@ func savePasskeyCeremony(c fiber.Ctx, ceremony passkeyCeremony) error {
 	return nil
 }
 
-func consumePasskeyCeremony(c fiber.Ctx, kind, actor string) (passkeyCeremony, error) {
+func consumePasskeyCeremony(
+	c fiber.Ctx,
+	kind, actor string,
+	now time.Time,
+) (passkeyCeremony, error) {
 	store := fibersession.FromContext(c)
 	if store == nil {
 		return passkeyCeremony{}, ErrPasskeyUnavailable
@@ -149,7 +165,7 @@ func consumePasskeyCeremony(c fiber.Ctx, kind, actor string) (passkeyCeremony, e
 	store.Delete(ceremonySessionKey)
 	var ceremony passkeyCeremony
 	if value == "" || json.Unmarshal([]byte(value), &ceremony) != nil || ceremony.Kind != kind ||
-		!ceremony.CreatedAt.Add(10*time.Minute).After(time.Now().UTC()) ||
+		!ceremony.CreatedAt.Add(10*time.Minute).After(now) ||
 		(actor != "" && ceremony.ActorID != actor) {
 		return passkeyCeremony{}, ErrPasskeyInvalid
 	}
@@ -208,7 +224,7 @@ func (h *Handler) beginPasskeyRegistration(c fiber.Ctx) error {
 		return h.internalServerError(c, "unable to create passkey challenge", err)
 	}
 	if err := savePasskeyCeremony(c, passkeyCeremony{
-		Kind: "register", ActorID: actor.PublicID, Session: *ceremony, CreatedAt: time.Now().UTC(),
+		Kind: "register", ActorID: actor.PublicID, Session: *ceremony, CreatedAt: h.now(),
 	}); err != nil {
 		return h.internalServerError(c, "unable to save passkey challenge", err)
 	}
@@ -226,7 +242,7 @@ func (h *Handler) finishPasskeyRegistration(c fiber.Ctx) error {
 	if actor.Superuser {
 		return fiber.ErrForbidden
 	}
-	ceremony, err := consumePasskeyCeremony(c, "register", actor.PublicID)
+	ceremony, err := consumePasskeyCeremony(c, "register", actor.PublicID, h.now())
 	if err != nil {
 		return fiber.NewError(
 			fiber.StatusUnprocessableEntity,
@@ -270,7 +286,7 @@ func (h *Handler) finishPasskeyRegistration(c fiber.Ctx) error {
 		ID:         append([]byte(nil), credential.ID...),
 		Name:       input.Name,
 		Credential: *credential,
-		CreatedAt:  time.Now().UTC(),
+		CreatedAt:  h.now(),
 	}
 	if err := h.service.SavePasskey(c.Context(), user.PublicID, record); err != nil {
 		if errors.Is(err, ErrPasskeyConflict) {
@@ -316,7 +332,7 @@ func (h *Handler) beginPasskeyLogin(c fiber.Ctx) error {
 		return h.internalServerError(c, "unable to create passkey challenge", err)
 	}
 	if err := savePasskeyCeremony(c, passkeyCeremony{
-		Kind: "login", Session: *ceremony, CreatedAt: time.Now().UTC(),
+		Kind: "login", Session: *ceremony, CreatedAt: h.now(),
 	}); err != nil {
 		return h.internalServerError(c, "unable to save passkey challenge", err)
 	}
@@ -324,7 +340,7 @@ func (h *Handler) beginPasskeyLogin(c fiber.Ctx) error {
 }
 
 func (h *Handler) finishPasskeyLogin(c fiber.Ctx) error {
-	ceremony, err := consumePasskeyCeremony(c, "login", "")
+	ceremony, err := consumePasskeyCeremony(c, "login", "", h.now())
 	if err != nil {
 		return fiber.NewError(
 			fiber.StatusUnprocessableEntity,
@@ -365,7 +381,7 @@ func (h *Handler) finishPasskeyLogin(c fiber.Ctx) error {
 	}
 	resolved := user.(*passkeyUser)
 	updated := PasskeyRecord{
-		ID: credential.ID, Credential: *credential, LastUsedAt: timePtr(time.Now().UTC()),
+		ID: credential.ID, Credential: *credential, LastUsedAt: timePtr(h.now()),
 	}
 	records, err := h.service.PasskeyRecords(c.Context(), resolved.user.PublicID)
 	if err != nil {

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"kinstack/internal/platform/clock"
 )
 
 // MemoryRepository is the deterministic in-memory session registry used by
@@ -13,6 +15,7 @@ type MemoryRepository struct {
 	mu      sync.Mutex
 	users   map[string]struct{}
 	records map[string]Result
+	now     func() time.Time
 }
 
 var _ Repository = (*MemoryRepository)(nil)
@@ -21,6 +24,7 @@ func NewMemoryRepository(userPublicIDs ...string) *MemoryRepository {
 	repository := &MemoryRepository{
 		users:   make(map[string]struct{}, len(userPublicIDs)),
 		records: map[string]Result{},
+		now:     clock.System,
 	}
 	for _, publicID := range userPublicIDs {
 		repository.users[publicID] = struct{}{}
@@ -45,12 +49,12 @@ func (r *MemoryRepository) Register(
 			record.RevokedAt = nil
 			record.IP = input.IP
 			record.UserAgent = input.UserAgent
-			record.LastSeenAt = time.Now().UTC()
+			record.LastSeenAt = r.now().UTC()
 			r.records[publicID] = record
 			return record, nil
 		}
 	}
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	record := Result{
 		PublicID:     sessionPublicID,
 		UserPublicID: input.UserPublicID,
@@ -73,7 +77,7 @@ func (r *MemoryRepository) Touch(ctx context.Context, sessionID string) error {
 	defer r.mu.Unlock()
 	for publicID, record := range r.records {
 		if record.SessionID == sessionID && record.RevokedAt == nil {
-			record.LastSeenAt = time.Now().UTC()
+			record.LastSeenAt = r.now().UTC()
 			r.records[publicID] = record
 		}
 	}
@@ -124,7 +128,7 @@ func (r *MemoryRepository) Revoke(ctx context.Context, sessionPublicID string) e
 	if !ok || record.RevokedAt != nil {
 		return ErrNotFound
 	}
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	record.RevokedAt = &now
 	r.records[sessionPublicID] = record
 	return nil
@@ -137,7 +141,7 @@ func (r *MemoryRepository) RevokeBySessionID(ctx context.Context, sessionID stri
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	for publicID, record := range r.records {
 		if record.SessionID == sessionID && record.RevokedAt == nil {
 			record.RevokedAt = &now
@@ -154,7 +158,7 @@ func (r *MemoryRepository) RevokeAll(ctx context.Context, userPublicID string) (
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	sessionIDs := make([]string, 0)
 	for publicID, record := range r.records {
 		if record.UserPublicID != userPublicID || record.RevokedAt != nil {
@@ -178,7 +182,7 @@ func (r *MemoryRepository) RevokeAllExcept(
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	sessionIDs := make([]string, 0)
 	for publicID, record := range r.records {
 		if record.UserPublicID != userPublicID || record.RevokedAt != nil {

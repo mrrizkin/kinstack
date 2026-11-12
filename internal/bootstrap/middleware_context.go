@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"kinstack/internal/pkg/log"
 	platformactor "kinstack/internal/platform/actor"
 	"kinstack/internal/platform/audit"
 	"kinstack/internal/platform/authz"
@@ -14,8 +15,9 @@ import (
 // registerContextMiddleware installs audit context, actor/session validation,
 // and the shared Inertia props consumed by every page.
 func registerContextMiddleware(d GlobalMiddlewareDependency) {
-	d.App.Use(audit.Middleware(d.Audit, d.Actor, func(err error) {
-		d.Log.Errorw("audit event could not be recorded", "error", err)
+	d.App.Use(audit.Middleware(d.Audit, d.Actor, func(c fiber.Ctx, err error) {
+		log.ForRequest(d.Log, c.RequestID()).
+			Errorw("audit event could not be recorded", "error", err)
 	}))
 
 	inertiaHandler := inertia.Middleware(d.Inertia)
@@ -61,7 +63,7 @@ func registerContextMiddleware(d GlobalMiddlewareDependency) {
 		})
 		if actor != nil && !actor.Superuser && d.Sessions != nil {
 			if err := d.Sessions.Touch(c.Context(), platformsession.CurrentID(c)); err != nil {
-				d.Log.Errorw("touch browser session", "request_id", c.RequestID(), "error", err)
+				log.ForRequest(d.Log, c.RequestID()).Errorw("touch browser session", "error", err)
 			}
 		}
 		return c.Next()

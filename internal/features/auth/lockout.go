@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"kinstack/internal/pkg/assert"
+	"kinstack/internal/platform/clock"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/valkey-io/valkey-go"
 )
@@ -40,7 +43,19 @@ type Lockout struct {
 // NewLockout builds a lockout guard. A nil storage or non-positive maximum
 // disables the guard.
 func NewLockout(storage fiber.Storage, max int, window time.Duration) *Lockout {
-	return &Lockout{storage: storage, max: max, window: window, now: time.Now}
+	return NewLockoutAt(storage, max, window, clock.System)
+}
+
+// NewLockoutAt reads the supplied clock. A simulation passes the same clock it
+// advances, so lock windows expire in simulated time rather than wall time.
+func NewLockoutAt(
+	storage fiber.Storage,
+	max int,
+	window time.Duration,
+	now func() time.Time,
+) *Lockout {
+	assert.Assert(now != nil, "lockout clock is required")
+	return &Lockout{storage: storage, max: max, window: window, now: now}
 }
 
 func (l *Lockout) enabled() bool {

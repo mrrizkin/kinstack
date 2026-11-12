@@ -169,37 +169,38 @@ type TimeWindowPolicy struct {
 func (p TimeWindowPolicy) Name() string { return p.PolicyName }
 
 func (p TimeWindowPolicy) Evaluate(req Request) *Decision {
-	if req.Permission != p.Permission {
+	if req.Permission != p.Permission || req.Principal.Role == p.ExemptRole ||
+		req.Now.IsZero() {
 		return nil
 	}
-	if req.Principal.Role == p.ExemptRole {
-		return nil
+	if !p.weekdayAllowed(req.Now) || !p.hourAllowed(req.Now) {
+		return decisionPtr(Deny(p.PolicyName, p.reason()))
 	}
-	now := req.Now
-	if now.IsZero() {
-		return nil
+	return nil
+}
+
+// weekdayAllowed abstains when the policy names no weekdays, so a time-only
+// window does not silently deny on an unset field.
+func (p TimeWindowPolicy) weekdayAllowed(now time.Time) bool {
+	if len(p.Weekdays) == 0 {
+		return true
 	}
-	if len(p.Weekdays) > 0 {
-		allowed := false
-		for _, weekday := range p.Weekdays {
-			if now.Weekday() == weekday {
-				allowed = true
-				break
-			}
+	for _, weekday := range p.Weekdays {
+		if now.Weekday() == weekday {
+			return true
 		}
-		if !allowed {
-			return decisionPtr(Deny(p.PolicyName, p.reason()))
-		}
 	}
+	return false
+}
+
+// hourAllowed reads a window that may wrap midnight: to >= from is a same-day
+// window, otherwise the window spans the day boundary.
+func (p TimeWindowPolicy) hourAllowed(now time.Time) bool {
 	hour := now.Hour()
 	if p.ToHour >= p.FromHour {
-		if hour >= p.FromHour && hour < p.ToHour {
-			return nil
-		}
-	} else if hour >= p.FromHour || hour < p.ToHour {
-		return nil
+		return hour >= p.FromHour && hour < p.ToHour
 	}
-	return decisionPtr(Deny(p.PolicyName, p.reason()))
+	return hour >= p.FromHour || hour < p.ToHour
 }
 
 func (p TimeWindowPolicy) reason() string {

@@ -97,50 +97,93 @@ func HashWithCost(secret string, cost Cost) (string, error) {
 
 // Compare verifies a password against an Argon2id password hash.
 func Compare(encoded, password string) error {
-	parts := strings.Split(encoded, "$")
-	if len(parts) != 6 || parts[1] != "argon2id" || parts[2] != "v=19" {
-		return ErrInvalidPasswordHash
-	}
-	params := make(map[string]string, 3)
-	for _, item := range strings.Split(parts[3], ",") {
-		key, value, ok := strings.Cut(item, "=")
-		if !ok {
-			return ErrInvalidPasswordHash
-		}
-		params[key] = value
-	}
-	memory, err := strconv.ParseUint(params["m"], 10, 32)
-	if err != nil || memory == 0 || memory > maxMemoryKiB {
-		return ErrInvalidPasswordHash
-	}
-	iterations, err := strconv.ParseUint(params["t"], 10, 32)
-	if err != nil || iterations == 0 || iterations > maxIterations {
-		return ErrInvalidPasswordHash
-	}
-	parallelism, err := strconv.ParseUint(params["p"], 10, 8)
-	if err != nil || parallelism == 0 || parallelism > maxParallelism {
-		return ErrInvalidPasswordHash
-	}
-	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
-	if err != nil || len(salt) < 8 {
-		return ErrInvalidPasswordHash
-	}
-	expected, err := base64.RawStdEncoding.DecodeString(parts[5])
-	if err != nil || len(expected) == 0 {
-		return ErrInvalidPasswordHash
+	parsed, err := parseArgon2id(encoded)
+	if err != nil {
+		return err
 	}
 	actual := argon2.IDKey(
 		[]byte(password),
-		salt,
-		uint32(iterations),
-		uint32(memory),
-		uint8(parallelism),
-		uint32(len(expected)),
+		parsed.salt,
+		uint32(parsed.iterations),
+		uint32(parsed.memory),
+		uint8(parsed.parallelism),
+		uint32(len(parsed.expected)),
 	)
-	if subtle.ConstantTimeCompare(actual, expected) != 1 {
+	if subtle.ConstantTimeCompare(actual, parsed.expected) != 1 {
 		return ErrInvalidPasswordHash
 	}
 	return nil
+}
+
+// parsedHash is the decoded form of an Argon2id hash. Every field has been
+// bounded before it reaches the key derivation, so a hostile hash cannot ask for
+// an unbounded amount of work.
+type parsedHash struct {
+	memory      uint64
+	iterations  uint64
+	parallelism uint64
+	salt        []byte
+	expected    []byte
+}
+
+func parseArgon2id(encoded string) (parsedHash, error) {
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" || parts[2] != "v=19" {
+		return parsedHash{}, ErrInvalidPasswordHash
+	}
+	parsed, err := parseArgon2Params(parts[3])
+	if err != nil {
+		return parsedHash{}, err
+	}
+	if parsed.salt, err = parseArgon2Field(parts[4], 8); err != nil {
+		return parsedHash{}, err
+	}
+	if parsed.expected, err = parseArgon2Field(parts[5], 1); err != nil {
+		return parsedHash{}, err
+	}
+	return parsed, nil
+}
+
+// parseArgon2Params reads m, t, and p, rejecting values outside the ceilings the
+// service accepts so a stored hash cannot turn into a CPU or memory attack.
+func parseArgon2Params(raw string) (parsedHash, error) {
+	values := make(map[string]string, 3)
+	for _, item := range strings.Split(raw, ",") {
+		key, value, ok := strings.Cut(item, "=")
+		if !ok {
+			return parsedHash{}, ErrInvalidPasswordHash
+		}
+		values[key] = value
+	}
+	memory, err := boundedParam(values["m"], maxMemoryKiB)
+	if err != nil {
+		return parsedHash{}, err
+	}
+	iterations, err := boundedParam(values["t"], maxIterations)
+	if err != nil {
+		return parsedHash{}, err
+	}
+	parallelism, err := boundedParam(values["p"], maxParallelism)
+	if err != nil {
+		return parsedHash{}, err
+	}
+	return parsedHash{memory: memory, iterations: iterations, parallelism: parallelism}, nil
+}
+
+func boundedParam(raw string, ceiling uint64) (uint64, error) {
+	value, err := strconv.ParseUint(raw, 10, 32)
+	if err != nil || value == 0 || value > ceiling {
+		return 0, ErrInvalidPasswordHash
+	}
+	return value, nil
+}
+
+func parseArgon2Field(raw string, minimum int) ([]byte, error) {
+	decoded, err := base64.RawStdEncoding.DecodeString(raw)
+	if err != nil || len(decoded) < minimum {
+		return nil, ErrInvalidPasswordHash
+	}
+	return decoded, nil
 }
 
 // DummyHash returns a stable hash used to keep unknown-user authentication

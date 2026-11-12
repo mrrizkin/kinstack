@@ -154,7 +154,7 @@ func (h *Handler) twoFactorState(c fiber.Ctx, props ProfilePageProps) TwoFactorD
 	}
 	status, err := h.twoFactor.Status(c.Context(), h.actorPublicID(c))
 	if err != nil {
-		h.logger.Errorw("load two-factor status", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("load two-factor status", "error", err)
 		return state
 	}
 	state.Enabled = status.Enabled
@@ -184,7 +184,7 @@ func (h *Handler) activeSessions(c fiber.Ctx) ([]ActiveSessionDTO, pagination.Pa
 	}
 	results, err := h.sessions.List(c.Context(), h.actorPublicID(c))
 	if err != nil {
-		h.logger.Errorw("list active sessions", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("list active sessions", "error", err)
 		return sessions, pagination.NewPage(query, 0)
 	}
 	query = pagination.ClampPage(query, len(results))
@@ -218,7 +218,7 @@ func (h *Handler) writeError(c fiber.Ctx, err error, field string) error {
 			err.Error(),
 		)
 	default:
-		h.logger.Errorw("profile request failed", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("profile request failed", "error", err)
 		return fiber.ErrInternalServerError
 	}
 }

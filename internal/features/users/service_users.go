@@ -110,69 +110,103 @@ func (s *Service) Create(ctx context.Context, request CreateUserRequest) (UserDT
 // invitation. The stored password hash is unusable until the invitee sets a
 // password, so the only way in is the emailed link.
 func (s *Service) Invite(ctx context.Context, request InviteUserRequest) (UserDTO, error) {
-	email := normalizeEmail(request.Email)
-	displayName := strings.TrimSpace(request.DisplayName)
-	role := strings.TrimSpace(request.Role)
-	if email == "" || !emailPattern.MatchString(email) || len(email) > maxEmailLength {
-		return UserDTO{}, ErrInvalidInput
-	}
-	if displayName == "" {
-		displayName = email
-	}
-	if err := s.ensureRole(ctx, role); err != nil {
+	invite, err := normalizeInvite(request)
+	if err != nil {
 		return UserDTO{}, err
 	}
-	if err := s.authorizeRoleGrant(ctx, role); err != nil {
+	if err := s.ensureRole(ctx, invite.role); err != nil {
+		return UserDTO{}, err
+	}
+	if err := s.authorizeRoleGrant(ctx, invite.role); err != nil {
 		return UserDTO{}, err
 	}
 	passwordHash, err := invitationPasswordHash()
 	if err != nil {
 		return UserDTO{}, err
 	}
+	result, err := s.createInvitedUser(ctx, invite, passwordHash)
+	if err != nil {
+		return UserDTO{}, err
+	}
+	if err := s.authorization.AssignRole(ctx, result.PublicID, invite.role); err != nil {
+		return UserDTO{}, err
+	}
+	result.Role = invite.role
+	if s.inviter != nil {
+		if err := s.inviter.SendInvitation(ctx, invite.email); err != nil {
+			return userToDTO(result), fmt.Errorf("send invitation: %w", err)
+		}
+	}
+	return userToDTO(result), nil
+}
+
+// inviteRequest is the trimmed, validated form of an invitation.
+type inviteRequest struct {
+	email        string
+	displayName  string
+	role         string
+	usernameBase string
+}
+
+func normalizeInvite(request InviteUserRequest) (inviteRequest, error) {
+	email := normalizeEmail(request.Email)
+	if email == "" || !emailPattern.MatchString(email) || len(email) > maxEmailLength {
+		return inviteRequest{}, ErrInvalidInput
+	}
+	displayName := strings.TrimSpace(request.DisplayName)
+	if displayName == "" {
+		displayName = email
+	}
 	usernameBase := strings.TrimSpace(request.Username)
 	if usernameBase == "" {
 		usernameBase = usernameFromEmail(email)
 	}
+	return inviteRequest{
+		email:        email,
+		displayName:  displayName,
+		role:         strings.TrimSpace(request.Role),
+		usernameBase: usernameBase,
+	}, nil
+}
 
+// createInvitedUser retries a taken username with a suffix. A taken email is
+// final: the account exists, and the caller must hear about it.
+func (s *Service) createInvitedUser(
+	ctx context.Context,
+	invite inviteRequest,
+	passwordHash string,
+) (UserResult, error) {
 	var result UserResult
-	for attempt := 0; attempt < 5; attempt++ {
-		username := usernameBase
+	for attempt := 0; attempt < inviteUsernameAttempts; attempt++ {
+		username := invite.usernameBase
 		if attempt > 0 {
 			suffix := publicid.MustNew()
-			username = trimToLength(usernameBase+"-"+suffix[:4], maxUsernameLength)
+			username = trimToLength(invite.usernameBase+"-"+suffix[:4], maxUsernameLength)
 		}
-		result, err = s.repository.CreateUser(ctx, CreateUserInput{
+		created, err := s.repository.CreateUser(ctx, CreateUserInput{
 			PublicID:     publicid.MustNew(),
 			Username:     username,
-			Email:        email,
-			DisplayName:  displayName,
+			Email:        invite.email,
+			DisplayName:  invite.displayName,
 			PasswordHash: passwordHash,
 			Invited:      true,
 		})
 		if errors.Is(err, ErrEmailTaken) {
-			return UserDTO{}, ErrEmailTaken
+			return UserResult{}, ErrEmailTaken
 		}
 		if errors.Is(err, ErrUsernameTaken) {
 			continue
 		}
 		if err != nil {
-			return UserDTO{}, err
+			return UserResult{}, err
 		}
+		result = created
 		break
 	}
 	if result.PublicID == "" {
-		return UserDTO{}, ErrUsernameTaken
+		return UserResult{}, ErrUsernameTaken
 	}
-	if err := s.authorization.AssignRole(ctx, result.PublicID, role); err != nil {
-		return UserDTO{}, err
-	}
-	result.Role = role
-	if s.inviter != nil {
-		if err := s.inviter.SendInvitation(ctx, email); err != nil {
-			return userToDTO(result), fmt.Errorf("send invitation: %w", err)
-		}
-	}
-	return userToDTO(result), nil
+	return result, nil
 }
 
 func usernameFromEmail(email string) string {
@@ -216,27 +250,19 @@ func (s *Service) Update(ctx context.Context,
 	publicID string,
 	request UpdateUserRequest,
 ) (UserDTO, error) {
-	displayName := strings.TrimSpace(request.DisplayName)
-	role := strings.TrimSpace(request.Role)
-	email := normalizeEmail(request.Email)
-	if displayName == "" {
-		return UserDTO{}, ErrInvalidInput
-	}
-	if email != "" && (!emailPattern.MatchString(email) || len(email) > maxEmailLength) {
-		return UserDTO{}, ErrInvalidInput
-	}
-	if err := s.ensureRole(ctx, role); err != nil {
-		return UserDTO{}, err
-	}
-	existing, err := s.repository.FindUserByPublicID(ctx, publicID)
-	if errors.Is(err, ErrNotFound) {
-		return UserDTO{}, ErrNotFound
-	}
+	update, err := normalizeUserUpdate(request)
 	if err != nil {
 		return UserDTO{}, err
 	}
-	if existing.Role != role {
-		if err := s.authorizeRoleGrant(ctx, role); err != nil {
+	if err := s.ensureRole(ctx, update.role); err != nil {
+		return UserDTO{}, err
+	}
+	existing, err := s.repository.FindUserByPublicID(ctx, publicID)
+	if err != nil {
+		return UserDTO{}, mapUserError(err)
+	}
+	if existing.Role != update.role {
+		if err := s.authorizeRoleGrant(ctx, update.role); err != nil {
 			return UserDTO{}, err
 		}
 		if err := s.authorizeUserChange(ctx, publicID); err != nil {
@@ -245,23 +271,53 @@ func (s *Service) Update(ctx context.Context,
 	}
 	result, err := s.repository.UpdateUser(ctx, UpdateUserInput{
 		PublicID:    publicID,
-		Email:       email,
-		DisplayName: displayName,
+		Email:       update.email,
+		DisplayName: update.displayName,
 	})
-	if errors.Is(err, ErrNotFound) {
-		return UserDTO{}, ErrNotFound
-	}
-	if errors.Is(err, ErrEmailTaken) {
-		return UserDTO{}, ErrEmailTaken
-	}
 	if err != nil {
+		return UserDTO{}, mapUserError(err)
+	}
+	if err := s.authorization.AssignRole(ctx, publicID, update.role); err != nil {
 		return UserDTO{}, err
 	}
-	if err := s.authorization.AssignRole(ctx, publicID, role); err != nil {
-		return UserDTO{}, err
-	}
-	result.Role = role
+	result.Role = update.role
 	return userToDTO(result), nil
+}
+
+// userUpdate is the trimmed, validated form of an update request.
+type userUpdate struct {
+	displayName string
+	role        string
+	email       string
+}
+
+func normalizeUserUpdate(request UpdateUserRequest) (userUpdate, error) {
+	update := userUpdate{
+		displayName: strings.TrimSpace(request.DisplayName),
+		role:        strings.TrimSpace(request.Role),
+		email:       normalizeEmail(request.Email),
+	}
+	if update.displayName == "" {
+		return userUpdate{}, ErrInvalidInput
+	}
+	if update.email != "" &&
+		(!emailPattern.MatchString(update.email) || len(update.email) > maxEmailLength) {
+		return userUpdate{}, ErrInvalidInput
+	}
+	return update, nil
+}
+
+// mapUserError narrows repository errors to the ones this slice exposes. An
+// unexpected error keeps its identity so it is logged once, upstream.
+func mapUserError(err error) error {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return ErrNotFound
+	case errors.Is(err, ErrEmailTaken):
+		return ErrEmailTaken
+	default:
+		return err
+	}
 }
 
 // ResetPassword replaces an account password after validating its length.

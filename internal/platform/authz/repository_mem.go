@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/pagination"
+	"kinstack/internal/platform/clock"
 )
 
 // MemoryRepository is an in-memory Repository used by tests and local wiring.
@@ -27,7 +28,7 @@ func NewMemoryRepository() *MemoryRepository {
 		rolePerms: make(map[string]map[Permission]struct{}),
 		overrides: make(map[string]map[Permission]Override),
 		userRoles: make(map[string]string),
-		now:       time.Now,
+		now:       clock.System,
 	}
 }
 

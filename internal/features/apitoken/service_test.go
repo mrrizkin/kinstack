@@ -12,7 +12,7 @@ import (
 )
 
 func newTestService() (*Service, *MemoryRepository) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	return NewService(ServiceDependency{Repository: repository}), repository
 }
 
@@ -197,7 +197,7 @@ func TestAuthenticateRejectsRevokedToken(t *testing.T) {
 }
 
 func TestAuthenticateRejectsExpiredToken(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	current := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	service := NewService(ServiceDependency{
 		Repository: repository,

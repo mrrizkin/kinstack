@@ -16,7 +16,7 @@ const (
 )
 
 func newSeededRepository() *MemoryRepository {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.Seed(UserResult{
 		PublicID:    "admin-1",
 		Username:    "admin",

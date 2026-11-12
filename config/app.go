@@ -59,17 +59,43 @@ func (c *AppConfig) Load() {
 
 // Validate checks application settings that do not depend on another section.
 func (c AppConfig) Validate() error {
+	if err := c.validateIdentity(); err != nil {
+		return err
+	}
+	if err := c.validateLimits(); err != nil {
+		return err
+	}
+	if err := c.validateNetwork(); err != nil {
+		return err
+	}
+	if err := c.validateAccessKey(); err != nil {
+		return err
+	}
+	if c.Env != environmentProduction {
+		return nil
+	}
+	return c.validateProduction()
+}
+
+// validateIdentity covers the three values every other decision depends on.
+func (c AppConfig) validateIdentity() error {
 	if c.Name == "" {
 		return fmt.Errorf("APP_NAME is required")
 	}
 	switch c.Env {
-	case "development", "test", "staging", "production":
+	case "development", "test", "staging", environmentProduction:
 	default:
 		return fmt.Errorf("APP_ENV must be one of development, test, staging, or production")
 	}
 	if c.Port < 1 || c.Port > 65535 {
 		return fmt.Errorf("APP_PORT must be between 1 and 65535")
 	}
+	return nil
+}
+
+// validateLimits rejects zero or negative bounds. A limit of zero is never
+// "unlimited" here; it denies everything, which is a configuration mistake.
+func (c AppConfig) validateLimits() error {
 	if c.SessionIdleTimeout <= 0 {
 		return fmt.Errorf("SESSION_IDLE_TIMEOUT must be positive")
 	}
@@ -90,6 +116,12 @@ func (c AppConfig) Validate() error {
 			"HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT, and HTTP_IDLE_TIMEOUT must be positive",
 		)
 	}
+	return nil
+}
+
+// validateNetwork checks the public URL and the proxy list. A proxy entry that
+// is neither an address nor a network would silently trust everyone.
+func (c AppConfig) validateNetwork() error {
 	if err := validateURL("APP_URL", c.URL, false); err != nil {
 		return err
 	}
@@ -101,22 +133,31 @@ func (c AppConfig) Validate() error {
 			return fmt.Errorf("TRUSTED_PROXIES entry %q is not an IP address or CIDR", proxy)
 		}
 	}
+	return nil
+}
+
+// validateAccessKey enforces that the break-glass pair is all or nothing. Half
+// a pair is a typo that would otherwise disable the account silently.
+func (c AppConfig) validateAccessKey() error {
 	if (c.AccessKey == "") != (c.SecretKey == "") {
 		return fmt.Errorf("ACCESS_KEY and SECRET_KEY must be set together")
 	}
 	if c.SecretKey != "" && len([]byte(c.SecretKey)) < minSecretKeyLength {
 		return fmt.Errorf("SECRET_KEY must be at least %d characters", minSecretKeyLength)
 	}
-	if c.Env == "production" {
-		if err := validateURL("APP_URL", c.URL, true); err != nil {
-			return err
-		}
-		if c.AccessKey == "" {
-			return fmt.Errorf("ACCESS_KEY and SECRET_KEY are required in production")
-		}
-		if placeholderSecret(c.SecretKey) {
-			return fmt.Errorf("SECRET_KEY must be a non-placeholder secret in production")
-		}
+	return nil
+}
+
+// validateProduction states what the environment may not omit.
+func (c AppConfig) validateProduction() error {
+	if err := validateURL("APP_URL", c.URL, true); err != nil {
+		return err
+	}
+	if c.AccessKey == "" {
+		return fmt.Errorf("ACCESS_KEY and SECRET_KEY are required in production")
+	}
+	if placeholderSecret(c.SecretKey) {
+		return fmt.Errorf("SECRET_KEY must be a non-placeholder secret in production")
 	}
 	return nil
 }

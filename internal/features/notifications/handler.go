@@ -158,6 +158,6 @@ func (h *Handler) recipient(c fiber.Ctx) string {
 }
 
 func (h *Handler) internalServerError(c fiber.Ctx, message string, err error) error {
-	h.logger.Errorw(message, "request_id", c.RequestID(), "error", err)
+	log.ForRequest(h.logger, c.RequestID()).Errorw(message, "error", err)
 	return fiber.ErrInternalServerError
 }

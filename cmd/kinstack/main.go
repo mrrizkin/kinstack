@@ -11,35 +11,51 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "healthcheck":
-			healthcheck()
-			return
-		case "prune-audit":
-			retention := 8760 * time.Hour
-			if len(os.Args) > 2 {
-				parsed, err := time.ParseDuration(os.Args[2])
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "prune-audit: invalid retention:", err)
-					os.Exit(2)
-				}
-				retention = parsed
-			}
-			if err := bootstrap.PruneAudit(retention); err != nil {
-				fmt.Fprintln(os.Stderr, "prune-audit failed:", err)
-				os.Exit(1)
-			}
-			return
-		case "backfill-2fa":
-			if err := bootstrap.BackfillTwoFactorSecrets(); err != nil {
-				fmt.Fprintln(os.Stderr, "backfill-2fa failed:", err)
-				os.Exit(1)
-			}
-			return
-		}
+	if runSubcommand(os.Args[1:]) {
+		return
 	}
 	assert.NoError(bootstrap.Run())
+}
+
+// runSubcommand dispatches the operator commands. It reports whether it ran one,
+// so the caller knows whether to boot the server instead.
+func runSubcommand(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	switch args[0] {
+	case "healthcheck":
+		healthcheck()
+		return true
+	case "prune-audit":
+		pruneAudit(args[1:])
+		return true
+	case "backfill-2fa":
+		if err := bootstrap.BackfillTwoFactorSecrets(); err != nil {
+			fmt.Fprintln(os.Stderr, "backfill-2fa failed:", err)
+			os.Exit(1)
+		}
+		return true
+	}
+	return false
+}
+
+// pruneAudit deletes audit rows older than the retention window. The default is
+// a year; an operator may shorten it, and an unparseable value is a usage error.
+func pruneAudit(args []string) {
+	retention := 8760 * time.Hour
+	if len(args) > 0 {
+		parsed, err := time.ParseDuration(args[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "prune-audit: invalid retention:", err)
+			os.Exit(2)
+		}
+		retention = parsed
+	}
+	if err := bootstrap.PruneAudit(retention); err != nil {
+		fmt.Fprintln(os.Stderr, "prune-audit failed:", err)
+		os.Exit(1)
+	}
 }
 
 // healthcheck is the container probe entrypoint. Distroless images have no

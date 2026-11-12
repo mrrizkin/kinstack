@@ -36,7 +36,7 @@ func seedUser(t *testing.T, repository *MemoryRepository, password string) {
 }
 
 func TestLoginAcceptsValidCredentials(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	seedUser(t, repository, "rahasia123")
 	service := NewService(ServiceDependency{Repository: repository})
 
@@ -53,7 +53,7 @@ func TestLoginAcceptsValidCredentials(t *testing.T) {
 }
 
 func TestLoginRejectsWrongPassword(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	seedUser(t, repository, "rahasia123")
 	service := NewService(ServiceDependency{Repository: repository})
 
@@ -64,7 +64,7 @@ func TestLoginRejectsWrongPassword(t *testing.T) {
 }
 
 func TestLoginRejectsUnknownUser(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository()})
+	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
 	_, err := service.Login(context.Background(), "ghost", "apapun")
 	if !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("expected invalid credentials, got %v", err)
@@ -72,7 +72,7 @@ func TestLoginRejectsUnknownUser(t *testing.T) {
 }
 
 func TestLoginRejectsInactiveUser(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	seedUser(t, repository, "rahasia123")
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:     "usr_2",
@@ -90,14 +90,14 @@ func TestLoginRejectsInactiveUser(t *testing.T) {
 }
 
 func TestLoginRejectsEmptyInput(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository()})
+	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
 	if _, err := service.Login(context.Background(), "", "x"); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected invalid input, got %v", err)
 	}
 }
 
 func TestLoginAcceptsEnvironmentSuperAdmin(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	service := NewService(ServiceDependency{
 		Repository: repository,
 		AccessKey:  "superadmin",
@@ -124,7 +124,7 @@ func TestLoginAcceptsEnvironmentSuperAdmin(t *testing.T) {
 
 func TestLoginRejectsWrongEnvironmentSecret(t *testing.T) {
 	service := NewService(ServiceDependency{
-		Repository: NewMemoryRepository(),
+		Repository: NewMemoryRepository(time.Now),
 		AccessKey:  "superadmin",
 		SecretKey:  "secret-super-admin-panjang",
 	})
@@ -135,7 +135,7 @@ func TestLoginRejectsWrongEnvironmentSecret(t *testing.T) {
 }
 
 func TestLoginWithoutEnvironmentCredentialsIgnoresSuperAdminPath(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository()})
+	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
 	_, err := service.Login(context.Background(), "superadmin", "secret-super-admin-panjang")
 	if !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("expected invalid credentials, got %v", err)
@@ -143,7 +143,7 @@ func TestLoginWithoutEnvironmentCredentialsIgnoresSuperAdminPath(t *testing.T) {
 }
 
 func TestConsumeMagicLinkAuthenticatesAndBurnsToken(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:    "usr_magic",
 		Username:    "budi",
@@ -180,7 +180,7 @@ func TestConsumeMagicLinkAuthenticatesAndBurnsToken(t *testing.T) {
 }
 
 func TestRequestMagicLinkSendsSingleUseEmail(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:    "usr_magic",
 		Username:    "budi",
@@ -216,14 +216,14 @@ func TestRequestMagicLinkSendsSingleUseEmail(t *testing.T) {
 }
 
 func TestRequestMagicLinkIgnoresUnknownEmail(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository()})
+	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
 	if err := service.RequestMagicLink(context.Background(), "ghost@contoh.com"); err != nil {
 		t.Fatalf("unknown email must stay silent, got %v", err)
 	}
 }
 
 func TestSendInvitationIssuesUsableLink(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:    "usr_invited",
 		Username:    "staf",
@@ -259,7 +259,7 @@ func TestSendInvitationIssuesUsableLink(t *testing.T) {
 }
 
 func TestSendInvitationFailsForUnknownEmail(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository()})
+	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
 	if err := service.SendInvitation(context.Background(), "ghost@contoh.com"); !errors.Is(
 		err,
 		ErrNotFound,
@@ -269,7 +269,7 @@ func TestSendInvitationFailsForUnknownEmail(t *testing.T) {
 }
 
 func TestRequestPasswordResetEmailsUsableLink(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:     "usr_reset",
 		Username:     "budi",
@@ -320,14 +320,14 @@ func TestRequestPasswordResetEmailsUsableLink(t *testing.T) {
 }
 
 func TestRequestPasswordResetIgnoresUnknownEmail(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository()})
+	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
 	if err := service.RequestPasswordReset(context.Background(), "ghost@contoh.com"); err != nil {
 		t.Fatalf("unknown email must stay silent, got %v", err)
 	}
 }
 
 func TestResetPasswordRejectsShortPassword(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository()})
+	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
 	if err := service.ResetPassword(context.Background(), "token", "pendek"); !errors.Is(
 		err,
 		ErrInvalidInput,
@@ -338,7 +338,7 @@ func TestResetPasswordRejectsShortPassword(t *testing.T) {
 
 func newLockedOutService(t *testing.T, max int) *Service {
 	t.Helper()
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	seedUser(t, repository, "rahasia123")
 	return NewService(ServiceDependency{
 		Repository: repository,
@@ -411,7 +411,7 @@ func TestLoginBreakGlassIgnoresAccountWideLock(c *testing.T) {
 }
 
 func TestLoginInactiveAccountStillCountsAFailure(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	seedUser(t, repository, "rahasia123")
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:     "usr_2",

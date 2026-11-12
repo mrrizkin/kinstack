@@ -18,6 +18,7 @@ import (
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/authz"
+	"kinstack/internal/platform/clock"
 	"kinstack/internal/platform/inertia"
 
 	"github.com/gofiber/fiber/v3"
@@ -124,7 +125,7 @@ func dashboardMetrics(c fiber.Ctx, d WebRoutesDependency) fiber.Map {
 	if roles, err := d.Authz.CountRoles(c.Context()); err == nil {
 		metrics["roles_total"] = roles
 	}
-	from := time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339)
+	from := clock.System().Add(-24 * time.Hour).Format(time.RFC3339)
 	if page, err := d.Audit.Service().
 		List(c.Context(), audit.FilterRequest{From: from, Page: 1, PerPage: 1}); err == nil {
 		metrics["audit_24h"] = page.Page.Total

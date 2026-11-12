@@ -1,0 +1,9 @@
+# Cognitive complexity ceiling per function (Pillars §8, Function Shape).
+# Gate: scripts/check-complexity.sh. Only ratchets down: a function may shrink
+# below its ceiling and be deleted from this file, never grow past it, and a
+# function not listed here may not cross the threshold at all.
+#
+#
+# Empty: the last offender was config.(AppConfig).Validate (31), split into
+# identity, limits, network, access-key, and production checks. A function not
+# listed here may not cross 15 at all.

@@ -109,7 +109,7 @@ func (s *Service) userPage(
 	if err != nil {
 		return nil, pagination.Page{}, err
 	}
-	now := time.Now()
+	now := s.now()
 	dtos := make([]UserAccessDTO, 0, len(users))
 	for _, user := range users {
 		dtos = append(dtos, UserAccessDTO{

@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	maxUploadSize     int64 = 10 << 20
+	uploadSizeMax     int64 = 10 << 20
 	maxFilenameLength       = 200
 	maxImageDimension       = 12000
 )
@@ -60,6 +60,17 @@ func NewService(d ServiceDependency) *Service {
 	return &Service{repository: d.Repository, storage: d.Storage}
 }
 
+// uploadInput is a validated upload: the owner, the name that will be stored,
+// and the extension chosen from the detected type.
+type uploadInput struct {
+	ownerPublicID string
+	filename      string
+	contentType   string
+	extension     string
+	size          int64
+	body          io.Reader
+}
+
 // Upload validates and stores one uploaded file for the owner.
 func (s *Service) Upload(
 	ctx context.Context,
@@ -69,71 +80,124 @@ func (s *Service) Upload(
 	size int64,
 	body io.Reader,
 ) (AssetDTO, error) {
+	input, err := validateUpload(ownerPublicID, filename, contentType, size, body)
+	if err != nil {
+		return AssetDTO{}, err
+	}
+	head, err := readHead(input.body)
+	if err != nil {
+		return AssetDTO{}, err
+	}
+	if !detectedContentTypeMatches(input.contentType, http.DetectContentType(head)) {
+		return AssetDTO{}, ErrInvalidInput
+	}
+	prepared, preparedSize, err := prepareBody(input.body, head, input.contentType, input.size)
+	if err != nil {
+		return AssetDTO{}, err
+	}
+	return s.storeUpload(ctx, input, prepared, preparedSize)
+}
+
+func validateUpload(
+	ownerPublicID, filename, contentType string,
+	size int64,
+	body io.Reader,
+) (uploadInput, error) {
 	ownerPublicID = strings.TrimSpace(ownerPublicID)
 	contentType = strings.ToLower(strings.TrimSpace(contentType))
 	filename = sanitizeFilename(filename)
 	if ownerPublicID == "" || body == nil || filename == "" ||
-		size < 1 || size > maxUploadSize {
-		return AssetDTO{}, ErrInvalidInput
+		size < 1 || size > uploadSizeMax {
+		return uploadInput{}, ErrInvalidInput
 	}
 	extension, ok := allowedContentTypes[contentType]
 	if !ok {
-		return AssetDTO{}, ErrInvalidInput
+		return uploadInput{}, ErrInvalidInput
 	}
+	return uploadInput{
+		ownerPublicID: ownerPublicID,
+		filename:      filename,
+		contentType:   contentType,
+		extension:     extension,
+		size:          size,
+		body:          body,
+	}, nil
+}
 
-	// Trust the bytes, not the browser-supplied MIME type. The S3 SDK also
-	// needs a seekable body for checksum calculation on plain HTTP, so restore
-	// the reader position when possible and fall back to an in-memory buffer.
+// readHead reads the magic bytes the type check needs. A short body ends the
+// read without failing: the size and type checks decide what happens next.
+func readHead(body io.Reader) ([]byte, error) {
 	head := make([]byte, 512)
-	n, readErr := io.ReadFull(body, head)
-	if readErr != nil && readErr != io.ErrUnexpectedEOF && readErr != io.EOF {
-		return AssetDTO{}, ErrInvalidInput
+	n, err := io.ReadFull(body, head)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return nil, ErrInvalidInput
 	}
-	head = head[:n]
-	if !detectedContentTypeMatches(contentType, http.DetectContentType(head)) {
-		return AssetDTO{}, ErrInvalidInput
-	}
+	return head[:n], nil
+}
 
-	// Validate image dimensions without decoding the full pixel payload. This
-	// rejects decompression bombs while keeping metadata handling out of scope.
+// prepareBody makes the body safe for the object store. Images are decoded for
+// their dimensions without decoding the pixel payload, which rejects
+// decompression bombs. The S3 SDK needs a seekable body for checksums, so the
+// reader is rewound when it can be and buffered when it cannot.
+func prepareBody(
+	body io.Reader,
+	head []byte,
+	contentType string,
+	size int64,
+) (io.Reader, int64, error) {
 	if strings.HasPrefix(contentType, "image/") && contentType != "image/webp" {
-		data, err := io.ReadAll(
-			io.LimitReader(io.MultiReader(bytes.NewReader(head), body), maxUploadSize+1),
-		)
-		if err != nil || int64(len(data)) > maxUploadSize {
-			return AssetDTO{}, ErrInvalidInput
+		data, err := readBounded(body, head)
+		if err != nil {
+			return nil, 0, err
 		}
 		config, _, err := image.DecodeConfig(bytes.NewReader(data))
 		if err != nil || config.Width < 1 || config.Height < 1 ||
 			config.Width > maxImageDimension || config.Height > maxImageDimension {
-			return AssetDTO{}, ErrInvalidInput
+			return nil, 0, ErrInvalidInput
 		}
-		body = bytes.NewReader(data)
-		size = int64(len(data))
-	} else if seeker, ok := body.(io.Seeker); ok {
-		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
-			return AssetDTO{}, ErrInvalidInput
-		}
-	} else {
-		data, err := io.ReadAll(
-			io.LimitReader(io.MultiReader(bytes.NewReader(head), body), maxUploadSize+1),
-		)
-		if err != nil || int64(len(data)) > maxUploadSize {
-			return AssetDTO{}, ErrInvalidInput
-		}
-		body = bytes.NewReader(data)
+		return bytes.NewReader(data), int64(len(data)), nil
 	}
+	if seeker, ok := body.(io.Seeker); ok {
+		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+			return nil, 0, ErrInvalidInput
+		}
+		return body, size, nil
+	}
+	data, err := readBounded(body, head)
+	if err != nil {
+		return nil, 0, err
+	}
+	return bytes.NewReader(data), int64(len(data)), nil
+}
 
+// readBounded buffers the head plus the body and refuses anything larger than a
+// permitted upload, so a lying Content-Length cannot fill memory.
+func readBounded(body io.Reader, head []byte) ([]byte, error) {
+	data, err := io.ReadAll(
+		io.LimitReader(io.MultiReader(bytes.NewReader(head), body), uploadSizeMax+1),
+	)
+	if err != nil || int64(len(data)) > uploadSizeMax {
+		return nil, ErrInvalidInput
+	}
+	return data, nil
+}
+
+func (s *Service) storeUpload(
+	ctx context.Context,
+	input uploadInput,
+	body io.Reader,
+	size int64,
+) (AssetDTO, error) {
 	publicID := publicid.MustNew()
-	objectKey := "media/" + ownerPublicID + "/" + publicID + extension
-	if err := s.storage.Put(ctx, objectKey, body, size, contentType); err != nil {
+	objectKey := "media/" + input.ownerPublicID + "/" + publicID + input.extension
+	if err := s.storage.Put(ctx, objectKey, body, size, input.contentType); err != nil {
 		return AssetDTO{}, fmt.Errorf("%w: %v", ErrStorage, err)
 	}
 	asset, err := s.repository.Create(ctx, CreateAssetInput{
 		PublicID:      publicID,
-		OwnerPublicID: ownerPublicID,
-		Filename:      filename,
-		ContentType:   contentType,
+		OwnerPublicID: input.ownerPublicID,
+		Filename:      input.filename,
+		ContentType:   input.contentType,
 		SizeBytes:     size,
 		ObjectKey:     objectKey,
 	})

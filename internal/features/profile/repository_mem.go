@@ -14,6 +14,7 @@ import (
 type MemoryRepository struct {
 	mu      sync.RWMutex
 	records map[string]memoryRecord
+	now     func() time.Time
 }
 
 type memoryRecord struct {
@@ -23,8 +24,9 @@ type memoryRecord struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-func NewMemoryRepository() *MemoryRepository {
-	return &MemoryRepository{records: map[string]memoryRecord{}}
+func NewMemoryRepository(now func() time.Time) *MemoryRepository {
+	assert.Assert(now != nil, "profile memory repository clock is required")
+	return &MemoryRepository{records: map[string]memoryRecord{}, now: now}
 }
 
 // Seed inserts one account into the memory store.
@@ -129,7 +131,7 @@ func (r *MemoryRepository) MarkPasswordSet(
 func SeedDefault(repository *MemoryRepository, publicID, displayName, hash string) {
 	assert.Assert(repository != nil, "memory repository is required")
 
-	now := time.Now().UTC()
+	now := repository.now().UTC()
 	repository.Seed(ProfileResult{
 		PublicID:        publicID,
 		Username:        publicID,

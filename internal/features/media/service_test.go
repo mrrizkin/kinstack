@@ -10,6 +10,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"kinstack/internal/pkg/pagination"
 )
@@ -73,7 +74,7 @@ func testPNG(t *testing.T, width int) []byte {
 }
 
 func newTestService() (*Service, *MemoryRepository, *recordingStorage) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	storage := newRecordingStorage()
 	return NewService(
 		ServiceDependency{Repository: repository, Storage: storage},
@@ -124,7 +125,7 @@ func TestUploadRejectsOversize(t *testing.T) {
 		"user-1",
 		"big.pdf",
 		"application/pdf",
-		maxUploadSize+1,
+		uploadSizeMax+1,
 		bytes.NewReader([]byte("x")),
 	); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected invalid input, got %v", err)

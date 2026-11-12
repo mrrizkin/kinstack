@@ -11,6 +11,7 @@ import (
 	"kinstack/config"
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
+	"kinstack/internal/platform/clock"
 
 	"github.com/gofiber/fiber/v3"
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
@@ -118,7 +119,7 @@ func SetTwoFactorChallenge(c fiber.Ctx, publicID string) error {
 	if err := middleware.Regenerate(); err != nil {
 		return fmt.Errorf("regenerate two-factor session: %w", err)
 	}
-	encoded, err := json.Marshal(twoFactorChallenge{PublicID: publicID, IssuedAt: time.Now().UTC()})
+	encoded, err := json.Marshal(twoFactorChallenge{PublicID: publicID, IssuedAt: clock.System()})
 	if err != nil {
 		return fmt.Errorf("encode two-factor challenge: %w", err)
 	}
@@ -137,7 +138,7 @@ func PendingTwoFactorActor(c fiber.Ctx) (string, bool) {
 	var challenge twoFactorChallenge
 	if raw == "" || json.Unmarshal([]byte(raw), &challenge) != nil ||
 		strings.TrimSpace(challenge.PublicID) == "" ||
-		challenge.IssuedAt.Before(time.Now().UTC().Add(-twoFactorChallengeTTL)) {
+		challenge.IssuedAt.Before(clock.System().Add(-twoFactorChallengeTTL)) {
 		if raw != "" {
 			middleware.Delete(twoFactorSessionKey)
 		}

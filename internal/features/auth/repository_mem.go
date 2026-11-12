@@ -18,6 +18,7 @@ type MemoryRepository struct {
 	resetTokens map[string]memoryMagicToken
 	identities  map[string]memoryIdentity
 	touch       []string
+	now         func() time.Time
 }
 
 type memoryIdentity struct {
@@ -33,8 +34,10 @@ type memoryMagicToken struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-func NewMemoryRepository() *MemoryRepository {
+func NewMemoryRepository(now func() time.Time) *MemoryRepository {
+	assert.Assert(now != nil, "auth memory repository clock is required")
 	return &MemoryRepository{
+		now:         now,
 		users:       make(map[string]FindUserByUsernameResult),
 		tokens:      make(map[string]memoryMagicToken),
 		resetTokens: make(map[string]memoryMagicToken),
@@ -157,7 +160,7 @@ func (r *MemoryRepository) ConsumeMagicLinkToken(
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	token, ok := r.tokens[tokenHash]
-	if !ok || token.used || time.Now().After(token.expiresAt) {
+	if !ok || token.used || r.now().After(token.expiresAt) {
 		return "", ErrNotFound
 	}
 	token.used = true
@@ -192,7 +195,7 @@ func (r *MemoryRepository) ConsumePasswordResetToken(
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	token, ok := r.resetTokens[tokenHash]
-	if !ok || token.used || time.Now().After(token.expiresAt) {
+	if !ok || token.used || r.now().After(token.expiresAt) {
 		return "", ErrNotFound
 	}
 	token.used = true

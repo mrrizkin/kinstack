@@ -104,7 +104,8 @@ func (h *Handler) file(c fiber.Ctx) error {
 		case errors.Is(err, ErrStorage):
 			// The wrapped storage error carries bucket and object details; keep
 			// them in the log and return the shared, generic message.
-			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).
+				Errorw("media storage unavailable", "error", err)
 			return c.Status(fiber.StatusServiceUnavailable).
 				JSON(fiber.Map{"error": ErrStorage.Error()})
 		default:
@@ -116,8 +117,8 @@ func (h *Handler) file(c fiber.Ctx) error {
 	// Clamp to the upload ceiling: a corrupted row must not turn into an
 	// unbounded read even though the recorded size says otherwise.
 	limit := asset.SizeBytes + 1
-	if limit > maxUploadSize+1 {
-		limit = maxUploadSize + 1
+	if limit > uploadSizeMax+1 {
+		limit = uploadSizeMax + 1
 	}
 	data, err := io.ReadAll(io.LimitReader(body, limit))
 	if err != nil {
@@ -126,9 +127,8 @@ func (h *Handler) file(c fiber.Ctx) error {
 	if int64(len(data)) != asset.SizeBytes {
 		// The stored object no longer matches its recorded size. Serve what was
 		// read but leave a trail: a truncated download is a storage incident.
-		h.logger.Warnw(
+		log.ForRequest(h.logger, c.RequestID()).Warnw(
 			"media object size mismatch",
-			"request_id", c.RequestID(),
 			"public_id", asset.PublicID,
 			"recorded_size", asset.SizeBytes,
 			"read_size", len(data),
@@ -189,7 +189,8 @@ func (h *Handler) upload(c fiber.Ctx) error {
 		case errors.Is(err, ErrInvalidInput):
 			return h.uploadValidationError(c, i18n.T("media.unsupported"))
 		case errors.Is(err, ErrStorage):
-			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).
+				Errorw("media storage unavailable", "error", err)
 			return h.uploadValidationError(c, i18n.T("media.storage_unavailable"))
 		default:
 			return h.internalServerError(c, "upload media", err)
@@ -222,7 +223,8 @@ func (h *Handler) delete(c fiber.Ctx) error {
 				ErrInvalidInput.Error(),
 			)
 		case errors.Is(err, ErrStorage):
-			h.logger.Errorw("media storage unavailable", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).
+				Errorw("media storage unavailable", "error", err)
 			return h.inertia.FailedAction(
 				c,
 				h.mediaPathFor(c),
@@ -245,6 +247,6 @@ func (h *Handler) actorPublicID(c fiber.Ctx) string {
 }
 
 func (h *Handler) internalServerError(c fiber.Ctx, message string, err error) error {
-	h.logger.Errorw(message, "request_id", c.RequestID(), "error", err)
+	log.ForRequest(h.logger, c.RequestID()).Errorw(message, "error", err)
 	return fiber.ErrInternalServerError
 }

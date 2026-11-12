@@ -376,20 +376,37 @@ func BackfillSecrets(
 		if len(legacy) == 0 {
 			return migrated, nil
 		}
-		for _, row := range legacy {
-			sealed, err := box.Seal([]byte(row.Secret))
-			if err != nil {
-				return migrated, err
-			}
-			if err := repository.SealSecret(ctx, row.PublicID, sealed, box.Version()); err != nil {
-				return migrated, err
-			}
-			migrated++
+		count, err := sealLegacyRows(ctx, repository, box, legacy)
+		migrated += count
+		if err != nil {
+			return migrated, err
 		}
 		if len(legacy) < batch {
 			return migrated, nil
 		}
 	}
+}
+
+// sealLegacyRows migrates one batch. A partial batch returns the rows already
+// sealed along with the error, so a retry resumes instead of restarting.
+func sealLegacyRows(
+	ctx context.Context,
+	repository Repository,
+	box *envelope.Box,
+	legacy []LegacySecret,
+) (int, error) {
+	sealedCount := 0
+	for _, row := range legacy {
+		sealed, err := box.Seal([]byte(row.Secret))
+		if err != nil {
+			return sealedCount, err
+		}
+		if err := repository.SealSecret(ctx, row.PublicID, sealed, box.Version()); err != nil {
+			return sealedCount, err
+		}
+		sealedCount++
+	}
+	return sealedCount, nil
 }
 
 // RecoveryKeyInfo scopes the envelope key derivation for TOTP secrets.

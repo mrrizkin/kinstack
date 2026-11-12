@@ -16,12 +16,14 @@ type MemoryRepository struct {
 	items  map[string]Notification
 	order  []string
 	nextID int64
+	now    func() time.Time
 }
 
 var _ Repository = (*MemoryRepository)(nil)
 
-func NewMemoryRepository() *MemoryRepository {
-	return &MemoryRepository{items: map[string]Notification{}}
+func NewMemoryRepository(now func() time.Time) *MemoryRepository {
+	assert.Assert(now != nil, "notifications memory repository clock is required")
+	return &MemoryRepository{items: map[string]Notification{}, now: now}
 }
 
 // Seed inserts one notification into the memory store.
@@ -29,12 +31,12 @@ func (r *MemoryRepository) Seed(notification Notification) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if notification.Status == "" {
-		notification.Status = "unread"
+		notification.Status = StatusUnread
 	}
 	// Mirror the Postgres timestamp precision: the keyset cursor travels as
 	// microseconds, so a finer value here would repeat one row per chunk.
 	if notification.CreatedAt.IsZero() {
-		notification.CreatedAt = time.Now().UTC()
+		notification.CreatedAt = r.now().UTC()
 	}
 	notification.CreatedAt = notification.CreatedAt.UTC().Truncate(time.Microsecond)
 	notification.ID = r.nextID + 1
@@ -86,7 +88,7 @@ func (r *MemoryRepository) UnreadCount(_ context.Context, recipientPublicID stri
 
 	count := 0
 	for _, item := range r.items {
-		if item.RecipientPublicID == recipientPublicID && item.Status == "unread" {
+		if item.RecipientPublicID == recipientPublicID && item.Status == StatusUnread {
 			count++
 		}
 	}
@@ -104,8 +106,8 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateInput) (Notific
 		Kind:              input.Kind,
 		Title:             input.Title,
 		Body:              input.Body,
-		Status:            "unread",
-		CreatedAt:         time.Now().UTC().Truncate(time.Microsecond),
+		Status:            StatusUnread,
+		CreatedAt:         r.now().UTC().Truncate(time.Microsecond),
 	}
 	r.nextID = notification.ID
 	r.items[notification.PublicID] = notification
@@ -124,8 +126,12 @@ func (r *MemoryRepository) MarkRead(
 	if !ok || item.RecipientPublicID != recipientPublicID {
 		return Notification{}, ErrNotFound
 	}
-	now := time.Now().UTC()
-	item.Status, item.ReadAt = "read", &now
+	next, err := transitionStatus(item.Status, EventMarkRead)
+	if err != nil {
+		return Notification{}, err
+	}
+	now := r.now().UTC()
+	item.Status, item.ReadAt = next, &now
 	r.items[publicID] = item
 	return item, nil
 }
@@ -134,14 +140,19 @@ func (r *MemoryRepository) MarkAllRead(_ context.Context, recipientPublicID stri
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	affected := 0
 	for id, item := range r.items {
-		if item.RecipientPublicID == recipientPublicID && item.Status == "unread" {
-			item.Status, item.ReadAt = "read", &now
-			r.items[id] = item
-			affected++
+		if item.RecipientPublicID != recipientPublicID || item.Status != StatusUnread {
+			continue
 		}
+		next, err := transitionStatus(item.Status, EventMarkAllRead)
+		if err != nil {
+			return 0, err
+		}
+		item.Status, item.ReadAt = next, &now
+		r.items[id] = item
+		affected++
 	}
 	return affected, nil
 }
@@ -156,7 +167,7 @@ func SeedDefault(repository *MemoryRepository, recipientPublicID, publicID, titl
 		Kind:              "system",
 		Title:             title,
 		Body:              "Pesan " + title,
-		Status:            "unread",
-		CreatedAt:         time.Now().UTC(),
+		Status:            StatusUnread,
+		CreatedAt:         repository.now().UTC(),
 	})
 }

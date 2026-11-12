@@ -25,7 +25,7 @@ import (
 const (
 	convertRoute     = "/forms/chromium/convert/html"
 	defaultTimeout   = 30 * time.Second
-	maxDocumentBytes = 32 << 20
+	documentBytesMax = 32 << 20
 	errorSnippetSize = 200
 )
 
@@ -75,6 +75,29 @@ func (c *Client) Enabled() bool {
 	return c != nil && c.baseURL != ""
 }
 
+// pageFields builds the renderer's option map. A zero value is omitted rather
+// than sent as zero, so the renderer's own default applies.
+func pageFields(options Options) map[string]string {
+	fields := map[string]string{"printBackground": "true"}
+	if options.Landscape {
+		fields["landscape"] = "true"
+	}
+	lengths := map[string]float64{
+		"paperWidth":   options.PaperWidth,
+		"paperHeight":  options.PaperHeight,
+		"marginTop":    options.MarginTop,
+		"marginBottom": options.MarginBottom,
+		"marginLeft":   options.MarginLeft,
+		"marginRight":  options.MarginRight,
+	}
+	for key, value := range lengths {
+		if value > 0 {
+			fields[key] = formatLength(value)
+		}
+	}
+	return fields
+}
+
 // ConvertHTML renders one HTML document into PDF bytes.
 func (c *Client) ConvertHTML(
 	ctx context.Context,
@@ -100,28 +123,7 @@ func (c *Client) ConvertHTML(
 		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
 	}
 
-	fields := map[string]string{"printBackground": "true"}
-	if options.PaperWidth > 0 {
-		fields["paperWidth"] = formatLength(options.PaperWidth)
-	}
-	if options.PaperHeight > 0 {
-		fields["paperHeight"] = formatLength(options.PaperHeight)
-	}
-	if options.MarginTop > 0 {
-		fields["marginTop"] = formatLength(options.MarginTop)
-	}
-	if options.MarginBottom > 0 {
-		fields["marginBottom"] = formatLength(options.MarginBottom)
-	}
-	if options.MarginLeft > 0 {
-		fields["marginLeft"] = formatLength(options.MarginLeft)
-	}
-	if options.MarginRight > 0 {
-		fields["marginRight"] = formatLength(options.MarginRight)
-	}
-	if options.Landscape {
-		fields["landscape"] = "true"
-	}
+	fields := pageFields(options)
 	for key, value := range fields {
 		if err := writer.WriteField(key, value); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrConversion, err)
@@ -148,7 +150,7 @@ func (c *Client) ConvertHTML(
 	}
 	defer func() { _ = response.Body.Close() }()
 
-	content, err := io.ReadAll(io.LimitReader(response.Body, maxDocumentBytes))
+	content, err := io.ReadAll(io.LimitReader(response.Body, documentBytesMax))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
 	}

@@ -74,7 +74,7 @@ func (h *Handler) index(c fiber.Ctx) error {
 				err.Error(),
 			)
 		}
-		h.logger.Errorw("list audit events", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("list audit events", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("audit/IndexView", fiber.Map{

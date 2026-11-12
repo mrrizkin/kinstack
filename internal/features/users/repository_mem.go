@@ -15,12 +15,14 @@ import (
 type MemoryRepository struct {
 	mu    sync.RWMutex
 	users map[string]UserResult
+	now   func() time.Time
 }
 
 var _ Repository = (*MemoryRepository)(nil)
 
-func NewMemoryRepository() *MemoryRepository {
-	return &MemoryRepository{users: make(map[string]UserResult)}
+func NewMemoryRepository(now func() time.Time) *MemoryRepository {
+	assert.Assert(now != nil, "users memory repository clock is required")
+	return &MemoryRepository{users: make(map[string]UserResult), now: now}
 }
 
 // Seed inserts an account projection directly for tests.
@@ -103,7 +105,7 @@ func (r *MemoryRepository) CreateUser(
 		DisplayName: input.DisplayName,
 		IsActive:    true,
 		Invited:     input.Invited,
-		CreatedAt:   time.Now().UTC(),
+		CreatedAt:   r.now().UTC(),
 	}
 	r.users[result.PublicID] = result
 	return result, nil

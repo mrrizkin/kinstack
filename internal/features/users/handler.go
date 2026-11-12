@@ -115,12 +115,12 @@ func (h *Handler) index(c fiber.Ctx) error {
 	}
 	list, err := h.service.List(c.Context(), query)
 	if err != nil {
-		h.logger.Errorw("list users", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("list users", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	roles, err := h.service.RoleOptions(c.Context())
 	if err != nil {
-		h.logger.Errorw("list roles", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("list roles", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("users/IndexView", fiber.Map{
@@ -145,7 +145,7 @@ func (h *Handler) access(c fiber.Ctx) error {
 	}
 	props, err := h.service.AccessView(c.Context(), query, rolesQuery)
 	if err != nil {
-		h.logger.Errorw("access view", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("access view", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("access/IndexView", fiber.Map{
@@ -200,7 +200,7 @@ func (h *Handler) writeErrorAt(c fiber.Ctx, back string, err error) error {
 			err.Error(),
 		)
 	default:
-		h.logger.Errorw("user mutation failed", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("user mutation failed", "error", err)
 		return fiber.ErrInternalServerError
 	}
 }

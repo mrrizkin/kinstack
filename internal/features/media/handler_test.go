@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	applog "kinstack/internal/pkg/log"
 	"kinstack/internal/platform/actor"
@@ -43,7 +44,7 @@ func newMediaTestApp(t *testing.T, service *Service) (*fiber.App, *actor.Actor) 
 }
 
 func TestFileResponseDoesNotLeakStorageDetails(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.Seed(Asset{
 		PublicID:      "asset-1",
 		OwnerPublicID: "user-1",
@@ -80,7 +81,7 @@ func TestFileResponseDoesNotLeakStorageDetails(t *testing.T) {
 }
 
 func TestDeleteResponseDoesNotLeakStorageDetails(t *testing.T) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	repository.Seed(Asset{
 		PublicID:      "asset-1",
 		OwnerPublicID: "user-1",

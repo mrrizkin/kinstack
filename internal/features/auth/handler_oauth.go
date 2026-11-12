@@ -4,7 +4,8 @@ import (
 	"errors"
 	"net/url"
 	"strings"
-	"time"
+
+	"kinstack/internal/pkg/log"
 
 	"kinstack/internal/platform/i18n"
 	platformoauth "kinstack/internal/platform/oauth"
@@ -55,7 +56,7 @@ func (h *Handler) oauthStart(c fiber.Ctx) error {
 		State:    state,
 		Provider: provider.Name(),
 		Nonce:    nonce,
-	}, time.Now())
+	}, h.now())
 	if err != nil {
 		return h.internalServerError(c, "unable to seal oauth state", err)
 	}
@@ -81,6 +82,19 @@ func (h *Handler) oauthStart(c fiber.Ctx) error {
 // matching existing account in. It accepts POST because providers such as Apple
 // post the authorization response back as a form. No session cookie is
 // required: the state is sealed, and transaction data lives in shared storage.
+// oauthReject ends a callback that cannot be completed. Every path out of the
+// callback leaves a line naming why, so a login that fails in production can be
+// explained from the log instead of reproduced.
+func (h *Handler) oauthReject(c fiber.Ctx, reason string, cause error) error {
+	if cause != nil {
+		log.ForRequest(h.logger, c.RequestID()).
+			Warnw("oauth callback rejected", "reason", reason, "error", cause)
+	} else {
+		log.ForRequest(h.logger, c.RequestID()).Warnw("oauth callback rejected", "reason", reason)
+	}
+	return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
+}
+
 func (h *Handler) oauthCallback(c fiber.Ctx) error {
 	if !h.oauthAvailable() {
 		return fiber.ErrServiceUnavailable
@@ -89,18 +103,27 @@ func (h *Handler) oauthCallback(c fiber.Ctx) error {
 	code := firstNonEmpty(c.Query("code"), c.FormValue("code"))
 	requestedProvider := strings.TrimSpace(c.Query("provider"))
 
-	payload, err := h.oauthSigner.Open(rawState, time.Now())
+	payload, err := h.oauthSigner.Open(rawState, h.now())
 	if err != nil || payload.Purpose != platformoauth.PurposeOAuth || code == "" {
-		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
+		// The reason is logged, the value never is: a state blob is a bearer
+		// of the transaction, and the redirect must not confirm which check
+		// failed to the caller.
+		return h.oauthReject(c, "state or code missing", err)
 	}
 	if requestedProvider != "" && requestedProvider != payload.Provider {
-		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
+		return h.oauthReject(c, "provider mismatch", nil)
 	}
 	provider, ok := h.oauthRegistry.Get(payload.Provider)
 	if !ok {
-		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
+		return h.oauthReject(c, "provider not configured", nil)
 	}
-	verifier, _ := h.pkceVerifierStore().Consume(rawState)
+	verifier, verifierOK := h.pkceVerifierStore().Consume(rawState)
+	if !verifierOK {
+		// The verifier is the second half of PKCE. Without it the code
+		// exchange would run unprotected, so the transaction stops here
+		// rather than continue with an empty verifier.
+		return h.oauthReject(c, "pkce verifier missing", nil)
+	}
 	// The provider continuation blob is single use as well.
 	defer h.ssoContinuation().Delete(rawState)
 	identity, err := provider.Complete(c.Context(), platformoauth.ExchangeRequest{
@@ -149,7 +172,7 @@ func (h *Handler) renderOAuthError(c fiber.Ctx, status int, message string) erro
 }
 
 func (h *Handler) internalServerError(c fiber.Ctx, message string, err error) error {
-	h.logger.Errorw(message, "request_id", c.RequestID(), "error", err)
+	log.ForRequest(h.logger, c.RequestID()).Errorw(message, "error", err)
 	return fiber.ErrInternalServerError
 }
 

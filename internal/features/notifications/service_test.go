@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 )
 
 func newTestService() (*Service, *MemoryRepository) {
-	repository := NewMemoryRepository()
+	repository := NewMemoryRepository(time.Now)
 	return NewService(ServiceDependency{Repository: repository}), repository
 }
 

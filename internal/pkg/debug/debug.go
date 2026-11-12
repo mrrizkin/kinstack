@@ -57,42 +57,48 @@ func Print(vs ...any) {
 	if len(vs) == 0 {
 		return
 	}
-
 	for _, v := range vs {
-		t := reflect.TypeOf(v)
-		val := reflect.ValueOf(v)
-
-		if v == nil {
-			console.Line("Type: <nil>\nValue: nil")
-			return
-		}
-
-		console.Line("Type: %v", t)
-		if val.Kind() == reflect.Pointer {
-			if val.IsNil() {
-				console.Line("Value: nil pointer")
-				return
-			}
-			console.Line("Pointer Address: %p", v)
-			val = val.Elem()
-			t = val.Type()
-		}
-
-		jsonBytes, err := json.MarshalIndent(v, "", "  ")
-		if err == nil {
-			console.Line("Value:\n%s", string(jsonBytes))
-		} else {
-			console.Line("Value: %+v", v)
-			if val.Kind() == reflect.Struct {
-				console.Line("Fields:")
-				for i := 0; i < val.NumField(); i++ {
-					field := t.Field(i)
-					value := val.Field(i)
-					console.Line("  %s (%v) = %v", field.Name, field.Type, value.Interface())
-				}
-			}
+		if printValue(v) {
+			break
 		}
 	}
-
 	os.Exit(1)
+}
+
+// printValue writes one value and reports whether it ended the dump, which a
+// nil value does so the output is never half of two different arguments.
+func printValue(v any) (stop bool) {
+	if v == nil {
+		console.Line("Type: <nil>\nValue: nil")
+		return true
+	}
+	value := reflect.ValueOf(v)
+	valueType := reflect.TypeOf(v)
+	console.Line("Type: %v", valueType)
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			console.Line("Value: nil pointer")
+			return true
+		}
+		console.Line("Pointer Address: %p", v)
+		value = value.Elem()
+		valueType = value.Type()
+	}
+	if encoded, err := json.MarshalIndent(v, "", "  "); err == nil {
+		console.Line("Value:\n%s", string(encoded))
+		return false
+	}
+	console.Line("Value: %+v", v)
+	if value.Kind() == reflect.Struct {
+		printStructFields(value, valueType)
+	}
+	return false
+}
+
+func printStructFields(value reflect.Value, valueType reflect.Type) {
+	console.Line("Fields:")
+	for index := 0; index < value.NumField(); index++ {
+		field := valueType.Field(index)
+		console.Line("  %s (%v) = %v", field.Name, field.Type, value.Field(index).Interface())
+	}
 }

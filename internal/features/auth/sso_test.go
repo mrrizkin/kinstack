@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,6 +18,7 @@ import (
 	platformsession "kinstack/internal/platform/session"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/storage/memory/v2"
 )
 
@@ -63,9 +67,10 @@ func (p *fakeSSOProvider) Complete(
 	}, nil
 }
 
-func newSSOTestApp(t *testing.T) (*fiber.App, *fakeSSOProvider, *MemoryRepository) {
+func newSSOTestApp(t *testing.T) (*fiber.App, *fakeSSOProvider, *MemoryRepository, *bytes.Buffer) {
 	t.Helper()
-	repository := NewMemoryRepository()
+	logs := &bytes.Buffer{}
+	repository := NewMemoryRepository(time.Now)
 	repository.AddUser(FindUserByUsernameResult{
 		PublicID:    "usr_1",
 		Username:    "admin",
@@ -80,7 +85,7 @@ func newSSOTestApp(t *testing.T) (*fiber.App, *fakeSSOProvider, *MemoryRepositor
 		Actor: actor.New(
 			actor.Dependency{Repository: actor.NewMemoryRepository("usr_1")},
 		),
-		Logger:              applog.NewNoopLogger(),
+		Logger:              applog.NewWriterLogger(logs),
 		OAuthProviders:      []platformoauth.Provider{provider},
 		OAuthStateSecret:    strings.Repeat("s", 32),
 		OAuthRedirectURL:    "https://app.example/login/oauth/callback",
@@ -88,12 +93,14 @@ func newSSOTestApp(t *testing.T) (*fiber.App, *fakeSSOProvider, *MemoryRepositor
 	})
 
 	app := fiber.New()
+	// Production installs the request ID first; the log assertion needs it.
+	app.Use(requestid.New())
 	app.Use(platformsession.NewMiddleware(
 		platformsession.NewMemoryStore(30*time.Minute),
 		30*time.Minute,
 	))
 	handler.Mount(app)
-	return app, provider, repository
+	return app, provider, repository, logs
 }
 
 // startState performs the authorization redirect and returns the sealed state
@@ -125,7 +132,7 @@ func startState(t *testing.T, app *fiber.App) string {
 // A cross-site POST callback must not depend on the session cookie: providers
 // such as Apple post the authorization response back without one.
 func TestOAuthPostCallbackWorksWithoutSessionCookie(t *testing.T) {
-	app, provider, _ := newSSOTestApp(t)
+	app, provider, _, _ := newSSOTestApp(t)
 	state := startState(t, app)
 
 	form := url.Values{"state": {state}, "code": {"auth-code"}}
@@ -162,7 +169,7 @@ func TestOAuthPostCallbackWorksWithoutSessionCookie(t *testing.T) {
 }
 
 func TestOAuthCallbackRejectsReplayAndTampering(t *testing.T) {
-	app, provider, _ := newSSOTestApp(t)
+	app, provider, _, _ := newSSOTestApp(t)
 	state := startState(t, app)
 
 	post := func(value string) *http.Response {
@@ -196,8 +203,10 @@ func TestOAuthCallbackRejectsReplayAndTampering(t *testing.T) {
 	if response := post(state); signedIn(response) {
 		t.Fatal("replayed state must not sign in again")
 	}
-	if provider.calls != 2 {
-		t.Fatalf("expected the provider to be asked twice, got %d", provider.calls)
+	// The replay stops at the missing PKCE verifier, before the provider is
+	// asked: an exchange without a verifier must never leave the process.
+	if provider.calls != 1 {
+		t.Fatalf("expected the provider to be asked once, got %d", provider.calls)
 	}
 
 	tampered := []byte(state)
@@ -232,5 +241,54 @@ func TestSSOStoreIsNamespacedAndSingleUse(t *testing.T) {
 	}
 	if err := newSSOStore(nil, "").Save("state", "value"); err == nil {
 		t.Fatal("expected a missing storage to fail closed")
+	}
+}
+
+// TestOAuthCallbackLogsWhyItRejected is the observability gate for the callback:
+// every rejected transaction leaves one line naming the reason, so a login that
+// fails in production can be explained rather than reproduced. The state value
+// itself must never appear in the log.
+func TestOAuthCallbackLogsWhyItRejected(t *testing.T) {
+	app, _, _, logs := newSSOTestApp(t)
+
+	form := url.Values{"state": {"not-a-sealed-state"}, "code": {"auth-code"}}
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/login/oauth/callback",
+		strings.NewReader(form.Encode()),
+	)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatalf("callback request: %v", err)
+	}
+	if response.StatusCode != fiber.StatusSeeOther {
+		t.Fatalf("rejected callback status = %d, want a redirect", response.StatusCode)
+	}
+
+	lines := 0
+	scanner := bufio.NewScanner(logs)
+	for scanner.Scan() {
+		raw := scanner.Text()
+		if !strings.Contains(raw, "oauth callback rejected") {
+			continue
+		}
+		lines++
+		fields := map[string]any{}
+		if err := json.Unmarshal([]byte(raw), &fields); err != nil {
+			t.Fatalf("log line is not JSON: %s", raw)
+		}
+		if reason, _ := fields["reason"].(string); reason == "" {
+			t.Fatalf("rejection carries no reason: %s", raw)
+		}
+		if _, ok := fields["request_id"]; !ok {
+			t.Fatalf("rejection carries no request_id: %s", raw)
+		}
+		if strings.Contains(raw, "not-a-sealed-state") {
+			t.Fatalf("rejection leaked the state value: %s", raw)
+		}
+	}
+	if lines != 1 {
+		t.Fatalf("expected exactly one rejection line, got %d", lines)
 	}
 }

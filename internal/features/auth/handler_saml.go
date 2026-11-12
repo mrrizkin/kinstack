@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"kinstack/internal/pkg/log"
+
 	"kinstack/internal/platform/i18n"
 	platformoauth "kinstack/internal/platform/oauth"
 	platformsaml "kinstack/internal/platform/saml"
@@ -20,7 +22,7 @@ func (h *Handler) samlMetadata(c fiber.Ctx) error {
 	}
 	metadata, err := h.samlProvider.Metadata()
 	if err != nil {
-		h.logger.Errorw("render saml metadata", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("render saml metadata", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	c.Set(fiber.HeaderContentType, "application/samlmetadata+xml")

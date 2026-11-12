@@ -94,7 +94,7 @@ func (h *Handler) show(c fiber.Ctx) error {
 	}
 	page, err := h.service.List(c.Context(), h.actorPublicID(c), query)
 	if err != nil {
-		h.logger.Errorw("list api tokens", "request_id", c.RequestID(), "error", err)
+		applog.ForRequest(h.logger, c.RequestID()).Errorw("list api tokens", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	props := fiber.Map{"tokens": page.Tokens, "page": page.Page}
@@ -136,11 +136,11 @@ func (h *Handler) create(c fiber.Ctx) error {
 				map[string]string{"name": err.Error()},
 			)
 		}
-		h.logger.Errorw("create api token", "request_id", c.RequestID(), "error", err)
+		applog.ForRequest(h.logger, c.RequestID()).Errorw("create api token", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	if err := platformsession.SetFlash(c, createdTokenFlashKey, created.Token); err != nil {
-		h.logger.Errorw("store created api token", "request_id", c.RequestID(), "error", err)
+		applog.ForRequest(h.logger, c.RequestID()).Errorw("store created api token", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.Redirect().Status(fiber.StatusSeeOther).To(apiTokensPath)
@@ -158,10 +158,8 @@ func (h *Handler) validateScopes(c fiber.Ctx, scopes []string) error {
 	}
 	granted, err := h.authorization.Permissions(c.Context(), authz.PrincipalFromActor(session))
 	if err != nil {
-		h.logger.Errorw(
+		applog.ForRequest(h.logger, c.RequestID()).Errorw(
 			"resolve permissions for token scopes",
-			"request_id",
-			c.RequestID(),
 			"error",
 			err,
 		)
@@ -191,7 +189,7 @@ func (h *Handler) revoke(c fiber.Ctx) error {
 	}
 	if err := h.service.Revoke(c.Context(), h.actorPublicID(c), c.Params("publicID")); err != nil {
 		if !errors.Is(err, ErrNotFound) {
-			h.logger.Errorw("revoke api token", "request_id", c.RequestID(), "error", err)
+			applog.ForRequest(h.logger, c.RequestID()).Errorw("revoke api token", "error", err)
 			return fiber.ErrInternalServerError
 		}
 	}

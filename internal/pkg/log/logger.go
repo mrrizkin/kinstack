@@ -27,6 +27,13 @@ type LoggerDependency struct {
 	ExtraWriters []io.Writer
 }
 
+// NewWriterLogger returns a logger that writes JSON lines to w. Tests use it to
+// assert what an operation logged, without a file or a telemetry pipeline.
+func NewWriterLogger(w io.Writer) *Logger {
+	assert.Assert(w != nil, "log writer is required")
+	return &Logger{core: zerolog.New(w).With().Timestamp().Logger()}
+}
+
 // NewLogger creates a Logger from the application config.
 // It requires file logging to be enabled and panics otherwise.
 func NewLogger(d LoggerDependency) *Logger {
@@ -168,6 +175,20 @@ func (l *Logger) WithContext(value any) fiberlog.CommonLogger {
 	return &Logger{
 		core: l.core.With().Ctx(ctx).Logger(),
 	}
+}
+
+// RequestIDKey is the field every request-scoped log line carries.
+const RequestIDKey = "request_id"
+
+// ForRequest binds a request ID to every line the logger writes. Handlers take
+// their logger through this instead of passing "request_id" by hand, so a new
+// call site cannot forget it.
+func ForRequest(logger Log, requestID string) Log {
+	concrete, ok := logger.(*Logger)
+	if !ok || requestID == "" {
+		return logger
+	}
+	return &Logger{core: concrete.core.With().Str(RequestIDKey, requestID).Logger()}
 }
 
 // -----------------------------------------------------------------------------

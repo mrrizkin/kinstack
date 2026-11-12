@@ -19,7 +19,7 @@ import (
 func Middleware(
 	recorder Recorder,
 	actorBoundary *platformactor.Actor,
-	onError func(error),
+	onError func(c fiber.Ctx, err error),
 ) fiber.Handler {
 	if recorder == nil {
 		return func(c fiber.Ctx) error { return c.Next() }
@@ -43,7 +43,7 @@ func Middleware(
 			event.ActorKey = actor.PublicID
 		}
 		if recordErr := recorder.Record(c.Context(), event); recordErr != nil && onError != nil {
-			onError(recordErr)
+			onError(c, recordErr)
 		}
 		return err
 	}

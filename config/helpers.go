@@ -6,8 +6,14 @@ import (
 	"strings"
 )
 
+// environmentProduction is the one environment that turns on the extra checks.
+const environmentProduction = "production"
+
 func isProduction() bool {
-	return strings.EqualFold(strings.TrimSpace(env("APP_ENV", "development")), "production")
+	return strings.EqualFold(
+		strings.TrimSpace(env("APP_ENV", "development")),
+		environmentProduction,
+	)
 }
 
 func validateURL(name, raw string, requireHTTPS bool) error {
@@ -88,35 +94,49 @@ func lowEntropySecret(value string) bool {
 	if len(value) < 8 {
 		return true
 	}
-	distinct := make(map[byte]struct{}, len(value))
-	digitsOnly := true
-	for i := 0; i < len(value); i++ {
-		distinct[value[i]] = struct{}{}
-		if value[i] < '0' || value[i] > '9' {
-			digitsOnly = false
-		}
-	}
-	if len(distinct) < 4 {
+	distinct, digitsOnly := secretShape(value)
+	if distinct < 4 {
 		return true
 	}
 	if digitsOnly && len(value) < 24 {
 		return true
 	}
-	// Detect a short block repeated to fill the value ("abcabcabcabc").
+	// A short block repeated to fill the value ("abcabcabcabc") is not a secret.
+	return repeatedBlock(value)
+}
+
+// secretShape reports how many distinct bytes the value uses and whether it is
+// nothing but digits — a code, not a passphrase.
+func secretShape(value string) (distinct int, digitsOnly bool) {
+	seen := make(map[byte]struct{}, len(value))
+	digitsOnly = true
+	for index := 0; index < len(value); index++ {
+		seen[value[index]] = struct{}{}
+		if value[index] < '0' || value[index] > '9' {
+			digitsOnly = false
+		}
+	}
+	return len(seen), digitsOnly
+}
+
+// repeatedBlock reports whether the value is one block repeated to length.
+func repeatedBlock(value string) bool {
 	for size := 1; size <= len(value)/2 && size <= 8; size++ {
 		if len(value)%size != 0 {
 			continue
 		}
-		repeated := true
-		for i := size; i < len(value); i++ {
-			if value[i] != value[i%size] {
-				repeated = false
-				break
-			}
-		}
-		if repeated {
+		if blockRepeats(value, size) {
 			return true
 		}
 	}
 	return false
+}
+
+func blockRepeats(value string, size int) bool {
+	for index := size; index < len(value); index++ {
+		if value[index] != value[index%size] {
+			return false
+		}
+	}
+	return true
 }

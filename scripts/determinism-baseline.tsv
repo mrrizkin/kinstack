@@ -1,0 +1,4 @@
+# Direct time/randomness in code, ratcheted by check-determinism.sh.
+# path<TAB>allowed-hits. Lower a number when the hits drop; never raise it.
+# Empty is the goal and the current state: the one real clock lives in
+# internal/platform/clock, and the observability stamps are exempted by pragma.

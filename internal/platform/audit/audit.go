@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"kinstack/internal/pkg/assert"
+	"kinstack/internal/platform/clock"
 )
 
 // Audit validates events and delegates persistence to a Repository.
@@ -110,7 +111,7 @@ func normalizeEvent(event Event) Event {
 	event.RequestID = strings.TrimSpace(event.RequestID)
 	event.ActorKey = strings.TrimSpace(event.ActorKey)
 	if event.OccurredAt.IsZero() {
-		event.OccurredAt = time.Now().UTC()
+		event.OccurredAt = clock.System()
 	} else {
 		event.OccurredAt = event.OccurredAt.UTC()
 	}

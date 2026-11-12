@@ -15,12 +15,12 @@ func HTTPMiddleware(l *Logger) fiber.Handler {
 		start := time.Now()
 
 		requestID := requestid.FromContext(c)
+		scoped := ForRequest(l, requestID)
 		method := c.Method()
 		path := c.Path()
 		ip := c.IP()
 
-		l.Infow("Request started",
-			"request_id", requestID,
+		scoped.Infow("Request started",
 			"method", method,
 			"path", path,
 			"ip", ip,
@@ -37,8 +37,7 @@ func HTTPMiddleware(l *Logger) fiber.Handler {
 				status = e.Code
 			}
 
-			l.Errorw("Request completed",
-				"request_id", requestID,
+			scoped.Errorw("Request completed",
 				"method", method,
 				"path", path,
 				"ip", ip,
@@ -47,8 +46,7 @@ func HTTPMiddleware(l *Logger) fiber.Handler {
 				"error", err,
 			)
 		} else {
-			l.Infow("Request completed",
-				"request_id", requestID,
+			scoped.Infow("Request completed",
 				"method", method,
 				"path", path,
 				"ip", ip,

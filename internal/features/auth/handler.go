@@ -6,6 +6,7 @@ import (
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
 	"kinstack/internal/platform/actor"
+	"kinstack/internal/platform/clock"
 	platformoauth "kinstack/internal/platform/oauth"
 	platformsaml "kinstack/internal/platform/saml"
 	"kinstack/internal/platform/sessionregistry"
@@ -24,6 +25,10 @@ type HandlerDependency struct {
 	MagicLinkEnabled bool
 	PasskeyEnabled   bool
 	PasswordReset    bool
+
+	// Now supplies the wall clock for signed OAuth state. Nil falls back to
+	// the system clock.
+	Now func() time.Time
 
 	OAuthProviders   []platformoauth.Provider
 	OAuthStateSecret string
@@ -58,12 +63,18 @@ type Handler struct {
 	samlACSURL   string
 
 	ssoStorage fiber.Storage
+	now        func() time.Time
 }
 
 func NewHandler(d HandlerDependency) *Handler {
 	assert.Assert(d.Service != nil, "auth service is required")
 	assert.Assert(d.Actor != nil, "auth actor boundary is required")
 	assert.Assert(d.Logger != nil, "auth logger is required")
+
+	now := d.Now
+	if now == nil {
+		now = clock.System
+	}
 
 	handler := &Handler{
 		service:   d.Service,
@@ -80,6 +91,7 @@ func NewHandler(d HandlerDependency) *Handler {
 		samlACSURL:   d.SAMLACSURL,
 
 		ssoStorage: d.ContinuationStorage,
+		now:        now,
 	}
 	if len(d.OAuthProviders) > 0 || d.SAMLProvider != nil {
 		assert.Assert(d.ContinuationStorage != nil, "sso continuation storage is required")
@@ -146,7 +158,7 @@ func (h *Handler) loginPage(c fiber.Ctx) error {
 	}
 	err := c.Render("auth/LoginView", h.loginProps())
 	if err != nil {
-		h.logger.Errorw("render login page", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("render login page", "error", err)
 	}
 	return err
 }

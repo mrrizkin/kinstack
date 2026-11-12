@@ -146,33 +146,59 @@ func (r *MemoryRepository) FindPasskeyUser(
 ) (FindPasskeyUserResult, []ListPasskeysResult, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	owner, records, ok := r.findCredentialOwnerLocked(credentialID, userHandle)
+	if !ok {
+		return FindPasskeyUserResult{}, nil, ErrPasskeyNotFound
+	}
+	user, ok := r.userByPublicIDLocked(owner)
+	if !ok {
+		return FindPasskeyUserResult{}, nil, ErrPasskeyNotFound
+	}
+	results, err := passkeyResults(records)
+	if err != nil {
+		return FindPasskeyUserResult{}, nil, err
+	}
+	return user, results, nil
+}
+
+// findCredentialOwnerLocked finds the active user whose handle matches and who
+// owns the credential. Two users may hold records with the same handle, so the
+// credential is what decides the owner.
+func (r *MemoryRepository) findCredentialOwnerLocked(
+	credentialID, userHandle []byte,
+) (string, []PasskeyRecord, bool) {
 	for id, records := range r.passkeys {
 		if !r.activeUserLocked(id) || !bytes.Equal(passkeyUserHandle(id), userHandle) {
 			continue
 		}
 		for _, record := range records {
-			if !bytes.Equal(record.ID, credentialID) {
-				continue
+			if bytes.Equal(record.ID, credentialID) {
+				return id, records, true
 			}
-			var user FindPasskeyUserResult
-			for _, candidate := range r.users {
-				if candidate.PublicID == id {
-					user = candidate
-					break
-				}
-			}
-			results := make([]ListPasskeysResult, 0, len(records))
-			for _, item := range records {
-				result, err := passkeyResult(item)
-				if err != nil {
-					return FindPasskeyUserResult{}, nil, err
-				}
-				results = append(results, result)
-			}
-			return user, results, nil
 		}
 	}
-	return FindPasskeyUserResult{}, nil, ErrPasskeyNotFound
+	return "", nil, false
+}
+
+func (r *MemoryRepository) userByPublicIDLocked(publicID string) (FindPasskeyUserResult, bool) {
+	for _, candidate := range r.users {
+		if candidate.PublicID == publicID {
+			return candidate, true
+		}
+	}
+	return FindPasskeyUserResult{}, false
+}
+
+func passkeyResults(records []PasskeyRecord) ([]ListPasskeysResult, error) {
+	results := make([]ListPasskeysResult, 0, len(records))
+	for _, item := range records {
+		result, err := passkeyResult(item)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	return results, nil
 }
 
 func passkeyResult(record PasskeyRecord) (ListPasskeysResult, error) {

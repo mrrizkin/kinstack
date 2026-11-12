@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 
+	"kinstack/internal/pkg/log"
+
 	"kinstack/internal/platform/actor"
 	"kinstack/internal/platform/i18n"
 	platformsession "kinstack/internal/platform/session"
@@ -45,9 +47,8 @@ func (h *Handler) login(c fiber.Ctx) error {
 			// A disabled account must look exactly like a wrong password: the
 			// password was verified, so the only difference is account state.
 			if errors.Is(err, ErrInactiveUser) {
-				h.logger.Infow(
+				log.ForRequest(h.logger, c.RequestID()).Infow(
 					"sign-in rejected for inactive account",
-					"request_id", c.RequestID(),
 					"user", strings.TrimSpace(request.Username),
 				)
 			}
@@ -59,7 +60,7 @@ func (h *Handler) login(c fiber.Ctx) error {
 			props["errors"] = fiber.Map{"auth": err.Error()}
 			return c.Status(fiber.StatusTooManyRequests).Render("auth/LoginView", props)
 		default:
-			h.logger.Errorw("login failed", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).Errorw("login failed", "error", err)
 			return fiber.ErrInternalServerError
 		}
 	}
@@ -78,7 +79,7 @@ func (h *Handler) twoFactorPage(c fiber.Ctx) error {
 	}
 	err := c.Render("auth/TwoFactorView", fiber.Map{})
 	if err != nil {
-		h.logger.Errorw("render two-factor page", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("render two-factor page", "error", err)
 	}
 	return err
 }
@@ -106,7 +107,7 @@ func (h *Handler) verifyTwoFactor(c fiber.Ctx) error {
 	}
 	verified, err := h.twoFactor.Verify(c.Context(), publicID, request.Code)
 	if err != nil {
-		h.logger.Errorw("verify two-factor code", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("verify two-factor code", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	if !verified {
@@ -118,7 +119,7 @@ func (h *Handler) verifyTwoFactor(c fiber.Ctx) error {
 	h.service.ClearSecondFactorFailures(c.Context(), publicID, client)
 	session, err := h.service.Session(c.Context(), publicID)
 	if err != nil {
-		h.logger.Errorw("load two-factor session", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("load two-factor session", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	platformsession.ClearTwoFactorChallenge(c)
@@ -131,15 +132,13 @@ func (h *Handler) completeLogin(c fiber.Ctx, session SessionResponse) error {
 	if !session.Superuser && h.twoFactor != nil {
 		enabled, err := h.twoFactor.IsEnabled(c.Context(), session.PublicID)
 		if err != nil {
-			h.logger.Errorw("check two-factor status", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).Errorw("check two-factor status", "error", err)
 			return fiber.ErrInternalServerError
 		}
 		if enabled {
 			if err := platformsession.SetTwoFactorChallenge(c, session.PublicID); err != nil {
-				h.logger.Errorw(
+				log.ForRequest(h.logger, c.RequestID()).Errorw(
 					"establish two-factor challenge",
-					"request_id",
-					c.RequestID(),
 					"error",
 					err,
 				)
@@ -170,7 +169,7 @@ func (h *Handler) setSession(c fiber.Ctx, session SessionResponse) error {
 		Role:        session.Role,
 		Superuser:   session.Superuser,
 	}); err != nil {
-		h.logger.Errorw("establish session", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("establish session", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	h.registerSession(c, session)
@@ -196,7 +195,7 @@ func (h *Handler) registerSession(c fiber.Ctx, session SessionResponse) {
 		IP:           c.IP(),
 		UserAgent:    c.Get(fiber.HeaderUserAgent),
 	}); err != nil {
-		h.logger.Errorw("register browser session", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("register browser session", "error", err)
 	}
 }
 
@@ -204,12 +203,12 @@ func (h *Handler) registerSession(c fiber.Ctx, session SessionResponse) {
 func (h *Handler) logout(c fiber.Ctx) error {
 	sessionID := platformsession.CurrentID(c)
 	if err := h.actor.ClearActor(c); err != nil {
-		h.logger.Errorw("clear session", "request_id", c.RequestID(), "error", err)
+		log.ForRequest(h.logger, c.RequestID()).Errorw("clear session", "error", err)
 		return fiber.ErrInternalServerError
 	}
 	if h.sessions != nil {
 		if err := h.sessions.RevokeSession(c.Context(), sessionID); err != nil {
-			h.logger.Errorw("revoke browser session", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).Errorw("revoke browser session", "error", err)
 		}
 	}
 	// Root resolves to the auth path for signed-out visitors.

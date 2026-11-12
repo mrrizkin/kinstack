@@ -6,7 +6,9 @@ tool (
 	github.com/a-h/templ/cmd/templ
 	github.com/air-verse/air
 	github.com/golangci/golines
+	github.com/nakabonne/nestif/cmd/nestif
 	github.com/pressly/goose/v3/cmd/goose
+	github.com/uudashr/gocognit/cmd/gocognit
 	golang.org/x/tools/cmd/goimports
 	golang.org/x/vuln/cmd/govulncheck
 	honnef.co/go/tools/cmd/staticcheck
@@ -14,6 +16,7 @@ tool (
 )
 
 require (
+	codeberg.org/mrrizkin/dstsim v0.4.1
 	codeberg.org/mrrizkin/fibertia v0.2.0
 	codeberg.org/mrrizkin/vite-go v1.0.2
 	github.com/DataDog/gostackparse v0.7.0
@@ -21,7 +24,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.3
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/crewjam/saml v0.5.1
+	github.com/crewjam/saml v0.6.3
 	github.com/getsentry/sentry-go v0.50.0
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/gofiber/fiber/v3 v3.6.1
@@ -145,7 +148,6 @@ require (
 	github.com/lestrrat-go/jwx v1.2.31 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
-	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.31 // indirect
@@ -154,6 +156,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.11.2 // indirect
 	github.com/molecule-man/go-brrr v1.3.0 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
+	github.com/nakabonne/nestif v0.3.1 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect
@@ -174,10 +177,12 @@ require (
 	github.com/shopspring/decimal v1.6.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tdewolff/parse/v2 v2.8.19 // indirect
 	github.com/tinylib/msgp v1.6.5 // indirect
 	github.com/tursodatabase/libsql-client-go v0.0.0-20260528064733-9d5d30a29a60 // indirect
+	github.com/uudashr/gocognit v1.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.76.0 // indirect
 	github.com/vertica/vertica-sql-go v1.3.8 // indirect

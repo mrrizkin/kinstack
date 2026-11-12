@@ -51,9 +51,27 @@ jobs:
       - name: create rollback database
         run: PGPASSWORD=kinstack psql -h localhost -p 5433 -U kinstack -d postgres -c 'CREATE DATABASE kinstack_rollback'
       - run: go test -race ./...
+      # Same seed corpus as `just fuzz`, on a budget: a fuzz target nobody runs
+      # decays into an expensive unit test.
+      - run: go test -run=NONE -fuzz=FuzzSplitToken -fuzztime=30s ./internal/features/apitoken
 
       - run: ./scripts/check-feature-slices.sh
-      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - run: ./scripts/check-determinism.sh
+      - run: go mod tidy -diff
+      - run: ./scripts/check-observability.sh
+      - run: ./scripts/check-vuln.sh
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Pinned: a scanner that changes under you cannot be reasoned about.
+      - name: Install gitleaks
+        run: |
+          version=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+      - run: ./scripts/check-secrets.sh
 
   frontend:
     runs-on: ubuntu-latest
@@ -62,8 +80,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
       - run: bun install --frozen-lockfile
-      # FIXME: see the justfile audit recipe for why this advisory is ignored.
-      - run: bun audit --ignore=GHSA-hp3w-g68c-fv3c
+      # Nothing is ignored: a dependency that cannot be patched is a deviation
+      # recorded in PILLARS.md, not a flag here.
+      - run: bun audit
       # vite build generates auto-imports.d.ts + components.d.ts (gitignored)
       # which vue-tsc needs before it can resolve auto-imported components.
       - run: bun x vite build

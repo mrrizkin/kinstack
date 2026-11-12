@@ -8,6 +8,7 @@ import (
 
 	"kinstack/config"
 	"kinstack/internal/platform/audit"
+	"kinstack/internal/platform/clock"
 	"kinstack/internal/platform/database"
 )
 
@@ -37,7 +38,7 @@ func PruneAudit(retention time.Duration) error {
 	}
 	defer func() { _ = repository.Close() }()
 
-	cutoff := time.Now().UTC().Add(-retention)
+	cutoff := clock.System().Add(-retention)
 	deleted, err := audit.New(repository).Prune(context.Background(), cutoff)
 	if err != nil {
 		return fmt.Errorf("prune audit events: %w", err)

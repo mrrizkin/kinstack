@@ -35,9 +35,22 @@ func LoadDatabase() DatabaseConfig {
 
 // Validate checks the database settings required by the application.
 func (c DatabaseConfig) Validate() error {
-	if err := c.validateDatabase(); err != nil {
+	dsn, err := parseDatabaseURL(c.URL)
+	if err != nil {
 		return err
 	}
+	if err := c.validatePool(); err != nil {
+		return err
+	}
+	if !isProduction() {
+		return nil
+	}
+	return requireProductionDSN(dsn)
+}
+
+// validatePool rejects pool sizes that cannot be satisfied. The idle ceiling is
+// checked against open here because the driver would only find out at runtime.
+func (c DatabaseConfig) validatePool() error {
 	if c.StatementTimeout < 0 {
 		return fmt.Errorf("DB_STATEMENT_TIMEOUT must not be negative")
 	}
@@ -50,33 +63,41 @@ func (c DatabaseConfig) Validate() error {
 	if c.MaxOpenConns > 0 && c.MaxIdleConns > c.MaxOpenConns {
 		return fmt.Errorf("DB_MAX_IDLE_CONNS must not exceed DB_MAX_CONNS")
 	}
-	dsn, err := url.Parse(c.URL)
-	if err != nil || dsn.Host == "" || (dsn.Scheme != "postgres" && dsn.Scheme != "postgresql") {
-		return fmt.Errorf("DATABASE_URL must be a postgres:// or postgresql:// URL")
+	return nil
+}
+
+// requireProductionDSN states the three things a production connection string
+// may not omit: a user, a real password, and encryption in transit.
+func requireProductionDSN(dsn *url.URL) error {
+	if dsn.User == nil || dsn.User.Username() == "" {
+		return fmt.Errorf("DATABASE_URL must include a database username")
 	}
-	if isProduction() {
-		if dsn.User == nil || dsn.User.Username() == "" {
-			return fmt.Errorf("DATABASE_URL must include a database username")
-		}
-		password, hasPassword := dsn.User.Password()
-		if !hasPassword || placeholderSecret(password) {
-			return fmt.Errorf("DATABASE_URL must include a non-placeholder database password")
-		}
-		sslMode := strings.ToLower(dsn.Query().Get("sslmode"))
-		if sslMode == "" || sslMode == "disable" {
-			return fmt.Errorf("DATABASE_URL must set sslmode to an encrypted mode in production")
-		}
+	password, hasPassword := dsn.User.Password()
+	if !hasPassword || placeholderSecret(password) {
+		return fmt.Errorf("DATABASE_URL must include a non-placeholder database password")
+	}
+	sslMode := strings.ToLower(dsn.Query().Get("sslmode"))
+	if sslMode == "" || sslMode == "disable" {
+		return fmt.Errorf("DATABASE_URL must set sslmode to an encrypted mode in production")
 	}
 	return nil
 }
 
 func (c DatabaseConfig) validateDatabase() error {
-	if c.URL == "" {
-		return fmt.Errorf("DATABASE_URL is required")
+	_, err := parseDatabaseURL(c.URL)
+	return err
+}
+
+// parseDatabaseURL is the single definition of an acceptable DATABASE_URL, so
+// the startup assertion and Validate cannot disagree about it.
+func parseDatabaseURL(raw string) (*url.URL, error) {
+	if raw == "" {
+		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
-	dsn, err := url.Parse(c.URL)
-	if err != nil || dsn.Host == "" || (dsn.Scheme != "postgres" && dsn.Scheme != "postgresql") {
-		return fmt.Errorf("DATABASE_URL must be a postgres:// or postgresql:// URL")
+	dsn, err := url.Parse(raw)
+	if err != nil || dsn.Host == "" ||
+		(dsn.Scheme != "postgres" && dsn.Scheme != "postgresql") {
+		return nil, fmt.Errorf("DATABASE_URL must be a postgres:// or postgresql:// URL")
 	}
-	return nil
+	return dsn, nil
 }

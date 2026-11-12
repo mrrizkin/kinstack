@@ -15,12 +15,14 @@ import (
 type MemoryRepository struct {
 	mu     sync.RWMutex
 	assets map[string]Asset
+	now    func() time.Time
 }
 
 var _ Repository = (*MemoryRepository)(nil)
 
-func NewMemoryRepository() *MemoryRepository {
-	return &MemoryRepository{assets: map[string]Asset{}}
+func NewMemoryRepository(now func() time.Time) *MemoryRepository {
+	assert.Assert(now != nil, "media memory repository clock is required")
+	return &MemoryRepository{assets: map[string]Asset{}, now: now}
 }
 
 // Seed inserts one asset into the memory store.
@@ -62,7 +64,7 @@ func (r *MemoryRepository) Create(_ context.Context, input CreateAssetInput) (As
 		ContentType:   input.ContentType,
 		SizeBytes:     input.SizeBytes,
 		ObjectKey:     input.ObjectKey,
-		CreatedAt:     time.Now().UTC(),
+		CreatedAt:     r.now().UTC(),
 	}
 	r.assets[asset.PublicID] = asset
 	return asset, nil
@@ -117,6 +119,6 @@ func SeedDefault(repository *MemoryRepository, ownerPublicID, publicID, filename
 		ContentType:   "image/png",
 		SizeBytes:     1024,
 		ObjectKey:     "media/" + ownerPublicID + "/" + publicID + ".png",
-		CreatedAt:     time.Now().UTC(),
+		CreatedAt:     repository.now().UTC(),
 	})
 }

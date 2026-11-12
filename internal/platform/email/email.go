@@ -123,15 +123,27 @@ func (s *SMTPSender) Send(ctx context.Context, message Message) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	from := addressOnly(s.config.From)
-	to := addressOnly(message.To)
+	client, err := s.dial(ctx)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	if err := s.secure(client); err != nil {
+		return err
+	}
+	return deliverMessage(client, message, addressOnly(s.config.From), addressOnly(message.To))
+}
+
+// dial opens the TCP session and gives the client the caller's deadline, so a
+// stalled relay cannot hold the request open past its context.
+func (s *SMTPSender) dial(ctx context.Context) (*smtp.Client, error) {
 	conn, err := (&net.Dialer{}).DialContext(
 		ctx,
 		"tcp",
 		net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port)),
 	)
 	if err != nil {
-		return fmt.Errorf("dial email relay: %w", err)
+		return nil, fmt.Errorf("dial email relay: %w", err)
 	}
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)
@@ -139,9 +151,13 @@ func (s *SMTPSender) Send(ctx context.Context, message Message) error {
 	client, err := smtp.NewClient(conn, s.config.Host)
 	if err != nil {
 		_ = conn.Close()
-		return fmt.Errorf("open email relay: %w", err)
+		return nil, fmt.Errorf("open email relay: %w", err)
 	}
-	defer client.Close()
+	return client, nil
+}
+
+// secure upgrades the session when the relay requires TLS, then authenticates.
+func (s *SMTPSender) secure(client *smtp.Client) error {
 	if s.config.StartTLS {
 		if err := client.StartTLS(
 			&tls.Config{ServerName: s.config.Host, MinVersion: tls.VersionTLS12},
@@ -149,13 +165,19 @@ func (s *SMTPSender) Send(ctx context.Context, message Message) error {
 			return fmt.Errorf("start email relay TLS: %w", err)
 		}
 	}
-	if s.config.Username != "" {
-		if err := client.Auth(
-			smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host),
-		); err != nil {
-			return fmt.Errorf("authenticate email relay: %w", err)
-		}
+	if s.config.Username == "" {
+		return nil
 	}
+	if err := client.Auth(
+		smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host),
+	); err != nil {
+		return fmt.Errorf("authenticate email relay: %w", err)
+	}
+	return nil
+}
+
+// deliverMessage runs the envelope and body exchange for one message.
+func deliverMessage(client *smtp.Client, message Message, from, to string) error {
 	if err := client.Mail(from); err != nil {
 		return fmt.Errorf("set email sender: %w", err)
 	}
@@ -172,9 +194,6 @@ func (s *SMTPSender) Send(ctx context.Context, message Message) error {
 	}
 	if err := writer.Close(); err != nil {
 		return fmt.Errorf("close email body: %w", err)
-	}
-	if err := client.Quit(); err != nil {
-		return fmt.Errorf("complete email delivery: %w", err)
 	}
 	return nil
 }

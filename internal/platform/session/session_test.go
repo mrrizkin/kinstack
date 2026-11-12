@@ -9,6 +9,7 @@ import (
 	platformactor "kinstack/internal/platform/actor"
 
 	"github.com/gofiber/fiber/v3"
+	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 )
 
 func TestRequireKnownActorHTTPBoundary(t *testing.T) {
@@ -115,4 +116,37 @@ func cookiesHeader(cookies []*http.Cookie) string {
 		header += cookie.Name + "=" + cookie.Value
 	}
 	return header
+}
+
+// TestPendingTwoFactorActorRejectsCorruptChallenge is the storage-fault
+// boundary: a session value can arrive truncated by a torn write, replaced by
+// arbitrary bytes, or carrying a payload that was already expired. None of them
+// may produce an actor, and none may panic.
+func TestPendingTwoFactorActorRejectsCorruptChallenge(t *testing.T) {
+	valid := `{"public_id":"A1b2C3d4E5f6G7h8I9j0K","issued_at":"2025-01-01T00:00:00Z"}`
+	stale := `{"public_id":"A1b2C3d4E5f6G7h8I9j0K","issued_at":"2020-01-01T00:00:00Z"}`
+	payloads := []string{
+		"", "{}", "null", "[]", "garbage", stale,
+		`{"public_id":"","issued_at":"2025-01-01T00:00:00Z"}`,
+	}
+	for cut := 0; cut < len(valid); cut++ {
+		payloads = append(payloads, valid[:cut])
+	}
+
+	app := fiber.New()
+	app.Use(NewMiddleware(NewMemoryStore(time.Minute), time.Minute))
+	app.Get("/probe", func(c fiber.Ctx) error {
+		middleware := fibersession.FromContext(c)
+		for _, payload := range payloads {
+			middleware.Set(twoFactorSessionKey, payload)
+			if actor, ok := PendingTwoFactorActor(c); ok {
+				t.Fatalf("corrupt challenge %q produced actor %q", payload, actor)
+			}
+		}
+		return c.SendStatus(http.StatusNoContent)
+	})
+	response, err := app.Test(httptest.NewRequest(http.MethodGet, "/probe", nil))
+	if err != nil || response.StatusCode != http.StatusNoContent {
+		t.Fatalf("corruption probe: status=%d err=%v", response.StatusCode, err)
+	}
 }

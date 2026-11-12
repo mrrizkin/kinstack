@@ -100,15 +100,15 @@ func TestCSPReportTruncatesOversizedBodies(t *testing.T) {
 	logger := &captureLogger{}
 	app := newCSPTestApp(t, logger)
 
-	body := strings.Repeat("x", maxCSPReportBytes+512)
+	body := strings.Repeat("x", cspReportBytesMax+512)
 	if status := postCSPReport(t, app, body); status != fiber.StatusNoContent {
 		t.Fatalf("status=%d, want %d", status, fiber.StatusNoContent)
 	}
 	if got, _ := logger.fields["report_truncated"].(bool); !got {
 		t.Fatal("report_truncated must be true")
 	}
-	if got, _ := logger.fields["report_bytes"].(int); got != maxCSPReportBytes {
-		t.Fatalf("report_bytes=%d, want %d", got, maxCSPReportBytes)
+	if got, _ := logger.fields["report_bytes"].(int); got != cspReportBytesMax {
+		t.Fatalf("report_bytes=%d, want %d", got, cspReportBytesMax)
 	}
 	if got := logger.field("directive"); got != "" {
 		t.Fatalf("truncated payload must not produce a directive, got %q", got)

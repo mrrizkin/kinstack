@@ -58,9 +58,29 @@ lint-go:
 check-feature-slices:
     ./scripts/check-feature-slices.sh
 
+# Cognitive complexity and nesting ceilings. Ratchets down via the baseline.
+check-complexity:
+    ./scripts/check-complexity.sh
+
 # Icon names must live in resources/js/lib/icons.ts, never in components.
 check-icons:
     ./scripts/check-icons.sh
+
+# Direct time or randomness in feature code. Ratchets down via the baseline.
+# go.mod must match the imports. An unused dependency is load (PILLARS §2).
+check-modules:
+    go mod tidy -diff
+
+
+check-observability:
+    ./scripts/check-observability.sh
+
+check-determinism:
+    ./scripts/check-determinism.sh
+
+# Secret scan over the committed tree. Needs gitleaks on PATH; CI installs it.
+check-secrets:
+    ./scripts/check-secrets.sh
 
 # Requires a production build and no running Vite dev server.
 smoke-csp:
@@ -76,10 +96,14 @@ format-go-check:
 test: type-check test-go test-frontend
 
 test-go: ensure-email-assets
-    go test ./...
+    go test -race ./...
 
 test-frontend:
     bun test resources/js
+
+# Coverage-guided fuzzing. Not part of verify: it runs until interrupted.
+fuzz:
+    go test -run '^$$' -fuzz FuzzSplitToken -fuzztime 30s ./internal/features/apitoken
 
 # Print a local Go coverage report. This is informational, not a CI gate.
 coverage:
@@ -87,18 +111,19 @@ coverage:
     @go tool cover -func=/tmp/kinstack-cover.out | tail -n 1
 
 # Full gate before committing: types, tests, lint, format, feature slices.
-verify: type-check format-go-check test-go test-frontend lint-go lint-check format-check check-feature-slices check-icons
+verify: type-check format-go-check test-go test-frontend lint-go lint-check format-check check-feature-slices check-icons check-complexity check-determinism check-observability check-modules
 
 # Structural drift report. Informational only; never fails.
 shape:
     ./scripts/shape.sh
 
-# Dependency vulnerability scans.
-# FIXME: sprintf-js has no patched release and is reachable only through
-# js-yaml's CLI, which the build never runs. Drop the ignore when a fix ships.
+# Dependency vulnerability scans. No advisory is ignored: a dependency that
+# cannot be patched is a deviation recorded in PILLARS.md, not a flag here.
+# Both scans fail on anything new. The single allowed advisory is recorded as a
+# deviation in PILLARS.md; see scripts/check-vuln.sh.
 audit:
-    bun audit --ignore=GHSA-hp3w-g68c-fv3c
-    go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+    bun audit
+    ./scripts/check-vuln.sh
 
 # Next release tag for the current UTC ISO week: v<YEAR>.<WEEK>.<PATCH>.
 next-version:

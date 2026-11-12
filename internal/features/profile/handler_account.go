@@ -3,6 +3,8 @@ package profile
 import (
 	"errors"
 
+	"kinstack/internal/pkg/log"
+
 	"kinstack/internal/platform/i18n"
 	platformsession "kinstack/internal/platform/session"
 
@@ -51,7 +53,7 @@ func (h *Handler) updateTheme(c fiber.Ctx) error {
 		case errors.Is(err, ErrNotFound):
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
 		default:
-			h.logger.Errorw("update theme", "request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).Errorw("update theme", "error", err)
 			return fiber.ErrInternalServerError
 		}
 	}
@@ -69,8 +71,9 @@ func (h *Handler) changePassword(c fiber.Ctx) error {
 	// Roll the session identifier after a credential change.
 	if sessionActor := h.actor.ActorFromContext(c); sessionActor != nil {
 		if err := h.actor.SetActor(c, *sessionActor); err != nil {
-			h.logger.Errorw("regenerate session after password change",
-				"request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).
+				Errorw("regenerate session after password change",
+					"error", err)
 		}
 	}
 	// A password change signs out every other device.
@@ -80,13 +83,13 @@ func (h *Handler) changePassword(c fiber.Ctx) error {
 			h.actorPublicID(c),
 			platformsession.CurrentID(c),
 		); err != nil {
-			h.logger.Errorw("revoke other sessions after password change",
-				"request_id", c.RequestID(), "error", err)
+			log.ForRequest(h.logger, c.RequestID()).
+				Errorw("revoke other sessions after password change",
+					"error", err)
 		}
 	}
-	h.logger.Infow(
+	log.ForRequest(h.logger, c.RequestID()).Infow(
 		"password changed",
-		"request_id", c.RequestID(),
 		"user", h.actorPublicID(c),
 	)
 	return h.inertia.RedirectWithFlash(c,

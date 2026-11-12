@@ -90,7 +90,7 @@ func TestMiddlewareRecordsProtectedReadsAndMutations(t *testing.T) {
 		Middleware(
 			recorder,
 			actorBoundary,
-			func(err error) { t.Errorf("record audit event: %v", err) },
+			func(_ fiber.Ctx, err error) { t.Errorf("record audit event: %v", err) },
 		),
 	)
 	app.Get("/login", func(c fiber.Ctx) error {

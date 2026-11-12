@@ -122,7 +122,7 @@ func (t *Telemetry) Middleware() fiber.Handler {
 		if strings.HasPrefix(path, "/build/") || path == "/health" || path == "/ready" {
 			return c.Next()
 		}
-		start := time.Now()
+		start := time.Now() //kinstack:allow-nondeterminism latency is measured against the wall clock
 		ctx := otel.GetTextMapPropagator().Extract(c.Context(), headerCarrier{c: c})
 		ctx, span := t.tracer.Start(
 			ctx,
@@ -168,7 +168,11 @@ func (t *Telemetry) Middleware() fiber.Handler {
 				attribute.Int("http.response.status_code", status),
 			)
 			t.requestCount.Add(c.Context(), 1, attrs)
-			t.requestLatency.Record(c.Context(), time.Since(start).Seconds(), attrs)
+			t.requestLatency.Record(
+				c.Context(),
+				time.Since(start).Seconds(), //kinstack:allow-nondeterminism as above
+				attrs,
+			)
 		}
 		return err
 	}
