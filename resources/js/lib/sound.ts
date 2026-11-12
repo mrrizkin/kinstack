@@ -47,11 +47,16 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", warm, { once: true });
 }
 
-/**
- * A wooden FM tone: a sine carrier modulated by its fourth harmonic with a
- * decaying index.
- */
-function marimba(audio: AudioContext, frequency: number, offset: number, duration: number, peak = 0.06) {
+interface ChimeNote {
+  frequency: number;
+  offset: number;
+  duration: number;
+  peak?: number;
+}
+
+/** A wooden FM tone: a sine carrier modulated by its fourth harmonic with a decaying index. */
+function marimba(audio: AudioContext, note: ChimeNote) {
+  const { frequency, offset, duration, peak = 0.06 } = note;
   const start = audio.currentTime + offset;
 
   const carrier = audio.createOscillator();
@@ -93,6 +98,21 @@ export function playNotificationSound(kind: NotificationSound = "info") {
   previewNotificationSound(kind);
 }
 
+// The chime per kind, as data: a rising pair for success, a falling pair for
+// error, one long note for info, one short note for mute.
+const CHIMES: Record<NotificationSound, ChimeNote[]> = {
+  success: [
+    { frequency: 783.99, offset: 0, duration: 0.22 },
+    { frequency: 1046.5, offset: 0.11, duration: 0.3, peak: 0.055 },
+  ],
+  error: [
+    { frequency: 440, offset: 0, duration: 0.22 },
+    { frequency: 349.23, offset: 0.11, duration: 0.3, peak: 0.055 },
+  ],
+  info: [{ frequency: 523.25, offset: 0, duration: 0.4, peak: 0.07 }],
+  mute: [{ frequency: 523.25, offset: 0, duration: 0.12, peak: 0.05 }],
+};
+
 /**
  * Plays the chime regardless of the mute preference: used to preview the sound
  * when the user enables it from the settings page.
@@ -105,22 +125,9 @@ export function previewNotificationSound(kind: NotificationSound = "info") {
   if (!audio) {
     return;
   }
-
-  if (kind === "success") {
-    marimba(audio, 783.99, 0, 0.22, 0.06);
-    marimba(audio, 1046.5, 0.11, 0.3, 0.055);
-    return;
+  for (const note of CHIMES[kind]) {
+    marimba(audio, note);
   }
-  if (kind === "error") {
-    marimba(audio, 440, 0, 0.22, 0.06);
-    marimba(audio, 349.23, 0.11, 0.3, 0.055);
-    return;
-  }
-  if (kind === "mute") {
-    marimba(audio, 523.25, 0, 0.12, 0.05);
-    return;
-  }
-  marimba(audio, 523.25, 0, 0.4, 0.07);
 }
 
 /** Shared mute preference for the notification chime. */

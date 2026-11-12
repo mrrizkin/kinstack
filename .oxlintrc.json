@@ -10,6 +10,10 @@
   "rules": {
     "curly": "error",
     "no-lonely-if": "error",
-    "no-nested-ternary": "error"
+    "no-nested-ternary": "error",
+    "max-depth": ["error", 3],
+    "max-nested-callbacks": ["error", 3],
+    "max-params": ["error", 4],
+    "complexity": ["error", 20]
   }
 }

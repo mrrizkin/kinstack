@@ -423,6 +423,14 @@ Frontend specifics:
   and ternaries never nest. `oxlint` (`curly`, `no-lonely-if`,
   `no-nested-ternary`) enforces the rules; `oxfmt` then puts each brace on its
   own line, so a one-line `if (x) return y;` cannot pass `just verify`.
+- Complexity is capped, not described: a function may nest 3 levels, hold 3
+  nested callbacks, take 4 parameters, and branch 20 ways. `oxlint`
+  (`max-depth`, `max-nested-callbacks`, `max-params`, `complexity`) fails
+  `just verify` beyond that, so a function that is hard to read has to be split
+  before it merges. Raw length is not gated: a long function of flat steps is
+  readable, while a short one of nested conditions is not, and oxlint ships no
+  cognitive-complexity rule that would tell them apart. Go is measured by
+  `gocognit` in `just check-complexity`.
 
 `[GATE]` `just verify`, `just check-feature-slices`, `just check-icons`.
 
