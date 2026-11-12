@@ -22,9 +22,8 @@ type HandlerDependency struct {
 	Sessions  *sessionregistry.Service
 	TwoFactor *twofactor.Service
 
-	MagicLinkEnabled bool
-	PasskeyEnabled   bool
-	PasswordReset    bool
+	PasskeyEnabled bool
+	PasswordReset  bool
 
 	// Now supplies the wall clock for signed OAuth state. Nil falls back to
 	// the system clock.
@@ -51,9 +50,8 @@ type Handler struct {
 	sessions  *sessionregistry.Service
 	twoFactor *twofactor.Service
 
-	magicLinkEnabled bool
-	passkeyEnabled   bool
-	passwordReset    bool
+	passkeyEnabled bool
+	passwordReset  bool
 
 	oauthRegistry    *platformoauth.Registry
 	oauthSigner      *platformoauth.StateSigner
@@ -83,9 +81,8 @@ func NewHandler(d HandlerDependency) *Handler {
 		sessions:  d.Sessions,
 		twoFactor: d.TwoFactor,
 
-		magicLinkEnabled: d.MagicLinkEnabled,
-		passkeyEnabled:   d.PasskeyEnabled,
-		passwordReset:    d.PasswordReset,
+		passkeyEnabled: d.PasskeyEnabled,
+		passwordReset:  d.PasswordReset,
 
 		samlProvider: d.SAMLProvider,
 		samlACSURL:   d.SAMLACSURL,
@@ -114,16 +111,14 @@ func NewHandler(d HandlerDependency) *Handler {
 func (h *Handler) Mount(router fiber.Router) {
 	router.Get("/login", h.loginPage)
 	router.Post("/login", h.login)
-	if h.magicLinkEnabled {
-		router.Post("/login/magic-link", h.requestMagicLink)
-		router.Get("/login/magic-link/:token", h.consumeMagicLink)
-	}
 	if h.passwordReset {
 		router.Get("/login/forgot", h.forgotPasswordPage)
 		router.Post("/login/forgot", h.requestPasswordReset)
-		router.Get("/login/reset/:token", h.resetPasswordPage)
-		router.Post("/login/reset/:token", h.resetPassword)
 	}
+	// Reset routes stay mounted when self-service reset is off: an administrator
+	// invitation delivers the same single-use token to activate a new account.
+	router.Get("/login/reset/:token", h.resetPasswordPage)
+	router.Post("/login/reset/:token", h.resetPassword)
 	router.Get("/login/oauth/start", h.oauthStart)
 	router.Get("/login/oauth/callback", h.oauthCallback)
 	router.Post("/login/oauth/callback", h.oauthCallback)
@@ -166,7 +161,6 @@ func (h *Handler) loginPage(c fiber.Ctx) error {
 // loginProps exposes the enabled sign-in methods to the sign-in page.
 func (h *Handler) loginProps() fiber.Map {
 	props := fiber.Map{
-		"magic_link_enabled":     h.magicLinkEnabled,
 		"passkey_enabled":        h.passkeyEnabled,
 		"password_reset_enabled": h.passwordReset,
 	}

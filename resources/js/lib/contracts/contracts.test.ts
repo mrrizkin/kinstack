@@ -17,7 +17,7 @@ describe("page props contracts", () => {
       app_name: "KinStack",
       csrf_token: "token",
       media_enabled: true,
-      auth_methods: { passkey: true, magic_link: false },
+      auth_methods: { passkey: true, api_token: false },
       actor: { public_id: "usr_1", username: "alex", superuser: true },
       authz_permissions: ["users.view"],
       errors: { email: ["Email is required"] },

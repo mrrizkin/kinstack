@@ -32,7 +32,6 @@ export const loginPageSchema = z.looseObject({
   oauth_enabled: z.boolean().optional(),
   oauth_providers: z.array(z.looseObject({ name: z.string(), label: z.string() })).optional(),
   oauth_error: z.string().optional(),
-  magic_link_enabled: z.boolean().optional(),
   passkey_enabled: z.boolean().optional(),
   password_reset_enabled: z.boolean().optional(),
   saml_enabled: z.boolean().optional(),

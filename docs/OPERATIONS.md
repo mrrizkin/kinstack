@@ -159,7 +159,7 @@ expand → migrate → contract pattern.
 
 ### Email delivery failure
 
-- Magic links, password resets, and invitations fail.
+- Password resets and invitations fail.
 - Check the SMTP relay and credentials.
 - Never print tokens in logs.
 

@@ -2,6 +2,10 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -39,7 +43,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, address string) erro
 		return nil
 	}
 
-	raw, hash, err := newMagicToken()
+	raw, hash, err := newOpaqueToken()
 	if err != nil {
 		return err
 	}
@@ -95,7 +99,7 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken string, newPasswor
 		)
 	}
 
-	publicID, err := s.repository.ConsumePasswordResetToken(ctx, hashMagicToken(rawToken))
+	publicID, err := s.repository.ConsumePasswordResetToken(ctx, hashOpaqueToken(rawToken))
 	if errors.Is(err, ErrNotFound) {
 		return ErrInvalidToken
 	}
@@ -117,4 +121,22 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken string, newPasswor
 		return fmt.Errorf("hash password: %w", err)
 	}
 	return s.repository.UpdatePasswordHash(ctx, publicID, hash)
+}
+
+// newOpaqueToken mints a 256-bit single-use token and returns the raw value
+// that travels in the emailed link together with the hash that is stored.
+func newOpaqueToken() (string, string, error) {
+	buffer := make([]byte, 32)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", "", err
+	}
+	raw := base64.RawURLEncoding.EncodeToString(buffer)
+	return raw, hashOpaqueToken(raw), nil
+}
+
+// hashOpaqueToken is the one-way transform applied before storage, so a leaked
+// token table cannot be replayed.
+func hashOpaqueToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
 }

@@ -93,18 +93,6 @@ SET last_login_at = now()
 WHERE public_id = $1
   AND deleted_at IS NULL`
 
-	createMagicLinkTokenQuery = `
-INSERT INTO magic_link_tokens (user_public_id, token_hash, expires_at)
-VALUES ($1, $2, $3)`
-
-	consumeMagicLinkTokenQuery = `
-UPDATE magic_link_tokens
-SET used_at = now()
-WHERE token_hash = $1
-  AND used_at IS NULL
-  AND expires_at > now()
-RETURNING user_public_id`
-
 	createPasswordResetTokenQuery = `
 INSERT INTO password_reset_tokens (user_public_id, token_hash, expires_at)
 VALUES ($1, $2, $3)`
@@ -136,8 +124,6 @@ type SQLRepository struct {
 	findIdentityStmt   *sqlx.Stmt
 	upsertIdentityStmt *sqlx.Stmt
 	touchStmt          *sqlx.Stmt
-	createTokenStmt    *sqlx.Stmt
-	consumeTokenStmt   *sqlx.Stmt
 	createResetStmt    *sqlx.Stmt
 	consumeResetStmt   *sqlx.Stmt
 	updatePassStmt     *sqlx.Stmt
@@ -165,8 +151,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 		{&repository.findIdentityStmt, "auth_find_identity_user", findIdentityQuery},
 		{&repository.upsertIdentityStmt, "auth_upsert_identity", upsertIdentityQuery},
 		{&repository.touchStmt, "auth_touch_last_login", touchLastLoginQuery},
-		{&repository.createTokenStmt, "auth_create_magic_link_token", createMagicLinkTokenQuery},
-		{&repository.consumeTokenStmt, "auth_consume_magic_link_token", consumeMagicLinkTokenQuery},
 		{
 			&repository.createResetStmt,
 			"auth_create_password_reset_token",
@@ -286,37 +270,7 @@ func (r *SQLRepository) UpsertIdentity(
 	return nil
 }
 
-// CreateMagicLinkToken stores one single-use passwordless sign-in token.
-func (r *SQLRepository) CreateMagicLinkToken(ctx context.Context, token MagicLinkToken) error {
-	if _, err := r.createTokenStmt.ExecContext(
-		ctx,
-		token.UserPublicID,
-		token.TokenHash,
-		token.ExpiresAt,
-	); err != nil {
-		return fmt.Errorf("create magic link token: %w", err)
-	}
-	return nil
-}
-
-// ConsumeMagicLinkToken atomically marks a valid token as used and returns the
-// account it belongs to. ErrNotFound is returned for unknown, used, or expired
-// tokens.
-func (r *SQLRepository) ConsumeMagicLinkToken(
-	ctx context.Context,
-	tokenHash string,
-) (string, error) {
-	var publicID string
-	err := r.consumeTokenStmt.GetContext(ctx, &publicID, tokenHash)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNotFound
-	}
-	if err != nil {
-		return "", fmt.Errorf("consume magic link token: %w", err)
-	}
-	return publicID, nil
-}
-
+// TouchLastLogin records a successful sign-in for one account.
 func (r *SQLRepository) TouchLastLogin(ctx context.Context, publicID string) error {
 	if _, err := r.touchStmt.ExecContext(ctx, publicID); err != nil {
 		return fmt.Errorf("touch last login: %w", err)
@@ -324,7 +278,8 @@ func (r *SQLRepository) TouchLastLogin(ctx context.Context, publicID string) err
 	return nil
 }
 
-// CreatePasswordResetToken stores one single-use password reset token.
+// CreatePasswordResetToken stores one single-use password reset or invitation
+// token.
 func (r *SQLRepository) CreatePasswordResetToken(
 	ctx context.Context,
 	token PasswordResetToken,

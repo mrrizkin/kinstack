@@ -24,10 +24,6 @@ type TwoFactorRequest struct {
 	Code string `json:"code"`
 }
 
-type MagicLinkRequest struct {
-	Email string `json:"email"`
-}
-
 type ForgotPasswordRequest struct {
 	Email string `json:"email"`
 }

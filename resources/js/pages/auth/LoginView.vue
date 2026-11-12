@@ -7,7 +7,6 @@ import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { loginPageSchema } from "@/lib/contracts/pages";
 import { passkeyCredentialSchema, passkeyOptionsSchema } from "@/lib/contracts/passkeys";
-import { fieldMessage } from "@/lib/errors";
 import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
 import { usePageSchema } from "@/lib/page-props";
@@ -21,22 +20,12 @@ defineOptions({
   ],
 });
 
-const {
-  notice,
-  oauth_enabled,
-  oauth_providers,
-  oauth_error,
-  magic_link_enabled,
-  passkey_enabled,
-  password_reset_enabled,
-  saml_enabled,
-} = usePageSchema(loginPageSchema);
+const { notice, oauth_enabled, oauth_providers, oauth_error, passkey_enabled, password_reset_enabled, saml_enabled } =
+  usePageSchema(loginPageSchema);
 
 const { csrfToken } = usePageProps();
 const passkeySupported = supportsWebAuthn();
-const hasAlternatives = computed(() =>
-  Boolean(magic_link_enabled || oauth_enabled || saml_enabled || (passkey_enabled && passkeySupported)),
-);
+const hasAlternatives = computed(() => Boolean(oauth_enabled || saml_enabled || (passkey_enabled && passkeySupported)));
 const passkeyLoading = ref(false);
 const passkeyError = ref("");
 
@@ -114,16 +103,6 @@ async function submitPasskey() {
     passkeyLoading.value = false;
   }
 }
-
-const magicForm = useForm({
-  email: "",
-});
-
-function submitMagicLink() {
-  magicForm.post("/login/magic-link", {
-    onSuccess: () => magicForm.reset("email"),
-  });
-}
 </script>
 
 <template>
@@ -187,30 +166,6 @@ function submitMagicLink() {
             size="lg"
             block
             to="/login/saml/start" />
-
-          <form
-            v-if="magic_link_enabled"
-            class="flex flex-col gap-2 pt-2 sm:flex-row"
-            @submit.prevent="submitMagicLink">
-            <UFormField name="email" :error="fieldMessage(magicForm.errors.email)" class="flex-1">
-              <UInput
-                v-model="magicForm.email"
-                type="email"
-                :icon="icons.mail"
-                placeholder="name@example.com"
-                autocomplete="email"
-                size="lg"
-                class="w-full" />
-            </UFormField>
-            <UButton
-              type="submit"
-              label="Send link"
-              color="neutral"
-              variant="outline"
-              size="lg"
-              :loading="magicForm.processing"
-              :disabled="magicForm.processing" />
-          </form>
 
           <UAlert v-if="passkeyError" color="error" variant="subtle" :icon="icons.error" :title="passkeyError" />
         </div>

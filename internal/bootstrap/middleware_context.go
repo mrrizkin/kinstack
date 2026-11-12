@@ -27,10 +27,9 @@ func registerContextMiddleware(d GlobalMiddlewareDependency) {
 		d.Inertia.ShareWith(c, "csrf_token", csrf.TokenFromContext(c))
 		d.Inertia.ShareWith(c, "media_enabled", d.Config.RustFS.Enabled)
 		d.Inertia.ShareWith(c, "auth_methods", fiber.Map{
-			"magic_link": d.Config.Auth.MagicLink.Enabled,
-			"passkey":    d.Config.Auth.Passkey.Enabled,
-			"api_token":  d.Config.Auth.APIToken.Enabled,
-			"oauth":      d.Config.Auth.OAuthEnabled(),
+			"passkey":   d.Config.Auth.Passkey.Enabled,
+			"api_token": d.Config.Auth.APIToken.Enabled,
+			"oauth":     d.Config.Auth.OAuthEnabled(),
 		})
 		actor := d.Actor.ActorFromContext(c)
 		if actor != nil {

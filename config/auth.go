@@ -57,7 +57,6 @@ type AuthConfig struct {
 	// application secret key is used instead.
 	TwoFactorKey string
 
-	MagicLink     MethodToggle
 	PasswordReset MethodToggle
 	Passkey       MethodToggle
 	APIToken      MethodToggle
@@ -74,7 +73,6 @@ func (c *AuthConfig) Load() {
 	c.StateSecret = os.Getenv("AUTH_STATE_SECRET")
 	c.TwoFactorKey = strings.TrimSpace(os.Getenv("AUTH_2FA_KEY"))
 
-	c.MagicLink.load("AUTH_MAGIC_LINK_ENABLED", true)
 	c.PasswordReset.load("AUTH_PASSWORD_RESET_ENABLED", true)
 	c.Passkey.load("AUTH_PASSKEY_ENABLED", true)
 	c.APIToken.load("AUTH_API_TOKEN_ENABLED", true)

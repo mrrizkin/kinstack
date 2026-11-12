@@ -14,8 +14,7 @@ import (
 type MemoryRepository struct {
 	mu          sync.RWMutex
 	users       map[string]FindUserByUsernameResult
-	tokens      map[string]memoryMagicToken
-	resetTokens map[string]memoryMagicToken
+	resetTokens map[string]memoryResetToken
 	identities  map[string]memoryIdentity
 	touch       []string
 	now         func() time.Time
@@ -26,7 +25,7 @@ type memoryIdentity struct {
 	email        string
 }
 
-type memoryMagicToken struct {
+type memoryResetToken struct {
 	userPublicID string
 	expiresAt    time.Time
 	used         bool
@@ -39,8 +38,7 @@ func NewMemoryRepository(now func() time.Time) *MemoryRepository {
 	return &MemoryRepository{
 		now:         now,
 		users:       make(map[string]FindUserByUsernameResult),
-		tokens:      make(map[string]memoryMagicToken),
-		resetTokens: make(map[string]memoryMagicToken),
+		resetTokens: make(map[string]memoryResetToken),
 		identities:  make(map[string]memoryIdentity),
 	}
 }
@@ -140,34 +138,6 @@ func (r *MemoryRepository) FindUserByEmail(
 	return FindUserByUsernameResult{}, ErrNotFound
 }
 
-func (r *MemoryRepository) CreateMagicLinkToken(
-	_ context.Context,
-	token MagicLinkToken,
-) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.tokens[token.TokenHash] = memoryMagicToken{
-		userPublicID: token.UserPublicID,
-		expiresAt:    token.ExpiresAt,
-	}
-	return nil
-}
-
-func (r *MemoryRepository) ConsumeMagicLinkToken(
-	_ context.Context,
-	tokenHash string,
-) (string, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	token, ok := r.tokens[tokenHash]
-	if !ok || token.used || r.now().After(token.expiresAt) {
-		return "", ErrNotFound
-	}
-	token.used = true
-	r.tokens[tokenHash] = token
-	return token.userPublicID, nil
-}
-
 func (r *MemoryRepository) TouchLastLogin(_ context.Context, publicID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -181,7 +151,7 @@ func (r *MemoryRepository) CreatePasswordResetToken(
 ) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.resetTokens[token.TokenHash] = memoryMagicToken{
+	r.resetTokens[token.TokenHash] = memoryResetToken{
 		userPublicID: token.UserPublicID,
 		expiresAt:    token.ExpiresAt,
 	}

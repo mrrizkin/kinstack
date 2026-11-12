@@ -32,9 +32,8 @@ type Dependency struct {
 	TwoFactor     *twofactor.Service
 	Revoker       CredentialRevoker
 
-	MagicLinkEnabled bool
-	PasskeyEnabled   bool
-	PasswordReset    bool
+	PasskeyEnabled bool
+	PasswordReset  bool
 
 	OAuthProviders   []platformoauth.Provider
 	OAuthStateSecret string
@@ -72,9 +71,8 @@ func New(d Dependency) *Feature {
 		Sessions:  d.Sessions,
 		TwoFactor: d.TwoFactor,
 
-		MagicLinkEnabled: d.MagicLinkEnabled,
-		PasskeyEnabled:   d.PasskeyEnabled,
-		PasswordReset:    d.PasswordReset,
+		PasskeyEnabled: d.PasskeyEnabled,
+		PasswordReset:  d.PasswordReset,
 
 		OAuthProviders:   d.OAuthProviders,
 		OAuthStateSecret: d.OAuthStateSecret,

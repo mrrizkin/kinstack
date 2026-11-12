@@ -1,6 +1,10 @@
 -- +goose Up
--- Single-use, short-lived passwordless sign-in tokens. Only the SHA-256 hash of
--- the token is stored; the raw value exists only in the emailed link.
+-- Passwordless sign-in is gone. Invitations reuse password_reset_tokens, so the
+-- dedicated token table has no remaining reader.
+DROP TABLE IF EXISTS magic_link_tokens;
+
+-- +goose Down
+-- Restore the table so the pair round-trips on a database that still has it.
 CREATE TABLE magic_link_tokens (
     id BIGSERIAL PRIMARY KEY,
     user_public_id TEXT NOT NULL REFERENCES users (public_id) ON DELETE CASCADE,
@@ -12,6 +16,3 @@ CREATE TABLE magic_link_tokens (
 
 CREATE INDEX magic_link_tokens_user_active_idx
     ON magic_link_tokens (user_public_id) WHERE used_at IS NULL;
-
--- +goose Down
-DROP TABLE IF EXISTS magic_link_tokens;

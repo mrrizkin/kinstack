@@ -33,7 +33,10 @@ defineProps<{
         <UFormField label="Username" :error="fieldMessage(createForm.errors.username)">
           <UInput v-model="createForm.username" class="w-full" placeholder="e.g. alex" />
         </UFormField>
-        <UFormField label="Email" hint="Optional, for magic links" :error="fieldMessage(createForm.errors.email)">
+        <UFormField
+          label="Email"
+          hint="Optional, used for password recovery"
+          :error="fieldMessage(createForm.errors.email)">
           <UInput v-model="createForm.email" type="email" class="w-full" placeholder="e.g. alex@example.com" />
         </UFormField>
         <UFormField label="Display name" :error="fieldMessage(createForm.errors.display_name)">

@@ -263,9 +263,8 @@ func newAuthFeature(d AppDependency, dependency authFeatureDependency) *auth.Fea
 		TwoFactor:     deps.TwoFactor,
 		Revoker:       dependency.revoker,
 
-		MagicLinkEnabled: d.Config.Auth.MagicLink.Enabled,
-		PasskeyEnabled:   d.Config.Auth.Passkey.Enabled,
-		PasswordReset:    d.Config.Auth.PasswordReset.Enabled,
+		PasskeyEnabled: d.Config.Auth.Passkey.Enabled,
+		PasswordReset:  d.Config.Auth.PasswordReset.Enabled,
 
 		OAuthProviders:   oauthProviders(d.Config, oauthRedirectURL),
 		OAuthStateSecret: d.Config.Auth.StateSecret,

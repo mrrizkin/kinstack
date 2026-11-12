@@ -17,7 +17,8 @@ var (
 	ErrInvalidInput = errors.New(i18n.T("auth.invalid_input"))
 	// ErrAccountLocked identifies a temporarily locked account.
 	ErrAccountLocked = errors.New(i18n.T("auth.account_locked"))
-	// ErrInvalidToken identifies an unknown, used, or expired sign-in token.
+	// ErrInvalidToken identifies an unknown, used, or expired reset or
+	// invitation token.
 	ErrInvalidToken = errors.New(i18n.T("auth.invalid_token"))
 	// ErrIdentityConflict identifies a provider subject already bound to another
 	// account. It is reported as unregistered so the response cannot be used to

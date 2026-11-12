@@ -142,86 +142,6 @@ func TestLoginWithoutEnvironmentCredentialsIgnoresSuperAdminPath(t *testing.T) {
 	}
 }
 
-func TestConsumeMagicLinkAuthenticatesAndBurnsToken(t *testing.T) {
-	repository := NewMemoryRepository(time.Now)
-	repository.AddUser(FindUserByUsernameResult{
-		PublicID:    "usr_magic",
-		Username:    "budi",
-		Email:       "budi@contoh.com",
-		DisplayName: "Budi",
-		Role:        testAdminRole,
-		IsActive:    true,
-	})
-	service := NewService(ServiceDependency{Repository: repository})
-	if err := repository.CreateMagicLinkToken(context.Background(), MagicLinkToken{
-		UserPublicID: "usr_magic",
-		TokenHash:    hashMagicToken("raw-token"),
-		ExpiresAt:    time.Now().Add(time.Minute),
-	}); err != nil {
-		t.Fatalf("seed token: %v", err)
-	}
-
-	session, err := service.ConsumeMagicLink(context.Background(), "raw-token")
-	if err != nil {
-		t.Fatalf("consume magic link: %v", err)
-	}
-	if session.PublicID != "usr_magic" {
-		t.Fatalf("unexpected session: %#v", session)
-	}
-	if _, err := service.ConsumeMagicLink(
-		context.Background(),
-		"raw-token",
-	); !errors.Is(
-		err,
-		ErrInvalidToken,
-	) {
-		t.Fatalf("expected single-use token, got %v", err)
-	}
-}
-
-func TestRequestMagicLinkSendsSingleUseEmail(t *testing.T) {
-	repository := NewMemoryRepository(time.Now)
-	repository.AddUser(FindUserByUsernameResult{
-		PublicID:    "usr_magic",
-		Username:    "budi",
-		Email:       "budi@contoh.com",
-		DisplayName: "Budi",
-		Role:        testAdminRole,
-		IsActive:    true,
-	})
-	sender := email.NewMemorySender()
-	service := NewService(ServiceDependency{
-		Repository: repository,
-		Email:      sender,
-		EmailFrom:  "no-reply@kinstack.test",
-		BaseURL:    "http://localhost:3000",
-	})
-
-	if err := service.RequestMagicLink(context.Background(), "budi@contoh.com"); err != nil {
-		t.Fatalf("request magic link: %v", err)
-	}
-	messages := sender.Messages()
-	if len(messages) != 1 {
-		t.Fatalf("expected one email, got %d", len(messages))
-	}
-	link := "http://localhost:3000/login/magic-link/"
-	index := strings.Index(messages[0].TextBody, link)
-	if index < 0 {
-		t.Fatalf("magic link missing from email body: %q", messages[0].TextBody)
-	}
-	token := strings.TrimSpace(messages[0].TextBody[index+len(link):])
-	if _, err := service.ConsumeMagicLink(context.Background(), token); err != nil {
-		t.Fatalf("consume emailed token %q (body %q): %v", token, messages[0].TextBody, err)
-	}
-}
-
-func TestRequestMagicLinkIgnoresUnknownEmail(t *testing.T) {
-	service := NewService(ServiceDependency{Repository: NewMemoryRepository(time.Now)})
-	if err := service.RequestMagicLink(context.Background(), "ghost@contoh.com"); err != nil {
-		t.Fatalf("unknown email must stay silent, got %v", err)
-	}
-}
-
 func TestSendInvitationIssuesUsableLink(t *testing.T) {
 	repository := NewMemoryRepository(time.Now)
 	repository.AddUser(FindUserByUsernameResult{
@@ -247,14 +167,14 @@ func TestSendInvitationIssuesUsableLink(t *testing.T) {
 	if len(messages) != 1 || messages[0].Subject == "" {
 		t.Fatalf("expected one invitation email, got %#v", messages)
 	}
-	link := "http://localhost:3000/login/magic-link/"
+	link := "http://localhost:3000/login/reset/"
 	index := strings.Index(messages[0].TextBody, link)
 	if index < 0 {
 		t.Fatalf("invitation link missing from email body: %q", messages[0].TextBody)
 	}
 	token := strings.TrimSpace(messages[0].TextBody[index+len(link):])
-	if _, err := service.ConsumeMagicLink(context.Background(), token); err != nil {
-		t.Fatalf("consume invited token %q (body %q): %v", token, messages[0].TextBody, err)
+	if err := service.ResetPassword(context.Background(), token, "kata-sandi-baru"); err != nil {
+		t.Fatalf("activate invited token %q (body %q): %v", token, messages[0].TextBody, err)
 	}
 }
 

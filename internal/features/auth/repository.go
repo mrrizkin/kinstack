@@ -16,14 +16,8 @@ type FindUserByUsernameResult struct {
 	IsActive     bool   `db:"is_active"`
 }
 
-// MagicLinkToken is a single-use passwordless sign-in token pending delivery.
-type MagicLinkToken struct {
-	UserPublicID string
-	TokenHash    string
-	ExpiresAt    time.Time
-}
-
-// PasswordResetToken is a single-use password reset token pending delivery.
+// PasswordResetToken is a single-use password reset or invitation token
+// pending delivery.
 type PasswordResetToken struct {
 	UserPublicID string
 	TokenHash    string
@@ -41,8 +35,6 @@ type Repository interface {
 	// UpsertIdentity records (or refreshes) the binding between an external
 	// provider subject and a local account.
 	UpsertIdentity(context.Context, string, string, string, string) error
-	CreateMagicLinkToken(context.Context, MagicLinkToken) error
-	ConsumeMagicLinkToken(context.Context, string) (string, error)
 	CreatePasswordResetToken(context.Context, PasswordResetToken) error
 	ConsumePasswordResetToken(context.Context, string) (string, error)
 	UpdatePasswordHash(context.Context, string, string) error

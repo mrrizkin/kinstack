@@ -21,7 +21,7 @@ var templates = template.Must(
 )
 
 // renderer gives Sender implementations Render for free by executing an
-// embedded, pre-parsed Maizzle template (e.g. "magic-link.html").
+// embedded, pre-parsed Maizzle template (e.g. "password-reset.html").
 type renderer struct{}
 
 func (renderer) Render(name string, data any) (string, error) {

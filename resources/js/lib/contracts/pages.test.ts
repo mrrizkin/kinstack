@@ -131,7 +131,7 @@ describe("page prop contracts", () => {
   });
 
   test("parses the auth, error and system pages", () => {
-    expect(loginPageSchema.parse({ magic_link_enabled: true }).magic_link_enabled).toBe(true);
+    expect(loginPageSchema.parse({ passkey_enabled: true }).passkey_enabled).toBe(true);
     expect(errorPageSchema.parse({ status: 404 }).message).toBeUndefined();
     expect(systemStatePageSchema.parse({ surface: "system-help" }).topics).toEqual([]);
     expect(

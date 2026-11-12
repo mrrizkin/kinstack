@@ -18,7 +18,6 @@ export const actorSchema = z.looseObject({
 export type Actor = z.infer<typeof actorSchema>;
 
 export const authMethodsSchema = z.looseObject({
-  magic_link: z.boolean().optional(),
   passkey: z.boolean().optional(),
   api_token: z.boolean().optional(),
   oauth: z.boolean().optional(),

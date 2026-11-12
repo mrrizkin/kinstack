@@ -36,7 +36,7 @@ func seededResetService(
 		IsActive:     true,
 	})
 	if err := repository.CreatePasswordResetToken(context.Background(), PasswordResetToken{
-		TokenHash:    hashMagicToken(rawToken),
+		TokenHash:    hashOpaqueToken(rawToken),
 		UserPublicID: "usr_1",
 		ExpiresAt:    time.Now().Add(time.Hour),
 	}); err != nil {

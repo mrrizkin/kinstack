@@ -8,7 +8,7 @@ import (
 func TestAuthConfigDefaultsEnableBuiltInMethods(t *testing.T) {
 	cfg := AuthConfig{}
 	cfg.Load()
-	if !cfg.MagicLink.Enabled || !cfg.Passkey.Enabled || !cfg.APIToken.Enabled {
+	if !cfg.Passkey.Enabled || !cfg.APIToken.Enabled {
 		t.Fatalf("built-in methods should default to enabled: %+v", cfg)
 	}
 	if cfg.OAuthEnabled() {
@@ -78,7 +78,6 @@ func TestAuthConfigSAMLRequiresSettings(t *testing.T) {
 }
 
 func TestAuthConfigLoadReadsFlags(t *testing.T) {
-	t.Setenv("AUTH_MAGIC_LINK_ENABLED", "false")
 	t.Setenv("AUTH_API_TOKEN_ENABLED", "false")
 	t.Setenv("AUTH_OIDC_ENABLED", "true")
 	t.Setenv("AUTH_OIDC_CLIENT_ID", "client")
@@ -90,7 +89,7 @@ func TestAuthConfigLoadReadsFlags(t *testing.T) {
 
 	cfg := AuthConfig{}
 	cfg.Load()
-	if cfg.MagicLink.Enabled || cfg.APIToken.Enabled {
+	if cfg.APIToken.Enabled {
 		t.Fatalf("flags should disable methods: %+v", cfg)
 	}
 	if !cfg.OAuthEnabled() {
