@@ -4,6 +4,7 @@ import { computed } from "vue";
 
 import AppPageHeader from "@/components/AppPageHeader.vue";
 import AppPagination from "@/components/AppPagination.vue";
+import AppRoleChangeDialog from "@/components/AppRoleChangeDialog.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { usersPageSchema } from "@/lib/contracts/users";
@@ -34,27 +35,27 @@ const {
   headerActions,
   inviteForm,
   submitInvite,
-  busyUserId,
   pendingToggle,
   togglingActive,
-  toggleActive,
   confirmToggleActive,
-  changeRole,
+  roleLabel,
+  roleTarget,
+  roleOpen,
+  roleSaving,
+  roleValue,
+  closeRoleChange,
+  submitRoleChange,
   userMenuItems,
   passwordTarget,
   passwordForm,
-  resetPassword,
   confirmResetPassword,
 } = useUserForms(props);
 
 const view = useTableView(
   "users",
   createUserColumns({
-    roleOptions: () => roleOptions.value,
-    changeRole,
-    resetPassword,
-    toggleActive,
-    isBusy: (user) => busyUserId.value === user.public_id,
+    roleLabel,
+    menuItems: userMenuItems,
   }),
   { paged: false },
 );
@@ -154,14 +155,21 @@ const emptyActions = computed(() => {
         <UserTable
           :users="props.users"
           :view="view"
-          :role-options="roleOptions"
+          :role-label="roleLabel"
           :menu-items="userMenuItems"
-          :change-role="changeRole"
-          :busy-user-id="busyUserId"
           :empty-actions="emptyActions" />
 
         <AppPagination :page="props.page" url="/users" />
       </div>
     </template>
   </UDashboardPanel>
+
+  <AppRoleChangeDialog
+    :open="roleOpen"
+    :target="roleTarget?.name ?? null"
+    v-model:role="roleValue"
+    :role-options="roleOptions"
+    :loading="roleSaving"
+    @confirm="submitRoleChange"
+    @close="closeRoleChange" />
 </template>

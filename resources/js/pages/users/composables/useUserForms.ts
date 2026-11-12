@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { useServerErrors } from "@/lib/errors";
 import { icons } from "@/lib/icons";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
+import { useRoleChange } from "@/lib/role-change";
 
 import type { Role, User } from "../columns";
 
@@ -15,6 +16,10 @@ interface UsersProps {
 
 export function useUserForms(props: UsersProps) {
   const roleOptions = computed(() => props.roles.map((role) => ({ label: role.name, value: role.code })));
+
+  function roleLabel(code: string): string {
+    return roleOptions.value.find((option) => option.value === code)?.label ?? code;
+  }
   const usersURL = (suffix = "") => `/users${suffix}`;
 
   const { formError, message } = useServerErrors();
@@ -129,19 +134,45 @@ export function useUserForms(props: UsersProps) {
     );
   }
 
-  function changeRole(user: User, role: string) {
+  // ---- Change role (confirmed through a modal, never inline) ----
+  const roleChange = useRoleChange();
+  const roleTarget = roleChange.target;
+  const roleOpen = roleChange.isOpen;
+  const roleSaving = roleChange.isSaving;
+  const roleValue = roleChange.role;
+
+  function requestRoleChange(user: User) {
     if (busyUserId.value) return;
+    roleChange.open({ id: user.public_id, name: user.display_name, currentRole: user.role });
+  }
+
+  function closeRoleChange() {
+    roleChange.close();
+  }
+
+  function submitRoleChange() {
+    const target = roleTarget.value;
+    if (!target) return;
+    const user = props.users.find((candidate) => candidate.public_id === target.id);
+    if (!user) return;
+    if (roleValue.value === user.role) {
+      roleChange.close();
+      return;
+    }
+    roleChange.save();
     router.put(
       usersURL(`/${user.public_id}`),
       {
         email: user.email ?? "",
         display_name: user.display_name,
-        role,
+        role: roleValue.value,
       },
       {
         preserveScroll: true,
         onStart: () => (busyUserId.value = user.public_id),
         onFinish: () => (busyUserId.value = null),
+        onSuccess: () => roleChange.committed(),
+        onError: () => roleChange.failed(),
       },
     );
   }
@@ -149,6 +180,12 @@ export function useUserForms(props: UsersProps) {
   function userMenuItems(user: User): DropdownMenuItem[] {
     const busy = busyUserId.value === user.public_id;
     return [
+      {
+        label: "Change role",
+        icon: icons.access,
+        disabled: busy,
+        onSelect: () => requestRoleChange(user),
+      },
       {
         label: "Reset password",
         icon: icons.key,
@@ -202,7 +239,14 @@ export function useUserForms(props: UsersProps) {
     togglingActive,
     toggleActive,
     confirmToggleActive,
-    changeRole,
+    roleLabel,
+    roleTarget,
+    roleOpen,
+    roleSaving,
+    roleValue,
+    requestRoleChange,
+    closeRoleChange,
+    submitRoleChange,
     userMenuItems,
     passwordTarget,
     passwordForm,

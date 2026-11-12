@@ -3,7 +3,6 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
-import AppCellSelect from "@/components/cells/AppCellSelect.vue";
 import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
 import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
@@ -15,10 +14,8 @@ import type { User } from "../columns";
 defineProps<{
   users: User[];
   view: TableView;
-  roleOptions: { label: string; value: string }[];
+  roleLabel: (role: string) => string;
   menuItems: (user: User) => DropdownMenuItem[];
-  changeRole: (user: User, role: string) => void;
-  busyUserId: string | null;
   emptyActions: { label: string; icon: string; onClick: () => void }[];
 }>();
 </script>
@@ -66,14 +63,7 @@ defineProps<{
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Role</span>
-            <div class="flex items-center gap-2">
-              <AppCellSelect
-                :model-value="user.role"
-                :items="roleOptions"
-                size="sm"
-                :busy="busyUserId === user.public_id"
-                @update:model-value="(role: string) => changeRole(user, role)" />
-            </div>
+            <span class="text-toned text-sm">{{ roleLabel(user.role) }}</span>
           </div>
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Last login</span>

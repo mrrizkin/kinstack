@@ -3,7 +3,6 @@ import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 
 import AppMobileList from "@/components/AppMobileList.vue";
 import AppTableCard from "@/components/AppTableCard.vue";
-import AppCellSelect from "@/components/cells/AppCellSelect.vue";
 import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
 import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
 import { icons } from "@/lib/icons";
@@ -15,10 +14,8 @@ import UserOverridesCell from "./UserOverridesCell.vue";
 defineProps<{
   users: UserAccess[];
   view: TableView;
-  roleOptions: { label: string; value: string }[];
+  roleLabel: (role: string) => string;
   menuItems: (user: UserAccess) => DropdownMenuItem[];
-  assignRole: (user: UserAccess, role: string) => void;
-  assigningRoleId: string | null;
 }>();
 </script>
 
@@ -65,14 +62,7 @@ defineProps<{
           </div>
           <div class="flex items-center justify-between gap-3">
             <span class="text-muted text-xs">Role</span>
-            <div class="flex items-center gap-2">
-              <AppCellSelect
-                :model-value="user.role"
-                :items="roleOptions"
-                size="sm"
-                :busy="assigningRoleId === user.public_id"
-                @update:model-value="(role: string) => assignRole(user, role)" />
-            </div>
+            <span class="text-toned text-sm">{{ roleLabel(user.role) }}</span>
           </div>
           <div class="space-y-1.5">
             <p class="text-muted text-xs">Custom permissions</p>

@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { useServerErrors } from "@/lib/errors";
 import { icons } from "@/lib/icons";
 import { queryString } from "@/lib/query";
+import { useRoleChange } from "@/lib/role-change";
 
 import type { Override, OverrideForm, Permission, PermissionCategory, Role, UserAccess } from "../types";
 
@@ -225,19 +226,45 @@ export function useAccessForms(props: AccessProps) {
     );
   }
 
-  const assigningRoleId = ref<string | null>(null);
+  // ---- Change user role (confirmed through a modal, never inline) ----
+  const roleChange = useRoleChange();
+  const roleTarget = roleChange.target;
+  const roleOpen = roleChange.isOpen;
+  const roleSaving = roleChange.isSaving;
+  const roleValue = roleChange.role;
 
-  function assignRole(user: UserAccess, role: string) {
-    if (assigningRoleId.value) return;
+  function requestRoleChange(user: UserAccess) {
+    if (roleSaving.value) return;
+    roleChange.open({ id: user.public_id, name: user.display_name, currentRole: user.role });
+  }
+
+  function closeRoleChange() {
+    roleChange.close();
+  }
+
+  function submitRoleChange() {
+    const target = roleTarget.value;
+    if (!target) return;
+    const user = props.users.find((candidate) => candidate.public_id === target.id);
+    if (!user) return;
+    if (roleValue.value === user.role) {
+      roleChange.close();
+      return;
+    }
+    roleChange.save();
     router.post(
       accessURL(`/users/${user.public_id}/role${pageQuery.value}`),
-      { role },
+      { role: roleValue.value },
       {
         preserveScroll: true,
-        onStart: () => (assigningRoleId.value = user.public_id),
-        onFinish: () => (assigningRoleId.value = null),
+        onSuccess: () => roleChange.committed(),
+        onError: () => roleChange.failed(),
       },
     );
+  }
+
+  function roleLabel(code: string): string {
+    return roleOptions.value.find((option) => option.value === code)?.label ?? code;
   }
 
   function roleMenuItems(role: Role): DropdownMenuItem[] {
@@ -273,7 +300,14 @@ export function useAccessForms(props: AccessProps) {
   }
 
   function accessUserMenuItems(user: UserAccess): DropdownMenuItem[] {
+    const busy = roleChange.busyId.value === user.public_id;
     return [
+      {
+        label: "Change role",
+        icon: icons.access,
+        disabled: busy,
+        onSelect: () => requestRoleChange(user),
+      },
       {
         label: "Manage permissions",
         icon: icons.sliders,
@@ -316,8 +350,13 @@ export function useAccessForms(props: AccessProps) {
     removingOverride,
     requestRemoveOverride,
     confirmRemoveOverride,
-    assignRole,
-    assigningRoleId,
+    roleLabel,
+    roleTarget,
+    roleOpen,
+    roleSaving,
+    roleValue,
+    closeRoleChange,
+    submitRoleChange,
     roleMenuItems,
     accessUserMenuItems,
   };

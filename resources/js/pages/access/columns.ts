@@ -1,26 +1,20 @@
-import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
+import type { TableColumn, DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { h } from "vue";
 
-import AppCellSelect from "@/components/cells/AppCellSelect.vue";
+import AppCellRowMenu from "@/components/cells/AppCellRowMenu.vue";
 import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
 
-import RoleActionsCell from "./components/RoleActionsCell.vue";
 import RoleNameCell from "./components/RoleNameCell.vue";
-import UserAccessActionsCell from "./components/UserAccessActionsCell.vue";
 import UserOverridesCell from "./components/UserOverridesCell.vue";
 import type { Role, UserAccess } from "./types";
 
 export interface RoleColumnsContext {
-  openEditRole(role: Role): void;
-  openRolePermissions(role: Role): void;
-  requestDeleteRole(role: Role): void;
+  menuItems(role: Role): DropdownMenuItem[];
 }
 
 export interface UserColumnsContext {
-  roleOptions: () => { label: string; value: string }[];
-  assignRole(user: UserAccess, role: string): void;
-  openUserOverrides(user: UserAccess): void;
-  assigningRoleId: () => string | null;
+  roleLabel(role: string): string;
+  menuItems(user: UserAccess): DropdownMenuItem[];
 }
 
 export function createRoleColumns(ctx: RoleColumnsContext): TableColumn<Role>[] {
@@ -45,11 +39,9 @@ export function createRoleColumns(ctx: RoleColumnsContext): TableColumn<Role>[] 
       header: "Actions",
       meta: { class: { th: "text-right" } },
       cell: ({ row }) =>
-        h(RoleActionsCell, {
-          role: row.original,
-          onEdit: () => ctx.openEditRole(row.original),
-          onPermissions: () => ctx.openRolePermissions(row.original),
-          onRemove: () => ctx.requestDeleteRole(row.original),
+        h(AppCellRowMenu, {
+          items: ctx.menuItems(row.original),
+          label: `Actions for role ${row.original.name}`,
         }),
     },
   ];
@@ -69,13 +61,7 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<UserAcce
     {
       accessorKey: "role",
       header: "Role",
-      cell: ({ row }) =>
-        h(AppCellSelect, {
-          modelValue: row.original.role,
-          items: ctx.roleOptions(),
-          busy: ctx.assigningRoleId() === row.original.public_id,
-          "onUpdate:modelValue": (role: string) => ctx.assignRole(row.original, role),
-        }),
+      cell: ({ row }) => h("span", { class: "text-sm" }, ctx.roleLabel(row.original.role)),
     },
     {
       id: "overrides",
@@ -86,7 +72,11 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<UserAcce
       id: "actions",
       header: "Actions",
       meta: { class: { th: "text-right" } },
-      cell: ({ row }) => h(UserAccessActionsCell, { onManage: () => ctx.openUserOverrides(row.original) }),
+      cell: ({ row }) =>
+        h(AppCellRowMenu, {
+          items: ctx.menuItems(row.original),
+          label: `Actions for ${row.original.display_name}`,
+        }),
     },
   ];
 }

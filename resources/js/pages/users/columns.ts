@@ -1,13 +1,11 @@
-import type { TableColumn } from "@nuxt/ui/runtime/types/index.d.ts";
+import type { TableColumn, DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { h } from "vue";
 
-import AppCellSelect from "@/components/cells/AppCellSelect.vue";
+import AppCellRowMenu from "@/components/cells/AppCellRowMenu.vue";
 import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppStatusBadgeCell from "@/components/cells/AppStatusBadgeCell.vue";
 import AppUserIdentityCell from "@/components/cells/AppUserIdentityCell.vue";
 import type { RoleOption as Role, User } from "@/lib/contracts/users";
-
-import UserActionsCell from "./components/UserActionsCell.vue";
 
 export type { Role, User };
 
@@ -43,11 +41,8 @@ export interface PasswordForm {
 }
 
 export interface UserColumnsContext {
-  roleOptions: () => { label: string; value: string }[];
-  changeRole(user: User, role: string): void;
-  resetPassword(user: User): void;
-  toggleActive(user: User): void;
-  isBusy(user: User): boolean;
+  roleLabel(role: string): string;
+  menuItems(user: User): DropdownMenuItem[];
 }
 
 export function createUserColumns(ctx: UserColumnsContext): TableColumn<User>[] {
@@ -66,13 +61,7 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<User>[] 
     {
       accessorKey: "role",
       header: "Role",
-      cell: ({ row }) =>
-        h(AppCellSelect, {
-          modelValue: row.original.role,
-          items: ctx.roleOptions(),
-          busy: ctx.isBusy(row.original),
-          "onUpdate:modelValue": (role: string) => ctx.changeRole(row.original, role),
-        }),
+      cell: ({ row }) => h("span", { class: "text-sm" }, ctx.roleLabel(row.original.role)),
     },
     {
       accessorKey: "is_active",
@@ -89,11 +78,9 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<User>[] 
       header: "Actions",
       meta: { class: { th: "text-right" } },
       cell: ({ row }) =>
-        h(UserActionsCell, {
-          active: row.original.is_active,
-          busy: ctx.isBusy(row.original),
-          onReset: () => ctx.resetPassword(row.original),
-          onToggle: () => ctx.toggleActive(row.original),
+        h(AppCellRowMenu, {
+          items: ctx.menuItems(row.original),
+          label: `Actions for ${row.original.display_name}`,
         }),
     },
   ];

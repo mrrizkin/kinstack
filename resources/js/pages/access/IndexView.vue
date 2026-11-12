@@ -5,6 +5,7 @@ import { computed } from "vue";
 import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
 import AppPageHeader from "@/components/AppPageHeader.vue";
 import AppPagination from "@/components/AppPagination.vue";
+import AppRoleChangeDialog from "@/components/AppRoleChangeDialog.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { accessPageSchema } from "@/lib/contracts/access";
@@ -23,7 +24,6 @@ import type { Permission, Role, UserAccess } from "./types";
 defineOptions({ layout: [BaseLayout, AppLayout] });
 
 const props = usePageSchema(accessPageSchema);
-const { roles, permissions, categories, users, page } = props;
 
 const {
   tab,
@@ -32,7 +32,6 @@ const {
   selectedPermissions,
   savingPermissions,
   permissionsByCategory,
-  openRolePermissions,
   togglePermission,
   saveRolePermissions,
   showCreateRole,
@@ -40,11 +39,9 @@ const {
   submitCreateRole,
   pendingDeleteRole,
   deletingRole,
-  requestDeleteRole,
   confirmDeleteRole,
   editingRoleMeta,
   editRoleForm,
-  openEditRole,
   submitEditRole,
   editingUser,
   overrideForm,
@@ -52,31 +49,29 @@ const {
   overrideFieldError,
   permissionOptions,
   roleOptions,
-  openUserOverrides,
   closeUserOverrides,
   submitOverride,
   pendingRemoveOverride,
   removingOverride,
   requestRemoveOverride,
   confirmRemoveOverride,
-  assignRole,
-  assigningRoleId,
+  roleLabel,
+  roleTarget,
+  roleOpen,
+  roleSaving,
+  roleValue,
+  closeRoleChange,
+  submitRoleChange,
   roleMenuItems,
   accessUserMenuItems,
 } = useAccessForms(props);
 
-const roleView = useTableView(
-  "access.roles",
-  createRoleColumns({ openEditRole, openRolePermissions, requestDeleteRole }),
-  { paged: false },
-);
+const roleView = useTableView("access.roles", createRoleColumns({ menuItems: roleMenuItems }), { paged: false });
 const userView = useTableView(
   "access.users",
   createUserColumns({
-    roleOptions: () => roleOptions.value,
-    assignRole,
-    openUserOverrides,
-    assigningRoleId: () => assigningRoleId.value,
+    roleLabel,
+    menuItems: accessUserMenuItems,
   }),
   { paged: false },
 );
@@ -123,20 +118,18 @@ const overrideOpen = computed({
         <template #content="{ item }">
           <RolePanel
             v-if="item.value === 'roles'"
-            :roles="roles"
+            :roles="props.roles"
             :view="roleView"
             :menu-items="roleMenuItems"
             :empty-actions="emptyRoleActions" />
           <UserAccessPanel
             v-else
-            :users="users"
+            :users="props.users"
             :view="userView"
-            :role-options="roleOptions"
-            :menu-items="accessUserMenuItems"
-            :assign-role="assignRole"
-            :assigning-role-id="assigningRoleId" />
+            :role-label="roleLabel"
+            :menu-items="accessUserMenuItems" />
           <!-- Each tab pages independently; paging one drops the other's key. -->
-          <AppPagination v-if="item.value === 'users'" :page="page" url="/access" />
+          <AppPagination v-if="item.value === 'users'" :page="props.page" url="/access" />
           <AppPagination v-else :page="props.roles_page" url="/access" page-param="roles_page" />
         </template>
       </UTabs>
@@ -156,6 +149,15 @@ const overrideOpen = computed({
     :submit-edit="submitEditRole"
     :toggle-permission="togglePermission"
     :save-role-permissions="saveRolePermissions" />
+
+  <AppRoleChangeDialog
+    :open="roleOpen"
+    :target="roleTarget?.name ?? null"
+    v-model:role="roleValue"
+    :role-options="roleOptions"
+    :loading="roleSaving"
+    @confirm="submitRoleChange"
+    @close="closeRoleChange" />
 
   <OverrideDialog
     v-model:open="overrideOpen"
