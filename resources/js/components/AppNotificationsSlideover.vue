@@ -1,24 +1,23 @@
 <script setup lang="ts">
-import { router } from "@inertiajs/vue3";
-import { ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { z } from "zod";
 
-import { notificationFeedSchema, type NotificationItem } from "@/lib/contracts/notifications";
 import { notificationsOpen, unreadCount } from "@/lib/dashboard";
 import { formatRelativeTime } from "@/lib/formatters";
-import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
+import { notificationErrorKey, useNotificationFeed } from "@/lib/notifications";
 import { usePageProps } from "@/lib/page-props";
 
 const { t } = useI18n();
 const { csrfToken } = usePageProps();
 
-const notifications = ref<NotificationItem[]>([]);
-const unread = unreadCount;
-const loading = ref(false);
-const marking = ref(false);
-const error = ref("");
+const { notifications, unread, error, loading, markingAll, refresh, markRead, markAllRead } = useNotificationFeed({
+  csrfToken: () => csrfToken.value,
+  initial: { unread: unreadCount.value },
+  onUnread: (value) => (unreadCount.value = value),
+});
+
+const errorMessage = computed(() => (error.value ? t(notificationErrorKey(error.value)) : ""));
 
 const kindIcon = (kind: string) => {
   if (kind.includes("security") || kind.includes("auth")) {
@@ -33,56 +32,9 @@ const kindIcon = (kind: string) => {
   return icons.notifications;
 };
 
-async function load() {
-  loading.value = true;
-  error.value = "";
-  try {
-    const payload = await requestJson("/notifications/feed?limit=10", notificationFeedSchema);
-    notifications.value = payload.notifications;
-    unread.value = payload.unread;
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t("shell.notifications.loadError");
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function markRead(notification: NotificationItem) {
-  if (notification.read) return;
-  try {
-    await requestJson(`/notifications/${encodeURIComponent(notification.public_id)}/read`, z.unknown(), {
-      method: "POST",
-      csrfToken: csrfToken.value,
-    });
-  } catch {
-    error.value = t("shell.notifications.markError");
-    return;
-  }
-  notification.read = true;
-  unread.value = Math.max(0, unread.value - 1);
-}
-
-async function markAllRead() {
-  if (marking.value || unread.value === 0) return;
-  marking.value = true;
-  error.value = "";
-  try {
-    await requestJson("/notifications/read-all", z.unknown(), {
-      method: "POST",
-      csrfToken: csrfToken.value,
-    });
-    notifications.value = notifications.value.map((item) => ({ ...item, read: true }));
-    unread.value = 0;
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t("shell.notifications.markAllError");
-  } finally {
-    marking.value = false;
-  }
-}
-
 watch(notificationsOpen, (open) => {
   if (open) {
-    void load();
+    void refresh();
   }
 });
 </script>
@@ -108,11 +60,11 @@ watch(notificationsOpen, (open) => {
             variant="ghost"
             size="xs"
             :icon="icons.markAllRead"
-            :loading="marking"
+            :loading="markingAll"
             @click="markAllRead" />
         </div>
 
-        <UAlert v-if="error" color="error" variant="subtle" :icon="icons.error" :title="error" />
+        <UAlert v-if="errorMessage" color="error" variant="subtle" :icon="icons.error" :title="errorMessage" />
 
         <div v-if="loading" class="space-y-2">
           <USkeleton v-for="index in 3" :key="index" class="h-16 w-full" />

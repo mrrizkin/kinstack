@@ -5,11 +5,13 @@ import (
 	"testing"
 	"time"
 
+	applog "kinstack/internal/pkg/log"
+
 	"github.com/gofiber/storage/memory/v2"
 )
 
 func TestLockoutLocksOneClientAndClears(t *testing.T) {
-	guard := NewLockout(memory.New(), 2, time.Minute)
+	guard := NewLockout(memory.New(), 2, time.Minute, applog.NewNoopLogger())
 	ctx := t.Context()
 
 	if !guard.Allowed(ctx, "alice", "10.0.0.1") {
@@ -31,7 +33,7 @@ func TestLockoutLocksOneClientAndClears(t *testing.T) {
 
 // One client must not be able to lock a known account for everybody else.
 func TestLockoutIsolatesClients(t *testing.T) {
-	guard := NewLockout(memory.New(), 2, time.Minute)
+	guard := NewLockout(memory.New(), 2, time.Minute, applog.NewNoopLogger())
 	ctx := t.Context()
 
 	for range 2 {
@@ -49,7 +51,7 @@ func TestLockoutIsolatesClients(t *testing.T) {
 }
 
 func TestLockoutAccountWideThreshold(t *testing.T) {
-	guard := NewLockout(memory.New(), 1, time.Minute)
+	guard := NewLockout(memory.New(), 1, time.Minute, applog.NewNoopLogger())
 	ctx := t.Context()
 
 	for i := range guard.accountThreshold() {
@@ -64,7 +66,7 @@ func TestLockoutAccountWideThreshold(t *testing.T) {
 }
 
 func TestLockoutDisabledWithoutStorage(t *testing.T) {
-	guard := NewLockout(nil, 1, time.Minute)
+	guard := NewLockout(nil, 1, time.Minute, applog.NewNoopLogger())
 	ctx := t.Context()
 	guard.Failure(ctx, "alice", "10.0.0.1", true)
 	if !guard.Allowed(ctx, "alice", "10.0.0.1") {

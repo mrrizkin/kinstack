@@ -20,8 +20,7 @@ import (
 	fibersession "github.com/gofiber/fiber/v3/middleware/session"
 )
 
-// documentTimeout bounds one shell render. Rendering only writes buffered
-// strings, so a healthy render finishes in milliseconds.
+// documentTimeout bounds one shell render, which only writes buffered strings.
 const documentTimeout = 10 * time.Second
 
 // Adapter is the application's Inertia boundary: Fibertia plus shared response helpers.
@@ -86,16 +85,12 @@ func New(d Dependency) *Adapter {
 	return &Adapter{Fibertia: adapter}
 }
 
-// buildVersion is injected at build time, for example with
-// -ldflags "-X kinstack/internal/platform/inertia.buildVersion=$GIT_SHA".
-// Container builds strip .git, so this is the only reliable version source
-// there.
+// buildVersion is injected at build time
+// (-X kinstack/internal/platform/inertia.buildVersion); container builds strip .git.
 var buildVersion string
 
-// BuildVersion resolves the Inertia asset version. Build-time injection wins;
-// otherwise VCS metadata embedded by the Go toolchain is used. A new commit or
-// build therefore invalidates cached pages, and builds without either source
-// fall back to a stable development marker.
+// BuildVersion invalidates cached pages per commit or build; without either
+// source it is a stable development marker.
 func BuildVersion() string {
 	if version := strings.TrimSpace(buildVersion); version != "" {
 		return version
@@ -150,9 +145,7 @@ func Middleware(adapter *Adapter) fiber.Handler {
 	}
 }
 
-// ValidationErrors stores field errors in the session and redirects back so the
-// Inertia client renders them on the originating form. Use the "form" key for
-// errors that do not belong to a single field.
+// ValidationErrors uses the "form" key for errors without a field.
 func (a *Adapter) ValidationErrors(c fiber.Ctx, back string, fields map[string]string) error {
 	bag := make(map[string][]string, len(fields))
 	for field, message := range fields {
@@ -167,7 +160,6 @@ func (a *Adapter) ValidationErrors(c fiber.Ctx, back string, fields map[string]s
 	return c.Redirect().Status(fiber.StatusSeeOther).To(back)
 }
 
-// FlashSuccess stores a success flash message for the next page load.
 func (a *Adapter) FlashSuccess(c fiber.Ctx, message string) error {
 	if strings.TrimSpace(message) == "" {
 		return nil
@@ -175,7 +167,6 @@ func (a *Adapter) FlashSuccess(c fiber.Ctx, message string) error {
 	return a.Flash(c, map[string]any{"success": message})
 }
 
-// RedirectWithFlash flashes a success message and redirects (303) to target.
 func (a *Adapter) RedirectWithFlash(c fiber.Ctx, target string, message string) error {
 	if err := a.FlashSuccess(c, message); err != nil {
 		return err
@@ -190,7 +181,6 @@ func WantsJSON(c fiber.Ctx) bool {
 		strings.Contains(c.Get(fiber.HeaderAccept), "application/json")
 }
 
-// FlashError stores an error flash for the next page load.
 func (a *Adapter) FlashError(c fiber.Ctx, message string) error {
 	if strings.TrimSpace(message) == "" {
 		return nil
@@ -198,7 +188,6 @@ func (a *Adapter) FlashError(c fiber.Ctx, message string) error {
 	return a.Flash(c, map[string]any{"error": message})
 }
 
-// RedirectWithFlashError flashes an error and redirects (303) to target.
 func (a *Adapter) RedirectWithFlashError(c fiber.Ctx, target string, message string) error {
 	if err := a.FlashError(c, message); err != nil {
 		return err
@@ -206,8 +195,7 @@ func (a *Adapter) RedirectWithFlashError(c fiber.Ctx, target string, message str
 	return c.Redirect().Status(fiber.StatusSeeOther).To(target)
 }
 
-// FailedPayload answers an unreadable body: JSON clients get a 400 envelope,
-// Inertia visits a form error.
+// FailedPayload: JSON clients get a 400 envelope, Inertia visits a form error.
 func (a *Adapter) FailedPayload(c fiber.Ctx, back string, message string) error {
 	if WantsJSON(c) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": message})

@@ -20,10 +20,35 @@ import (
 )
 
 const (
-	uploadSizeMax     int64 = 10 << 20
-	maxFilenameLength       = 200
-	maxImageDimension       = 12000
+	// UploadSizeMax is the largest accepted upload. The HTTP body limit must
+	// cover it; bootstrap asserts that at startup.
+	UploadSizeMax     int64 = 10 << 20
+	filenameLengthMax       = 200
+	imageDimensionMax       = 12000
 )
+
+// requireOwner trims and validates the owner once. The rule lives here so the
+// by-id operations cannot drift into slightly different checks.
+func requireOwner(ownerPublicID string) (string, error) {
+	trimmed := strings.TrimSpace(ownerPublicID)
+	if trimmed == "" {
+		return "", ErrInvalidInput
+	}
+	return trimmed, nil
+}
+
+// requireOwnedAsset validates the pair a by-id operation needs.
+func requireOwnedAsset(ownerPublicID, publicID string) (string, string, error) {
+	owner, err := requireOwner(ownerPublicID)
+	if err != nil {
+		return "", "", err
+	}
+	publicID = strings.TrimSpace(publicID)
+	if publicID == "" {
+		return "", "", ErrInvalidInput
+	}
+	return owner, publicID, nil
+}
 
 // allowedContentTypes is the upload allowlist. Object storage is not a file
 // server: only well-known browser-safe formats are accepted.
@@ -71,7 +96,6 @@ type uploadInput struct {
 	body          io.Reader
 }
 
-// Upload validates and stores one uploaded file for the owner.
 func (s *Service) Upload(
 	ctx context.Context,
 	ownerPublicID string,
@@ -103,11 +127,13 @@ func validateUpload(
 	size int64,
 	body io.Reader,
 ) (uploadInput, error) {
-	ownerPublicID = strings.TrimSpace(ownerPublicID)
+	ownerPublicID, err := requireOwner(ownerPublicID)
+	if err != nil {
+		return uploadInput{}, err
+	}
 	contentType = strings.ToLower(strings.TrimSpace(contentType))
 	filename = sanitizeFilename(filename)
-	if ownerPublicID == "" || body == nil || filename == "" ||
-		size < 1 || size > uploadSizeMax {
+	if body == nil || filename == "" || size < 1 || size > UploadSizeMax {
 		return uploadInput{}, ErrInvalidInput
 	}
 	extension, ok := allowedContentTypes[contentType]
@@ -152,7 +178,7 @@ func prepareBody(
 		}
 		config, _, err := image.DecodeConfig(bytes.NewReader(data))
 		if err != nil || config.Width < 1 || config.Height < 1 ||
-			config.Width > maxImageDimension || config.Height > maxImageDimension {
+			config.Width > imageDimensionMax || config.Height > imageDimensionMax {
 			return nil, 0, ErrInvalidInput
 		}
 		return bytes.NewReader(data), int64(len(data)), nil
@@ -174,9 +200,9 @@ func prepareBody(
 // permitted upload, so a lying Content-Length cannot fill memory.
 func readBounded(body io.Reader, head []byte) ([]byte, error) {
 	data, err := io.ReadAll(
-		io.LimitReader(io.MultiReader(bytes.NewReader(head), body), uploadSizeMax+1),
+		io.LimitReader(io.MultiReader(bytes.NewReader(head), body), UploadSizeMax+1),
 	)
-	if err != nil || int64(len(data)) > uploadSizeMax {
+	if err != nil || int64(len(data)) > UploadSizeMax {
 		return nil, ErrInvalidInput
 	}
 	return data, nil
@@ -191,7 +217,7 @@ func (s *Service) storeUpload(
 	publicID := publicid.MustNew()
 	objectKey := "media/" + input.ownerPublicID + "/" + publicID + input.extension
 	if err := s.storage.Put(ctx, objectKey, body, size, input.contentType); err != nil {
-		return AssetDTO{}, fmt.Errorf("%w: %v", ErrStorage, err)
+		return AssetDTO{}, fmt.Errorf("%w: %w", ErrStorage, err)
 	}
 	asset, err := s.repository.Create(ctx, CreateAssetInput{
 		PublicID:      publicID,
@@ -208,24 +234,23 @@ func (s *Service) storeUpload(
 	return s.toDTO(asset), nil
 }
 
-// Count returns the number of assets owned by the actor.
 func (s *Service) Count(ctx context.Context, ownerPublicID string) (int, error) {
-	ownerPublicID = strings.TrimSpace(ownerPublicID)
-	if ownerPublicID == "" {
-		return 0, ErrInvalidInput
+	ownerPublicID, err := requireOwner(ownerPublicID)
+	if err != nil {
+		return 0, err
 	}
 	return s.repository.Count(ctx, ownerPublicID)
 }
 
-// List returns one page of the actor's active assets, newest first.
+// List is newest first.
 func (s *Service) List(
 	ctx context.Context,
 	ownerPublicID string,
 	query pagination.Query,
 ) (MediaPage, error) {
-	ownerPublicID = strings.TrimSpace(ownerPublicID)
-	if ownerPublicID == "" {
-		return MediaPage{}, ErrInvalidInput
+	ownerPublicID, err := requireOwner(ownerPublicID)
+	if err != nil {
+		return MediaPage{}, err
 	}
 	total, err := s.repository.Count(ctx, ownerPublicID)
 	if err != nil {
@@ -245,17 +270,16 @@ func (s *Service) List(
 
 // Delete removes one owned asset from storage and marks it deleted.
 func (s *Service) Delete(ctx context.Context, ownerPublicID, publicID string) error {
-	ownerPublicID = strings.TrimSpace(ownerPublicID)
-	publicID = strings.TrimSpace(publicID)
-	if ownerPublicID == "" || publicID == "" {
-		return ErrInvalidInput
+	ownerPublicID, publicID, err := requireOwnedAsset(ownerPublicID, publicID)
+	if err != nil {
+		return err
 	}
 	asset, err := s.repository.Find(ctx, ownerPublicID, publicID)
 	if err != nil {
 		return err
 	}
 	if err := s.storage.Delete(ctx, asset.ObjectKey); err != nil {
-		return fmt.Errorf("%w: %v", ErrStorage, err)
+		return fmt.Errorf("%w: %w", ErrStorage, err)
 	}
 	if _, err := s.repository.Delete(ctx, ownerPublicID, publicID); err != nil {
 		return err
@@ -263,15 +287,13 @@ func (s *Service) Delete(ctx context.Context, ownerPublicID, publicID string) er
 	return nil
 }
 
-// Open returns one owned asset together with its object body for streaming.
 func (s *Service) Open(
 	ctx context.Context,
 	ownerPublicID, publicID string,
 ) (Asset, io.ReadCloser, error) {
-	ownerPublicID = strings.TrimSpace(ownerPublicID)
-	publicID = strings.TrimSpace(publicID)
-	if ownerPublicID == "" || publicID == "" {
-		return Asset{}, nil, ErrInvalidInput
+	ownerPublicID, publicID, err := requireOwnedAsset(ownerPublicID, publicID)
+	if err != nil {
+		return Asset{}, nil, err
 	}
 	asset, err := s.repository.Find(ctx, ownerPublicID, publicID)
 	if err != nil {
@@ -279,7 +301,7 @@ func (s *Service) Open(
 	}
 	body, err := s.storage.Get(ctx, asset.ObjectKey)
 	if err != nil {
-		return Asset{}, nil, fmt.Errorf("%w: %v", ErrStorage, err)
+		return Asset{}, nil, fmt.Errorf("%w: %w", ErrStorage, err)
 	}
 	return asset, body, nil
 }
@@ -308,8 +330,8 @@ func detectedContentTypeMatches(declared, detected string) bool {
 func sanitizeFilename(filename string) string {
 	filename = strings.TrimSpace(filepath.Base(strings.ReplaceAll(filename, "\\", "/")))
 	filename = strings.ReplaceAll(filename, "\x00", "")
-	if len(filename) > maxFilenameLength {
-		filename = filename[:maxFilenameLength]
+	if len(filename) > filenameLengthMax {
+		filename = filename[:filenameLengthMax]
 	}
 	if filename == "." || filename == ".." {
 		return ""

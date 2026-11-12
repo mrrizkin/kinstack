@@ -86,7 +86,6 @@ func (s *Service) RecordSecondFactorFailure(ctx context.Context, userPublicID, c
 	s.lockout.Failure(ctx, secondFactorAccount(userPublicID), client, true)
 }
 
-// ClearSecondFactorFailures resets the counter after a successful challenge.
 func (s *Service) ClearSecondFactorFailures(ctx context.Context, userPublicID, client string) {
 	if s.lockout == nil {
 		return
@@ -201,8 +200,7 @@ func (s *Service) recordLoginSuccess(ctx context.Context, username, client strin
 	}
 }
 
-// Session loads the authenticated session actor for an account that has
-// already passed credential and second-factor checks.
+// Session is for an account that already passed credential and 2FA checks.
 func (s *Service) Session(ctx context.Context, publicID string) (SessionResponse, error) {
 	result, err := s.repository.FindUserByPublicID(ctx, publicID)
 	if errors.Is(err, ErrNotFound) {
@@ -222,7 +220,6 @@ func (s *Service) Session(ctx context.Context, publicID string) (SessionResponse
 	}, nil
 }
 
-// isSuperAdmin reports whether the credentials match the environment pair.
 func (s *Service) isSuperAdmin(username, rawPassword string) bool {
 	if s.accessKey == "" || s.secretKey == "" {
 		return false

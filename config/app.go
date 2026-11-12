@@ -10,8 +10,8 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// minSecretKeyLength is the minimum accepted super admin secret length.
-const minSecretKeyLength = 32
+// secretKeyLengthMin is the minimum accepted super admin secret length.
+const secretKeyLengthMin = 32
 
 // AppConfig contains HTTP application settings.
 type AppConfig struct {
@@ -142,8 +142,8 @@ func (c AppConfig) validateAccessKey() error {
 	if (c.AccessKey == "") != (c.SecretKey == "") {
 		return fmt.Errorf("ACCESS_KEY and SECRET_KEY must be set together")
 	}
-	if c.SecretKey != "" && len([]byte(c.SecretKey)) < minSecretKeyLength {
-		return fmt.Errorf("SECRET_KEY must be at least %d characters", minSecretKeyLength)
+	if c.SecretKey != "" && len([]byte(c.SecretKey)) < secretKeyLengthMin {
+		return fmt.Errorf("SECRET_KEY must be at least %d characters", secretKeyLengthMin)
 	}
 	return nil
 }

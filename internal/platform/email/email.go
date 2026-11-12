@@ -188,7 +188,12 @@ func deliverMessage(client *smtp.Client, message Message, from, to string) error
 	if err != nil {
 		return fmt.Errorf("open email body: %w", err)
 	}
-	if _, err := writer.Write(formatMessage(message, from, to)); err != nil {
+	raw, err := formatMessage(message, from, to)
+	if err != nil {
+		_ = writer.Close()
+		return err
+	}
+	if _, err := writer.Write(raw); err != nil {
 		_ = writer.Close()
 		return fmt.Errorf("write email body: %w", err)
 	}
@@ -232,7 +237,7 @@ func validateMessage(message Message) error {
 	return nil
 }
 
-func formatMessage(message Message, from, to string) []byte {
+func formatMessage(message Message, from, to string) ([]byte, error) {
 	var body bytes.Buffer
 	boundary := "kinstack-" + messageID(message.IdempotencyKey)
 	fmt.Fprintf(
@@ -245,19 +250,33 @@ func formatMessage(message Message, from, to string) []byte {
 		boundary,
 	)
 	writer := multipart.NewWriter(&body)
-	_ = writer.SetBoundary(boundary)
+	if err := writer.SetBoundary(boundary); err != nil {
+		return nil, fmt.Errorf("email multipart boundary: %w", err)
+	}
 	textHeader := make(map[string][]string)
 	textHeader["Content-Type"] = []string{"text/plain; charset=UTF-8"}
-	textPart, _ := writer.CreatePart(header(textHeader))
-	_, _ = textPart.Write([]byte(message.TextBody))
+	textPart, err := writer.CreatePart(header(textHeader))
+	if err != nil {
+		return nil, fmt.Errorf("email text part: %w", err)
+	}
+	if _, err := textPart.Write([]byte(message.TextBody)); err != nil {
+		return nil, fmt.Errorf("email text body: %w", err)
+	}
 	if message.HTMLBody != "" {
 		htmlHeader := make(map[string][]string)
 		htmlHeader["Content-Type"] = []string{"text/html; charset=UTF-8"}
-		htmlPart, _ := writer.CreatePart(header(htmlHeader))
-		_, _ = htmlPart.Write([]byte(message.HTMLBody))
+		htmlPart, err := writer.CreatePart(header(htmlHeader))
+		if err != nil {
+			return nil, fmt.Errorf("email html part: %w", err)
+		}
+		if _, err := htmlPart.Write([]byte(message.HTMLBody)); err != nil {
+			return nil, fmt.Errorf("email html body: %w", err)
+		}
 	}
-	_ = writer.Close()
-	return body.Bytes()
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("email multipart close: %w", err)
+	}
+	return body.Bytes(), nil
 }
 
 func header(values map[string][]string) textproto.MIMEHeader {

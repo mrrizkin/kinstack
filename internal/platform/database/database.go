@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	maxOpenConnections = 10
-	maxIdleConnections = 5
-	maxConnLifetime    = 30 * time.Minute
-	maxConnIdleTime    = 5 * time.Minute
+	openConnectionsMax = 10
+	idleConnectionsMax = 5
+	connLifetimeMax    = 30 * time.Minute
+	connIdleTimeMax    = 5 * time.Minute
 )
 
 type DB struct {
@@ -29,8 +29,8 @@ type DB struct {
 // Options tunes the shared pool. Zero values keep the defaults.
 type Options struct {
 	StatementTimeout time.Duration
-	MaxOpenConns     int
-	MaxIdleConns     int
+	OpenConnsMax     int
+	IdleConnsMax     int
 }
 
 // Open connects with the default pool settings. Migration commands use this
@@ -62,10 +62,10 @@ func OpenWithOptions(dsn string, opts Options) (*DB, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("connect to postgres: %w", err)
 	}
-	db.SetMaxOpenConns(poolSize(opts.MaxOpenConns, maxOpenConnections))
-	db.SetMaxIdleConns(poolSize(opts.MaxIdleConns, maxIdleConnections))
-	db.SetConnMaxLifetime(maxConnLifetime)
-	db.SetConnMaxIdleTime(maxConnIdleTime)
+	db.SetMaxOpenConns(poolSize(opts.OpenConnsMax, openConnectionsMax))
+	db.SetMaxIdleConns(poolSize(opts.IdleConnsMax, idleConnectionsMax))
+	db.SetConnMaxLifetime(connLifetimeMax)
+	db.SetConnMaxIdleTime(connIdleTimeMax)
 	return &DB{DB: db}, nil
 }
 

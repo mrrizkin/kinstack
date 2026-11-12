@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { fieldMessage } from "./errors";
+import { errorMap, fieldMessage } from "./errors";
 
 describe("fieldMessage", () => {
   it("returns the first non-empty server message", () => {
@@ -13,5 +13,15 @@ describe("fieldMessage", () => {
     expect(fieldMessage([])).toBeUndefined();
     expect(fieldMessage(undefined)).toBeUndefined();
     expect(fieldMessage(null)).toBeUndefined();
+  });
+});
+
+describe("errorMap", () => {
+  it("normalises every field and drops empty messages", () => {
+    expect(errorMap({ name: ["Required"], rank: "", note: [""] })).toEqual({ name: "Required" });
+  });
+
+  it("treats a missing bag as no errors", () => {
+    expect(errorMap(undefined)).toEqual({});
   });
 });

@@ -42,6 +42,22 @@ for file in "${handlers[@]}"; do
   fi
 done
 
+# 3. Bootstrap error logs are request errors too, unless they are explicitly
+# exempted as post-response work.
+mapfile -t bootstrap < <(
+  git ls-files --cached --others --exclude-standard -- 'internal/bootstrap/*.go' |
+    grep -v '_test\.go$' | grep -v '_templ\.go$'
+)
+for file in "${bootstrap[@]}"; do
+  while IFS=: read -r line _; do
+    window="$(sed -n "$((line > 1 ? line - 1 : 1)),$((line + 1))p" "$file")"
+    if ! grep -qF 'ForRequest(' <<< "$window" && ! grep -qF 'kinstack:allow-unbound-log' <<< "$window"; then
+      report+="$file:$line: error log without a request-scoped logger"$'\n'
+      fail=1
+    fi
+  done < <(grep -nE '\.(Errorw|Warnw)\(' "$file" || true)
+done
+
 if [[ -n "$report" ]]; then
   printf '%s\n' "Request-scoped logging (PILLARS.md §7):" "$report" >&2
 fi

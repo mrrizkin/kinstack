@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	applog "kinstack/internal/pkg/log"
 	"kinstack/internal/platform/email"
 	platformpassword "kinstack/internal/platform/password"
 
@@ -264,7 +265,7 @@ func newLockedOutService(t *testing.T, max int) *Service {
 		Repository: repository,
 		AccessKey:  "superadmin",
 		SecretKey:  "secret-super-admin-panjang",
-		Lockout:    NewLockout(memory.New(), max, time.Minute),
+		Lockout:    NewLockout(memory.New(), max, time.Minute, applog.NewNoopLogger()),
 	})
 }
 
@@ -341,7 +342,7 @@ func TestLoginInactiveAccountStillCountsAFailure(t *testing.T) {
 		Role:         testStaffRole,
 		IsActive:     false,
 	})
-	guard := NewLockout(memory.New(), 2, time.Minute)
+	guard := NewLockout(memory.New(), 2, time.Minute, applog.NewNoopLogger())
 	service := NewService(ServiceDependency{Repository: repository, Lockout: guard})
 	ctx := context.Background()
 

@@ -61,7 +61,7 @@ export function createUserColumns(ctx: UserColumnsContext): TableColumn<UserAcce
     {
       accessorKey: "role",
       header: "Role",
-      cell: ({ row }) => h("span", { class: "text-sm" }, ctx.roleLabel(row.original.role)),
+      cell: ({ row }) => ctx.roleLabel(row.original.role),
     },
     {
       id: "overrides",

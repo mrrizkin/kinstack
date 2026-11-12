@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-const maxPasskeyNameLength = 80
+const passkeyNameLengthMax = 80
 
 // MemoryRepository is the deterministic in-memory repository used by service
 // tests. It is not a production fallback.
@@ -81,7 +81,7 @@ func (r *MemoryRepository) SavePasskey(_ context.Context, id string, record Pass
 	if len(record.ID) == 0 || !bytes.Equal(record.ID, record.Credential.ID) ||
 		strings.TrimSpace(
 			record.Name,
-		) == "" || len(strings.TrimSpace(record.Name)) > maxPasskeyNameLength {
+		) == "" || len(strings.TrimSpace(record.Name)) > passkeyNameLengthMax {
 		return ErrPasskeyInvalid
 	}
 	r.mu.Lock()

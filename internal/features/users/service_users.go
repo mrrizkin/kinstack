@@ -60,16 +60,16 @@ func (s *Service) Create(ctx context.Context, request CreateUserRequest) (UserDT
 	role := strings.TrimSpace(request.Role)
 	email := normalizeEmail(request.Email)
 
-	if !usernamePattern.MatchString(username) || len(username) > maxUsernameLength {
+	if !usernamePattern.MatchString(username) || len(username) > usernameLengthMax {
 		return UserDTO{}, ErrInvalidInput
 	}
-	if email != "" && (!emailPattern.MatchString(email) || len(email) > maxEmailLength) {
+	if email != "" && (!emailPattern.MatchString(email) || len(email) > emailLengthMax) {
 		return UserDTO{}, ErrInvalidInput
 	}
 	if displayName == "" {
 		return UserDTO{}, ErrInvalidInput
 	}
-	if len(request.Password) < minPasswordLength {
+	if len(request.Password) < passwordLengthMin {
 		return UserDTO{}, ErrInvalidInput
 	}
 	if err := s.ensureRole(ctx, role); err != nil {
@@ -150,7 +150,7 @@ type inviteRequest struct {
 
 func normalizeInvite(request InviteUserRequest) (inviteRequest, error) {
 	email := normalizeEmail(request.Email)
-	if email == "" || !emailPattern.MatchString(email) || len(email) > maxEmailLength {
+	if email == "" || !emailPattern.MatchString(email) || len(email) > emailLengthMax {
 		return inviteRequest{}, ErrInvalidInput
 	}
 	displayName := strings.TrimSpace(request.DisplayName)
@@ -181,7 +181,7 @@ func (s *Service) createInvitedUser(
 		username := invite.usernameBase
 		if attempt > 0 {
 			suffix := publicid.MustNew()
-			username = trimToLength(invite.usernameBase+"-"+suffix[:4], maxUsernameLength)
+			username = trimToLength(invite.usernameBase+"-"+suffix[:4], usernameLengthMax)
 		}
 		created, err := s.repository.CreateUser(ctx, CreateUserInput{
 			PublicID:     publicid.MustNew(),
@@ -225,7 +225,7 @@ func usernameFromEmail(email string) string {
 	if len(filtered) < 3 {
 		filtered = "user" + filtered
 	}
-	return trimToLength(filtered, maxUsernameLength)
+	return trimToLength(filtered, usernameLengthMax)
 }
 
 func trimToLength(value string, max int) string {
@@ -301,7 +301,7 @@ func normalizeUserUpdate(request UpdateUserRequest) (userUpdate, error) {
 		return userUpdate{}, ErrInvalidInput
 	}
 	if update.email != "" &&
-		(!emailPattern.MatchString(update.email) || len(update.email) > maxEmailLength) {
+		(!emailPattern.MatchString(update.email) || len(update.email) > emailLengthMax) {
 		return userUpdate{}, ErrInvalidInput
 	}
 	return update, nil
@@ -322,7 +322,7 @@ func mapUserError(err error) error {
 
 // ResetPassword replaces an account password after validating its length.
 func (s *Service) ResetPassword(ctx context.Context, publicID, rawPassword string) error {
-	if len(rawPassword) < minPasswordLength {
+	if len(rawPassword) < passwordLengthMin {
 		return ErrInvalidInput
 	}
 	if s.revoker != nil {

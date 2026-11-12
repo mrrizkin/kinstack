@@ -161,12 +161,12 @@ func TestListDefaultsAndClampsPerPage(t *testing.T) {
 
 	props, err = service.List(
 		context.Background(),
-		FilterRequest{PerPage: pagination.MaxPerPage + 1},
+		FilterRequest{PerPage: pagination.PerPageMax + 1},
 	)
 	if err != nil {
 		t.Fatalf("list audit: %v", err)
 	}
-	if props.Page.PerPage != pagination.MaxPerPage {
+	if props.Page.PerPage != pagination.PerPageMax {
 		t.Fatalf("per_page must clamp to the cap, got %d", props.Page.PerPage)
 	}
 }

@@ -22,7 +22,7 @@ pragma='kinstack:allow-nondeterminism'
 # committed, not after.
 mapfile -t files < <(
   git ls-files --cached --others --exclude-standard -- \
-    'internal/features' 'internal/platform' 'internal/bootstrap' 'config' 'cmd' |
+    'internal/features' 'internal/platform' 'internal/pkg' 'internal/bootstrap' 'config' 'cmd' |
     grep '\.go$' | grep -v '_test\.go$'
 )
 if [[ ${#files[@]} -eq 0 ]]; then

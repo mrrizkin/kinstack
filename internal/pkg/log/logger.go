@@ -1,6 +1,5 @@
-// Package log provides a structured logger built on zerolog that implements
-// Fiber's AllLogger interface. It supports console and rolling-file output
-// with configurable log levels and JSON formatting.
+// Package log is the structured logger: zerolog behind Fiber's AllLogger
+// interface, with rolling-file output.
 package log
 
 import (
@@ -15,7 +14,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Logger is a structured logger built on zerolog that satisfies Fiber's AllLogger interface.
 type Logger struct {
 	core zerolog.Logger
 }
@@ -27,15 +25,13 @@ type LoggerDependency struct {
 	ExtraWriters []io.Writer
 }
 
-// NewWriterLogger returns a logger that writes JSON lines to w. Tests use it to
-// assert what an operation logged, without a file or a telemetry pipeline.
+// NewWriterLogger writes to w; tests use it to assert log output.
 func NewWriterLogger(w io.Writer) *Logger {
 	assert.Assert(w != nil, "log writer is required")
 	return &Logger{core: zerolog.New(w).With().Timestamp().Logger()}
 }
 
-// NewLogger creates a Logger from the application config.
-// It requires file logging to be enabled and panics otherwise.
+// NewLogger requires file logging and panics otherwise.
 func NewLogger(d LoggerDependency) *Logger {
 	assert.Assert(d.Config.Log.File, "file logging must be enabled")
 	fw := assert.OK(rollingFile(d.Config))
@@ -44,7 +40,6 @@ func NewLogger(d LoggerDependency) *Logger {
 		writer = io.MultiWriter(append([]io.Writer{fw}, d.ExtraWriters...)...)
 	}
 
-	// Configure zerolog
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	switch d.Config.Log.Level {
 	case "trace":
@@ -79,15 +74,13 @@ func NewLogger(d LoggerDependency) *Logger {
 	}
 }
 
-// Scope returns a new Logger with a "scope" field attached,
-// useful for distinguishing log output from different subsystems.
+// Scope tags every line with a subsystem name.
 func (l *Logger) Scope(name string) *Logger {
 	return &Logger{
 		core: l.core.With().Str("scope", name).Logger(),
 	}
 }
 
-// GetLevel returns the current logging level as a human-readable string.
 func (l *Logger) GetLevel() string {
 	switch l.core.GetLevel() {
 	case zerolog.TraceLevel:
@@ -113,30 +106,21 @@ func (l *Logger) GetLevel() string {
 	}
 }
 
-// GetLogger returns the underlying zerolog.Logger for direct use.
 func (l *Logger) GetLogger() *zerolog.Logger {
 	return &l.core
 }
 
-// -----------------------------------------------------------------------------
-// Fiber adapter
-// -----------------------------------------------------------------------------
-
-// Ensure Logger implements Fiber's AllLogger interface and Log.
 var (
 	_ fiberlog.AllLogger[*Logger] = (*Logger)(nil)
 	_ Log                         = (*Logger)(nil)
 )
 
-// Logger returns the receiver itself, satisfying Fiber's AllLogger interface.
 func (l *Logger) Logger() *Logger {
 	return l
 }
 
-// SetLevel changes the global zerolog logging level to match Fiber's level enum.
-// WARNING: This affects ALL Logger instances in the process, not just the receiver.
-// The name is dictated by Fiber's AllLogger interface — the global scope is a
-// framework limitation, not a design choice.
+// SetLevel changes the global zerolog level for the whole process: the name
+// comes from Fiber's interface, not from this package.
 func (l *Logger) SetLevel(level fiberlog.Level) {
 	var zLevel zerolog.Level
 	switch level {
@@ -160,13 +144,11 @@ func (l *Logger) SetLevel(level fiberlog.Level) {
 	zerolog.SetGlobalLevel(zLevel)
 }
 
-// SetOutput replaces all logger outputs with the given writer.
 func (l *Logger) SetOutput(w io.Writer) {
 	l.core = l.core.Output(w)
 }
 
-// WithContext returns a new Logger that includes the given context
-// for correlated logging (e.g., request IDs, trace IDs).
+// WithContext attaches the context for correlated logging.
 func (l *Logger) WithContext(value any) fiberlog.CommonLogger {
 	ctx, ok := value.(context.Context)
 	if !ok {
@@ -180,9 +162,7 @@ func (l *Logger) WithContext(value any) fiberlog.CommonLogger {
 // RequestIDKey is the field every request-scoped log line carries.
 const RequestIDKey = "request_id"
 
-// ForRequest binds a request ID to every line the logger writes. Handlers take
-// their logger through this instead of passing "request_id" by hand, so a new
-// call site cannot forget it.
+// ForRequest binds the request ID so no call site passes it by hand.
 func ForRequest(logger Log, requestID string) Log {
 	concrete, ok := logger.(*Logger)
 	if !ok || requestID == "" {
@@ -191,13 +171,7 @@ func ForRequest(logger Log, requestID string) Log {
 	return &Logger{core: concrete.core.With().Str(RequestIDKey, requestID).Logger()}
 }
 
-// -----------------------------------------------------------------------------
-// Structured and formatted logging
-// -----------------------------------------------------------------------------
-
-// log writes a structured event with key-value pairs.
-// Keys and values must come in pairs; keys must be strings.
-// If a value is an error, its Error() string is logged instead.
+// log asserts pairs of string keys and values; errors are logged as strings.
 func (l *Logger) log(event *zerolog.Event, msg string, keysAndValues ...any) {
 	for i := 0; i < len(keysAndValues); i += 2 {
 		assert.Assert(i+1 < len(keysAndValues), "keysAndValues must be in pairs")
@@ -213,57 +187,48 @@ func (l *Logger) log(event *zerolog.Event, msg string, keysAndValues ...any) {
 	event.Msg(msg)
 }
 
-// Tracew logs at Trace level with structured key-value pairs.
 func (l *Logger) Tracew(msg string, keysAndValues ...any) {
 	l.log(l.core.Trace(), msg, keysAndValues...)
 }
 
-// Debugw logs at Debug level with structured key-value pairs.
 func (l *Logger) Debugw(msg string, keysAndValues ...any) {
 	l.log(l.core.Debug(), msg, keysAndValues...)
 }
 
-// Infow logs at Info level with structured key-value pairs.
 func (l *Logger) Infow(msg string, keysAndValues ...any) {
 	l.log(l.core.Info(), msg, keysAndValues...)
 }
 
-// Warnw logs at Warn level with structured key-value pairs.
 func (l *Logger) Warnw(msg string, keysAndValues ...any) {
 	l.log(l.core.Warn(), msg, keysAndValues...)
 }
 
-// Errorw logs at Error level with structured key-value pairs.
 func (l *Logger) Errorw(msg string, keysAndValues ...any) {
 	l.log(l.core.Error(), msg, keysAndValues...)
 }
 
-// Fatalw logs at Fatal level with structured key-value pairs and exits.
+// Fatalw logs and exits.
 func (l *Logger) Fatalw(msg string, keysAndValues ...any) {
 	l.log(l.core.Fatal(), msg, keysAndValues...)
 }
 
-// Panicw logs at Panic level with structured key-value pairs and panics.
+// Panicw logs and panics.
 func (l *Logger) Panicw(msg string, keysAndValues ...any) {
 	l.log(l.core.Panic(), msg, keysAndValues...)
 }
 
-// Tracef logs at Trace level using printf-style formatting.
 func (l *Logger) Tracef(format string, v ...any) {
 	l.core.Trace().Msg(fmt.Sprintf(format, v...))
 }
 
-// Debugf logs at Debug level using printf-style formatting.
 func (l *Logger) Debugf(format string, v ...any) {
 	l.core.Debug().Msg(fmt.Sprintf(format, v...))
 }
 
-// Infof logs at Info level using printf-style formatting.
 func (l *Logger) Infof(format string, v ...any) {
 	l.core.Info().Msg(fmt.Sprintf(format, v...))
 }
 
-// Warnf logs at Warn level using printf-style formatting.
 func (l *Logger) Warnf(format string, v ...any) {
 	l.core.Warn().Msg(fmt.Sprintf(format, v...))
 }
@@ -273,21 +238,15 @@ func (l *Logger) Errorf(format string, v ...any) {
 	l.core.Error().Msg(fmt.Sprintf(format, v...))
 }
 
-// Fatalf logs at Fatal level using printf-style formatting.
 func (l *Logger) Fatalf(format string, v ...any) {
 	l.core.Fatal().Msg(fmt.Sprintf(format, v...))
 }
 
-// Panicf logs at Panic level using printf-style formatting.
 func (l *Logger) Panicf(format string, v ...any) {
 	l.core.Panic().Msg(fmt.Sprintf(format, v...))
 }
 
-// -----------------------------------------------------------------------------
-// Simple logging
-// -----------------------------------------------------------------------------
-
-// Trace logs at Trace level. If the first argument is a string it is used as the message.
+// A leading string argument is the message; the rest are key-value pairs.
 func (l *Logger) Trace(v ...any) {
 	if len(v) == 0 {
 		return
@@ -299,7 +258,6 @@ func (l *Logger) Trace(v ...any) {
 	}
 }
 
-// Debug logs at Debug level. If the first argument is a string it is used as the message.
 func (l *Logger) Debug(v ...any) {
 	if len(v) == 0 {
 		return
@@ -311,7 +269,6 @@ func (l *Logger) Debug(v ...any) {
 	}
 }
 
-// Info logs at Info level. If the first argument is a string it is used as the message.
 func (l *Logger) Info(v ...any) {
 	if len(v) == 0 {
 		return
@@ -323,7 +280,6 @@ func (l *Logger) Info(v ...any) {
 	}
 }
 
-// Warn logs at Warn level. If the first argument is a string it is used as the message.
 func (l *Logger) Warn(v ...any) {
 	if len(v) == 0 {
 		return
@@ -335,7 +291,6 @@ func (l *Logger) Warn(v ...any) {
 	}
 }
 
-// Error logs at Error level. If the first argument is a string it is used as the message.
 func (l *Logger) Error(v ...any) {
 	if len(v) == 0 {
 		return
@@ -347,8 +302,7 @@ func (l *Logger) Error(v ...any) {
 	}
 }
 
-// Fatal logs at Fatal level and calls os.Exit(1). If the first argument is a string it is used as
-// the message.
+// Fatal logs and calls os.Exit(1).
 func (l *Logger) Fatal(v ...any) {
 	if len(v) == 0 {
 		return
@@ -360,8 +314,7 @@ func (l *Logger) Fatal(v ...any) {
 	}
 }
 
-// Panic logs at Panic level and panics. If the first argument is a string it is used as the
-// message.
+// Panic logs and panics.
 func (l *Logger) Panic(v ...any) {
 	if len(v) == 0 {
 		return

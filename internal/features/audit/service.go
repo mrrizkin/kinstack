@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	maxPerPage      = pagination.MaxPerPage
-	maxSearchLength = 200
+	perPageMax      = pagination.PerPageMax
+	searchLengthMax = 200
 )
 
 var allowedActions = map[string]struct{}{
@@ -101,11 +101,11 @@ func normalizeFilter(request FilterRequest) (normalizedFilter, error) {
 			)
 		}
 	}
-	if len(query.Search) > maxSearchLength {
+	if len(query.Search) > searchLengthMax {
 		return normalizedFilter{}, fmt.Errorf(
 			"%w: %s",
 			ErrInvalidInput,
-			i18n.T("audit.search_too_long", maxSearchLength),
+			i18n.T("audit.search_too_long", searchLengthMax),
 		)
 	}
 
@@ -113,8 +113,8 @@ func normalizeFilter(request FilterRequest) (normalizedFilter, error) {
 	if perPage <= 0 {
 		perPage = pagination.DefaultPerPage
 	}
-	if perPage > maxPerPage {
-		perPage = maxPerPage
+	if perPage > perPageMax {
+		perPage = perPageMax
 	}
 	page := request.Page
 	if page < 1 {

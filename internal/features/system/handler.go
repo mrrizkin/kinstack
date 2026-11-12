@@ -41,10 +41,10 @@ const (
 	// cspReportBytesMax bounds how much of a browser report is read. Anything
 	// larger is discarded; the endpoint never buffers an unbounded body.
 	cspReportBytesMax = 8 * 1024
-	// maxCSPLogValue bounds each structured field written to the log so a
+	// cspLogValueMax bounds each structured field written to the log so a
 	// hostile document cannot flood or forge log lines. It counts runes, not
 	// bytes, so truncation never splits a UTF-8 sequence.
-	maxCSPLogValue = 200
+	cspLogValueMax = 200
 )
 
 // cspReportPayload is the subset of the CSP report contract that is safe to
@@ -77,7 +77,12 @@ func (h *Handler) cspReport(c fiber.Ctx) error {
 	}
 
 	payload := cspReportPayload{}
-	_ = json.Unmarshal(body, &payload)
+	if err := json.Unmarshal(body, &payload); err != nil && !truncated {
+		// A malformed report is expected noise from hostile pages, but a broken
+		// reporter still has to be diagnosable.
+		log.ForRequest(h.logger, c.RequestID()).
+			Debugw("csp report undecodable", "error", err, "report_bytes", len(body))
+	}
 	directive := payload.Report.Directive
 	if directive == "" {
 		directive = payload.Report.Violated
@@ -107,8 +112,8 @@ func sanitizeCSPValue(value string) string {
 	}, value)
 	cleaned = strings.Join(strings.Fields(cleaned), " ")
 	runes := []rune(cleaned)
-	if len(runes) > maxCSPLogValue {
-		cleaned = string(runes[:maxCSPLogValue])
+	if len(runes) > cspLogValueMax {
+		cleaned = string(runes[:cspLogValueMax])
 	}
 	return cleaned
 }

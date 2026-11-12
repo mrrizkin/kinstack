@@ -96,7 +96,7 @@ func (r *SQLRepository) ListPasskeys(ctx context.Context, id string) ([]ListPass
 func (r *SQLRepository) SavePasskey(ctx context.Context, id string, record PasskeyRecord) error {
 	record.Name = strings.TrimSpace(record.Name)
 	if len(record.ID) == 0 || !bytes.Equal(record.ID, record.Credential.ID) ||
-		record.Name == "" || len(record.Name) > maxPasskeyNameLength {
+		record.Name == "" || len(record.Name) > passkeyNameLengthMax {
 		return ErrPasskeyInvalid
 	}
 	credential, err := json.Marshal(record.Credential)

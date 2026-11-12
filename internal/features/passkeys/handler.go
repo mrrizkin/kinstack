@@ -254,7 +254,7 @@ func (h *Handler) finishPasskeyRegistration(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "invalid passkey payload")
 	}
 	input.Name = strings.TrimSpace(input.Name)
-	if len(input.Name) < 1 || len(input.Name) > maxPasskeyNameLength {
+	if len(input.Name) < 1 || len(input.Name) > passkeyNameLengthMax {
 		return fiber.NewError(
 			fiber.StatusUnprocessableEntity,
 			"passkey name must be between 1 and 80 characters",

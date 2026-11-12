@@ -21,6 +21,21 @@ export function fieldMessage(value: unknown): string | undefined {
 }
 
 /**
+ * Normalises a whole Inertia error bag into one string per field, dropping empty
+ * entries. Used by the dialog state machines, which hold the errors as state.
+ */
+export function errorMap(value: Record<string, unknown> | undefined): Record<string, string> {
+  const normalised: Record<string, string> = {};
+  for (const [field, item] of Object.entries(value ?? {})) {
+    const message = firstMessage(item as ErrorValue);
+    if (message) {
+      normalised[field] = message;
+    }
+  }
+  return normalised;
+}
+
+/**
  * Reads server-side (flashed) validation errors. Inertia delivers them as arrays,
  * so everything is normalised to a single string before rendering.
  */

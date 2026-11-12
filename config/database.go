@@ -14,15 +14,15 @@ import (
 type DatabaseConfig struct {
 	URL              string
 	StatementTimeout time.Duration
-	MaxOpenConns     int
-	MaxIdleConns     int
+	OpenConnsMax     int
+	IdleConnsMax     int
 }
 
 func (c *DatabaseConfig) Load() {
 	c.URL = os.Getenv("DATABASE_URL")
 	c.StatementTimeout = assert.OK(envDuration("DB_STATEMENT_TIMEOUT", 15*time.Second))
-	c.MaxOpenConns = assert.OK(envInt("DB_MAX_CONNS", 10))
-	c.MaxIdleConns = assert.OK(envInt("DB_MAX_IDLE_CONNS", 5))
+	c.OpenConnsMax = assert.OK(envInt("DB_MAX_CONNS", 10))
+	c.IdleConnsMax = assert.OK(envInt("DB_MAX_IDLE_CONNS", 5))
 }
 
 // LoadDatabase reads and validates only the database configuration for migration commands.
@@ -54,13 +54,13 @@ func (c DatabaseConfig) validatePool() error {
 	if c.StatementTimeout < 0 {
 		return fmt.Errorf("DB_STATEMENT_TIMEOUT must not be negative")
 	}
-	if c.MaxOpenConns < 0 {
+	if c.OpenConnsMax < 0 {
 		return fmt.Errorf("DB_MAX_CONNS must not be negative")
 	}
-	if c.MaxIdleConns < 0 {
+	if c.IdleConnsMax < 0 {
 		return fmt.Errorf("DB_MAX_IDLE_CONNS must not be negative")
 	}
-	if c.MaxOpenConns > 0 && c.MaxIdleConns > c.MaxOpenConns {
+	if c.OpenConnsMax > 0 && c.IdleConnsMax > c.OpenConnsMax {
 		return fmt.Errorf("DB_MAX_IDLE_CONNS must not exceed DB_MAX_CONNS")
 	}
 	return nil

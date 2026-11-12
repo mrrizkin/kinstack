@@ -130,10 +130,12 @@ crashes. `Status` is a typed enum mirrored by the schema's `CHECK` constraint, a
 next state machine must copy.
 
 `[RITUS]` *Draw the states. Which one has no exit, and which one has two?*
-Real violation: `resources/js/pages/access/composables/useAccessForms.ts` tracks
-`editingUserId`, `submittingOverride`, and `overrideLocalErrors` as three
-separate refs, so "the dialog is open, busy, and showing an error" is three
-booleans kept in agreement instead of one state.
+The browser copy lives in `resources/js/lib/dialog.ts`: every modal and
+slideover is `closed | editing | saving` (or `closed | confirming | running`),
+with the transition table written above the one `transition` function. A
+composable that adds a second `showX`/`savingX` boolean instead of a state has
+re-created the bug, so the review question is: which state is terminal, and
+what happens when a save is cancelled?
 
 # 4. Determinism
 
@@ -170,13 +172,14 @@ deadline behavior cannot be simulated. A timeout path that must be simulated has
 to accept a clock rather than derive a deadline from a context.
 
 `[GATE]` `just check-determinism` greps `internal/features`,
-`internal/platform`, `internal/bootstrap`, `config` and `cmd` for `time.Now`,
-`time.Since`, `time.Sleep`, `time.After`, `time.Tick` and `math/rand`. A file not
-in `scripts/determinism-baseline.tsv` may not contain one, and a baselined file
-may not grow. The baseline is empty: the one wall-clock read lives in
-`internal/platform/clock`, and the observability timestamps carry
-`//kinstack:allow-nondeterminism` with a reason. Every other clock is a
-parameter.
+`internal/platform`, `internal/pkg`, `internal/bootstrap`, `config` and `cmd` for
+`time.Now`, `time.Since`, `time.Sleep`, `time.After`, `time.Tick` and
+`math/rand`. A file not in `scripts/determinism-baseline.tsv` may not contain
+one, and a baselined file may not grow. The baseline is empty. Production
+defaults carry `//kinstack:allow-nondeterminism` with a reason:
+`internal/platform/clock` supplies the system clock, the HTTP access log
+measures latency, and the log/observability writers stamp their own time. Every
+other clock is a parameter.
 
 `[RITUS]` *Could this test fail on another machine, at another minute, in another
 order?*
@@ -346,9 +349,11 @@ documentation and the only kind that cannot go stale.
 explain the system? Does any name put the qualifier before its subject, or bury
 its unit in the middle?*
 
-Real violation: `maxUploadSize`, `maxCSPReportBytes`, `maxLogLineBytes`, and
-`maxDocumentBytes` named the qualifier first, so the unit sat in the middle of
-the identifier and the family never sorted together.
+Real violation (fixed): `maxUploadSize`, `maxCSPReportBytes`, `maxLogLineBytes`,
+and `maxDocumentBytes` named the qualifier first, so the unit sat in the middle
+of the identifier and the family never sorted together. The family now reads
+`uploadSizeMax`, `cspReportBytesMax`, `logLineBytesMax`, `documentBytesMax`,
+`perPageMax`, and `pageHintMax`.
 
 # 10. Show, Don't Tell
 

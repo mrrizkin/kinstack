@@ -1,7 +1,8 @@
-import { router, useForm } from "@inertiajs/vue3";
+import { router } from "@inertiajs/vue3";
 import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 import { computed, ref } from "vue";
 
+import { dialogHooks, formView, openModel, subjectModel, useConfirmation, useDialog } from "@/lib/dialog";
 import { useServerErrors } from "@/lib/errors";
 import { icons } from "@/lib/icons";
 import { queryString } from "@/lib/query";
@@ -17,6 +18,19 @@ interface AccessProps {
   users: UserAccess[];
   page?: { page: number };
   roles_page?: { page: number };
+}
+
+interface RoleCreateValues {
+  code: string;
+  name: string;
+  description: string;
+  rank: number;
+}
+
+interface RoleEditValues {
+  name: string;
+  description: string;
+  rank: number;
 }
 
 export function useAccessForms(props: AccessProps) {
@@ -36,11 +50,6 @@ export function useAccessForms(props: AccessProps) {
   const { message } = useServerErrors();
   const actionError = computed(() => message("role") || message("permission") || message("form"));
 
-  // ---- Role permission matrix ----
-  const editingRole = ref<Role | null>(null);
-  const selectedPermissions = ref<string[]>([]);
-  const savingPermissions = ref(false);
-
   const permissionsByCategory = computed<PermissionCategory[]>(() =>
     props.categories
       .map((category) => ({
@@ -49,107 +58,6 @@ export function useAccessForms(props: AccessProps) {
       }))
       .filter((group) => group.items.length > 0),
   );
-
-  function openRolePermissions(role: Role) {
-    editingRole.value = role;
-    selectedPermissions.value = [...role.permissions];
-  }
-
-  function togglePermission(code: string, checked: boolean) {
-    const set = new Set(selectedPermissions.value);
-    if (checked) set.add(code);
-    else set.delete(code);
-    selectedPermissions.value = [...set];
-  }
-
-  function saveRolePermissions() {
-    const role = editingRole.value;
-    if (!role || savingPermissions.value) return;
-    router.post(
-      accessURL(`/roles/${role.code}/permissions${rolesPageQuery.value}`),
-      { permissions: selectedPermissions.value },
-      {
-        preserveScroll: true,
-        onStart: () => (savingPermissions.value = true),
-        onFinish: () => (savingPermissions.value = false),
-        onSuccess: () => (editingRole.value = null),
-      },
-    );
-  }
-
-  // ---- Create role ----
-  const showCreateRole = ref(false);
-  const createRoleForm = useForm({ code: "", name: "", description: "", rank: 20 });
-
-  function submitCreateRole() {
-    createRoleForm.post(accessURL(`/roles${rolesPageQuery.value}`), {
-      preserveScroll: true,
-      onSuccess: () => {
-        createRoleForm.reset();
-        showCreateRole.value = false;
-      },
-    });
-  }
-
-  // ---- Delete role (confirmed) ----
-  const pendingDeleteRole = ref<Role | null>(null);
-  const deletingRole = ref(false);
-
-  function requestDeleteRole(role: Role) {
-    pendingDeleteRole.value = role;
-  }
-
-  function confirmDeleteRole() {
-    const role = pendingDeleteRole.value;
-    if (!role || deletingRole.value) return;
-    router.post(
-      accessURL(`/roles/${role.code}/delete${rolesPageQuery.value}`),
-      {},
-      {
-        preserveScroll: true,
-        onStart: () => (deletingRole.value = true),
-        onFinish: () => {
-          deletingRole.value = false;
-          pendingDeleteRole.value = null;
-        },
-      },
-    );
-  }
-
-  // ---- Edit role metadata (name/description/rank are data, not code) ----
-  const editingRoleMeta = ref<Role | null>(null);
-  const editRoleForm = useForm({ name: "", description: "", rank: 20 });
-
-  function openEditRole(role: Role) {
-    editingRoleMeta.value = role;
-    editRoleForm.clearErrors();
-    editRoleForm.name = role.name;
-    editRoleForm.description = role.description;
-    editRoleForm.rank = role.rank;
-  }
-
-  function submitEditRole() {
-    const role = editingRoleMeta.value;
-    if (!role) return;
-    editRoleForm.put(accessURL(`/roles/${role.code}${rolesPageQuery.value}`), {
-      preserveScroll: true,
-      onSuccess: () => (editingRoleMeta.value = null),
-    });
-  }
-
-  // ---- User custom permissions ----
-  // Track only the selected user's id so the panel always reflects the latest
-  // props after an Inertia reload (a stored object snapshot would go stale).
-  const editingUserId = ref<string | null>(null);
-  const editingUser = computed(() => props.users.find((user) => user.public_id === editingUserId.value) ?? null);
-  const overrideForm = ref<OverrideForm>({
-    permission: "",
-    effect: "allow",
-    reason: "",
-    expires: "",
-  });
-  const overrideLocalErrors = ref<Record<string, string>>({});
-  const submittingOverride = ref(false);
 
   const permissionOptions = computed(() =>
     props.permissions.map((permission) => ({
@@ -160,69 +68,183 @@ export function useAccessForms(props: AccessProps) {
 
   const roleOptions = computed(() => props.role_options.map((role) => ({ label: role.name, value: role.code })));
 
-  function overrideFieldError(field: string): string | undefined {
-    return overrideLocalErrors.value[field] || message(field);
+  // ---- Role permission matrix ----
+  const permissions = useDialog<Role, { permissions: string[] }>({
+    label: "role permissions",
+    initialValues: (role) => ({ permissions: role ? [...role.permissions] : [] }),
+    idOf: (role) => role.code,
+  });
+
+  const editingRole = subjectModel(permissions);
+  const selectedPermissions = computed(() => permissions.values.permissions);
+  const savingPermissions = permissions.isSaving;
+
+  function openRolePermissions(role: Role) {
+    if (permissions.isOpen.value) return;
+    permissions.open(role);
   }
 
-  function openUserOverrides(user: UserAccess) {
-    editingUserId.value = user.public_id;
-    overrideLocalErrors.value = {};
-    overrideForm.value.permission = permissionOptions.value[0]?.value ?? "";
-    overrideForm.value.effect = "allow";
-    overrideForm.value.reason = "";
-    overrideForm.value.expires = "";
+  function togglePermission(code: string, checked: boolean) {
+    const current = permissions.values.permissions;
+    permissions.values.permissions = checked
+      ? [...new Set([...current, code])]
+      : current.filter((item) => item !== code);
   }
 
-  function closeUserOverrides() {
-    editingUserId.value = null;
-  }
-
-  function submitOverride() {
-    const user = editingUser.value;
-    if (!user || submittingOverride.value) return;
-    overrideLocalErrors.value = {};
-    if (!overrideForm.value.permission) {
-      overrideLocalErrors.value.permission = "Select a permission first.";
-      return;
-    }
+  function saveRolePermissions() {
+    const role = permissions.subject.value;
+    if (!role || permissions.isSaving.value) return;
     router.post(
-      accessURL(`/users/${user.public_id}/permissions${pageQuery.value}`),
-      {
-        permission: overrideForm.value.permission,
-        effect: overrideForm.value.effect,
-        reason: overrideForm.value.reason,
-        expires_at: overrideForm.value.expires,
-      },
+      accessURL(`/roles/${role.code}/permissions${rolesPageQuery.value}`),
+      { permissions: permissions.values.permissions },
+      { preserveScroll: true, ...dialogHooks(permissions) },
+    );
+  }
+
+  // ---- Create role ----
+  const createRole = useDialog<null, RoleCreateValues>({
+    label: "create role",
+    initialValues: () => ({ code: "", name: "", description: "", rank: 20 }),
+  });
+
+  const showCreateRole = openModel(createRole);
+  const createRoleForm = formView(createRole);
+
+  function submitCreateRole() {
+    const { code, name, description, rank } = createRole.values;
+    router.post(
+      accessURL(`/roles${rolesPageQuery.value}`),
+      { code, name, description, rank },
+      { preserveScroll: true, ...dialogHooks(createRole) },
+    );
+  }
+
+  // ---- Delete role (confirmed) ----
+  const deleteRole = useConfirmation<Role>({ label: "delete role", idOf: (role) => role.code });
+  const pendingDeleteRole = subjectModel(deleteRole);
+  const deletingRole = deleteRole.isRunning;
+
+  function requestDeleteRole(role: Role) {
+    if (deleteRole.isOpen.value) return;
+    deleteRole.open(role);
+  }
+
+  function confirmDeleteRole() {
+    const role = deleteRole.subject.value;
+    if (!role || deleteRole.isRunning.value) return;
+    deleteRole.confirm();
+    router.post(
+      accessURL(`/roles/${role.code}/delete${rolesPageQuery.value}`),
+      {},
       {
         preserveScroll: true,
-        onStart: () => (submittingOverride.value = true),
-        onFinish: () => (submittingOverride.value = false),
+        onFinish: () => deleteRole.done(),
       },
     );
   }
 
+  // ---- Edit role metadata (name/description/rank are data, not code) ----
+  const editRole = useDialog<Role, RoleEditValues>({
+    label: "edit role",
+    initialValues: (role) => ({
+      name: role?.name ?? "",
+      description: role?.description ?? "",
+      rank: role?.rank ?? 20,
+    }),
+    idOf: (role) => role.code,
+  });
+
+  const editingRoleMeta = subjectModel(editRole);
+  const editRoleForm = formView(editRole);
+
+  function openEditRole(role: Role) {
+    if (editRole.isOpen.value) return;
+    editRole.open(role);
+  }
+
+  function submitEditRole() {
+    const role = editRole.subject.value;
+    if (!role || editRole.isSaving.value) return;
+    const { name, description, rank } = editRole.values;
+    router.put(
+      accessURL(`/roles/${role.code}${rolesPageQuery.value}`),
+      { name, description, rank },
+      { preserveScroll: true, ...dialogHooks(editRole) },
+    );
+  }
+
+  // ---- User custom permissions ----
+  // The dialog tracks only the selected user's id so the panel always reflects
+  // the latest props after an Inertia reload (a stored object snapshot would go
+  // stale).
+  const overrides = useDialog<{ id: string }, OverrideForm>({
+    label: "user overrides",
+    initialValues: () => ({
+      permission: permissionOptions.value[0]?.value ?? "",
+      effect: "allow",
+      reason: "",
+      expires: "",
+    }),
+    idOf: (subject) => subject.id,
+  });
+
+  const editingUser = computed(
+    () => props.users.find((user) => user.public_id === overrides.subject.value?.id) ?? null,
+  );
+  const overrideForm = formView(overrides);
+  const submittingOverride = overrides.isSaving;
+
+  function overrideFieldError(field: string): string | undefined {
+    return overrides.errors.value[field] || message(field);
+  }
+
+  function openUserOverrides(user: UserAccess) {
+    if (overrides.isOpen.value) return;
+    overrides.open({ id: user.public_id });
+  }
+
+  function closeUserOverrides() {
+    overrides.close();
+  }
+
+  function submitOverride() {
+    const user = editingUser.value;
+    if (!user || overrides.isSaving.value) return;
+    const { permission, effect, reason, expires } = overrides.values;
+    if (!permission) {
+      overrides.invalid({ permission: "Select a permission first." });
+      return;
+    }
+    // A successful save keeps the panel open so the new override is visible.
+    router.post(
+      accessURL(`/users/${user.public_id}/permissions${pageQuery.value}`),
+      { permission, effect, reason, expires_at: expires },
+      { preserveScroll: true, ...dialogHooks(overrides, { keepOpen: true }) },
+    );
+  }
+
   // ---- Delete custom permission (confirmed) ----
-  const pendingRemoveOverride = ref<{ user: UserAccess; override: Override } | null>(null);
-  const removingOverride = ref(false);
+  const removeOverride = useConfirmation<{ user: UserAccess; override: Override }>({
+    label: "remove custom permission",
+    idOf: (pending) => `${pending.user.public_id}:${pending.override.permission}`,
+  });
+
+  const pendingRemoveOverride = subjectModel(removeOverride);
+  const removingOverride = removeOverride.isRunning;
 
   function requestRemoveOverride(user: UserAccess, override: Override) {
-    pendingRemoveOverride.value = { user, override };
+    if (removeOverride.isOpen.value) return;
+    removeOverride.open({ user, override });
   }
 
   function confirmRemoveOverride() {
-    const pending = pendingRemoveOverride.value;
-    if (!pending || removingOverride.value) return;
+    const pending = removeOverride.subject.value;
+    if (!pending || removeOverride.isRunning.value) return;
+    removeOverride.confirm();
     router.post(
       accessURL(`/users/${pending.user.public_id}/permissions/delete${pageQuery.value}`),
       { permission: pending.override.permission },
-      {
-        preserveScroll: true,
-        onStart: () => (removingOverride.value = true),
-        onFinish: () => {
-          removingOverride.value = false;
-          pendingRemoveOverride.value = null;
-        },
-      },
+      { preserveScroll: true, onFinish: () => removeOverride.done() },
     );
   }
 
@@ -259,6 +281,7 @@ export function useAccessForms(props: AccessProps) {
         preserveScroll: true,
         onSuccess: () => roleChange.committed(),
         onError: () => roleChange.failed(),
+        onFinish: () => roleChange.failed(),
       },
     );
   }

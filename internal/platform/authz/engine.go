@@ -1,7 +1,6 @@
 package authz
 
 import (
-	"context"
 	"fmt"
 
 	"kinstack/internal/platform/clock"
@@ -115,13 +114,11 @@ func policyPermission(policy Policy) Permission {
 // not resolve role or override data; callers supply those via a Principal and
 // the resolved effective permission set.
 func (e *Engine) Decide(
-	ctx context.Context,
 	principal Principal,
 	granted map[Permission]struct{},
 	permission Permission,
 	resource Resource,
 ) Decision {
-	_ = ctx
 	base := baseDecision(principal, granted, permission)
 	return e.Evaluate(Request{
 		Principal:  principal,

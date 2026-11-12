@@ -25,10 +25,10 @@ const (
 	tokenScheme      = "hus_"
 	tokenSecretBytes = 32
 	tokenPrefixChars = 6
-	minNameLength    = 1
-	maxNameLength    = 80
-	maxExpiryDays    = 3650
-	maxScopes        = 100
+	nameLengthMin    = 1
+	nameLengthMax    = 80
+	expiryDaysMax    = 3650
+	scopesMax        = 100
 	lastUsedThrottle = time.Minute
 )
 
@@ -58,6 +58,16 @@ type CreatedToken struct {
 	APIToken APITokenDTO
 }
 
+// requireUser trims and validates the owning user once. The rule lives here so
+// the operations cannot drift into slightly different checks.
+func requireUser(userPublicID string) (string, error) {
+	trimmed := strings.TrimSpace(userPublicID)
+	if trimmed == "" {
+		return "", ErrInvalidInput
+	}
+	return trimmed, nil
+}
+
 // Create issues a new personal API token and returns its plaintext value once.
 func (s *Service) Create(
 	ctx context.Context,
@@ -66,19 +76,19 @@ func (s *Service) Create(
 	expiresInDays int,
 	scopes []string,
 ) (CreatedToken, error) {
-	userPublicID = strings.TrimSpace(userPublicID)
-	name = strings.TrimSpace(name)
-	if userPublicID == "" {
-		return CreatedToken{}, ErrInvalidInput
+	userPublicID, err := requireUser(userPublicID)
+	if err != nil {
+		return CreatedToken{}, err
 	}
-	if len(name) < minNameLength || len(name) > maxNameLength {
+	name = strings.TrimSpace(name)
+	if len(name) < nameLengthMin || len(name) > nameLengthMax {
 		return CreatedToken{}, fmt.Errorf(
 			"%w: %s",
 			ErrInvalidInput,
-			i18n.T("apitoken.name_length", minNameLength, maxNameLength),
+			i18n.T("apitoken.name_length", nameLengthMin, nameLengthMax),
 		)
 	}
-	if expiresInDays < 0 || expiresInDays > maxExpiryDays {
+	if expiresInDays < 0 || expiresInDays > expiryDaysMax {
 		return CreatedToken{}, fmt.Errorf(
 			"%w: %s",
 			ErrInvalidInput,
@@ -125,9 +135,9 @@ func (s *Service) List(
 	userPublicID string,
 	query pagination.Query,
 ) (TokenPage, error) {
-	userPublicID = strings.TrimSpace(userPublicID)
-	if userPublicID == "" {
-		return TokenPage{}, ErrInvalidInput
+	userPublicID, err := requireUser(userPublicID)
+	if err != nil {
+		return TokenPage{}, err
 	}
 	total, err := s.repository.CountByUser(ctx, userPublicID)
 	if err != nil {
@@ -147,21 +157,25 @@ func (s *Service) List(
 
 // Revoke marks one token owned by the user as revoked.
 func (s *Service) Revoke(ctx context.Context, userPublicID, tokenPublicID string) error {
-	return s.repository.Revoke(
-		ctx,
-		strings.TrimSpace(userPublicID),
-		strings.TrimSpace(tokenPublicID),
-	)
+	userPublicID, err := requireUser(userPublicID)
+	if err != nil {
+		return err
+	}
+	tokenPublicID = strings.TrimSpace(tokenPublicID)
+	if tokenPublicID == "" {
+		return ErrInvalidInput
+	}
+	return s.repository.Revoke(ctx, userPublicID, tokenPublicID)
 }
 
 // RevokeAll revokes every personal API token of one user. Used after a
 // password reset so a leaked token cannot keep acting on the account.
 func (s *Service) RevokeAll(ctx context.Context, userPublicID string) error {
-	userPublicID = strings.TrimSpace(userPublicID)
-	if userPublicID == "" {
-		return nil
+	userPublicID, err := requireUser(userPublicID)
+	if err != nil {
+		return err
 	}
-	_, err := s.repository.RevokeAll(ctx, userPublicID)
+	_, err = s.repository.RevokeAll(ctx, userPublicID)
 	return err
 }
 
@@ -222,8 +236,8 @@ func normalizeScopes(scopes []string) (pq.StringArray, error) {
 		seen[code] = struct{}{}
 		normalized = append(normalized, code)
 	}
-	if len(normalized) > maxScopes {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("apitoken.max_scopes", maxScopes))
+	if len(normalized) > scopesMax {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidInput, i18n.T("apitoken.max_scopes", scopesMax))
 	}
 	return normalized, nil
 }

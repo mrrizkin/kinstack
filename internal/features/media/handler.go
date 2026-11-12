@@ -117,8 +117,8 @@ func (h *Handler) file(c fiber.Ctx) error {
 	// Clamp to the upload ceiling: a corrupted row must not turn into an
 	// unbounded read even though the recorded size says otherwise.
 	limit := asset.SizeBytes + 1
-	if limit > uploadSizeMax+1 {
-		limit = uploadSizeMax + 1
+	if limit > UploadSizeMax+1 {
+		limit = UploadSizeMax + 1
 	}
 	data, err := io.ReadAll(io.LimitReader(body, limit))
 	if err != nil {

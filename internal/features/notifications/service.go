@@ -14,10 +14,10 @@ const (
 	// feedLimit is the dashboard summary size; the center uses the account
 	// page size instead.
 	feedLimit      = 10
-	maxListLimit   = 100
-	maxKindLength  = 60
-	maxTitleLength = 200
-	maxBodyLength  = 2000
+	listLimitMax   = 100
+	kindLengthMax  = 60
+	titleLengthMax = 200
+	bodyLengthMax  = 2000
 )
 
 type ServiceDependency struct {
@@ -57,7 +57,7 @@ func (s *Service) Notify(
 	title = strings.TrimSpace(title)
 	body = strings.TrimSpace(body)
 	if kind == "" || title == "" || body == "" ||
-		len(kind) > maxKindLength || len(title) > maxTitleLength || len(body) > maxBodyLength {
+		len(kind) > kindLengthMax || len(title) > titleLengthMax || len(body) > bodyLengthMax {
 		return NotificationDTO{}, ErrInvalidInput
 	}
 	created, err := s.repository.Create(ctx, CreateInput{
@@ -87,8 +87,8 @@ func (s *Service) List(
 	if limit <= 0 {
 		limit = feedLimit
 	}
-	if limit > maxListLimit {
-		limit = maxListLimit
+	if limit > listLimitMax {
+		limit = listLimitMax
 	}
 	cursor, err := decodeCursor(before)
 	if err != nil {

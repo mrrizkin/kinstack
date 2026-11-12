@@ -1,7 +1,8 @@
-import { router, useForm } from "@inertiajs/vue3";
+import { router } from "@inertiajs/vue3";
 import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 
+import { dialogHooks, formView, openModel, subjectModel, useConfirmation, useDialog } from "@/lib/dialog";
 import { useServerErrors } from "@/lib/errors";
 import { icons } from "@/lib/icons";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
@@ -12,6 +13,21 @@ import type { Role, User } from "../columns";
 interface UsersProps {
   users: User[];
   roles: Role[];
+}
+
+interface CreateValues {
+  username: string;
+  email: string;
+  display_name: string;
+  password: string;
+  role: string;
+}
+
+interface InviteValues {
+  email: string;
+  username: string;
+  display_name: string;
+  role: string;
 }
 
 export function useUserForms(props: UsersProps) {
@@ -26,25 +42,44 @@ export function useUserForms(props: UsersProps) {
   const actionError = computed(() => message("is_active") || message("role") || message("form"));
   const { can } = usePermissions();
 
-  const showCreate = ref(false);
-  const createForm = useForm({
-    username: "",
-    email: "",
-    display_name: "",
-    password: "",
-    role: props.roles[0]?.code ?? "",
+  // ---- Create user ----
+  const createUser = useDialog<null, CreateValues>({
+    label: "create user",
+    initialValues: () => ({
+      username: "",
+      email: "",
+      display_name: "",
+      password: "",
+      role: props.roles[0]?.code ?? "",
+    }),
   });
 
+  const showCreate = openModel(createUser);
+  const createForm = formView(createUser);
+
   function submitCreate() {
-    createForm.post(usersURL(), {
-      onSuccess: () => {
-        createForm.reset();
-        showCreate.value = false;
-      },
-    });
+    const { username, email, display_name, password, role } = createUser.values;
+    router.post(usersURL(), { username, email, display_name, password, role }, dialogHooks(createUser));
   }
 
-  const showInvite = ref(false);
+  // ---- Invite user ----
+  const invite = useDialog<null, InviteValues>({
+    label: "invite user",
+    initialValues: () => ({
+      email: "",
+      username: "",
+      display_name: "",
+      role: props.roles[0]?.code ?? "",
+    }),
+  });
+
+  const showInvite = openModel(invite);
+  const inviteForm = formView(invite);
+
+  function submitInvite() {
+    const { email, username, display_name, role } = invite.values;
+    router.post(usersURL("/invite"), { email, username, display_name, role }, dialogHooks(invite));
+  }
 
   const headerActions = computed<DropdownMenuItem[]>(() => {
     const actions: DropdownMenuItem[] = [];
@@ -74,64 +109,39 @@ export function useUserForms(props: UsersProps) {
     return actions;
   });
 
-  const inviteForm = useForm({
-    email: "",
-    username: "",
-    display_name: "",
-    role: props.roles[0]?.code ?? "",
-  });
+  // ---- Activate / deactivate ----
+  // Activation runs immediately; deactivation asks first. Both are one state:
+  // idle, asking, or running.
+  const activity = useConfirmation<User>({ label: "user activity", idOf: (user) => user.public_id });
+  const pendingToggle = subjectModel(activity);
+  const togglingActive = activity.isRunning;
 
-  function submitInvite() {
-    inviteForm.post(usersURL("/invite"), {
-      onSuccess: () => {
-        inviteForm.reset();
-        showInvite.value = false;
-      },
-    });
-  }
-
-  const busyUserId = ref<string | null>(null);
-  const pendingToggle = ref<User | null>(null);
-  const togglingActive = ref(false);
-
-  function applyActive(user: User, isActive: boolean) {
+  function applyActivation(user: User, isActive: boolean) {
     router.post(
       usersURL(`/${user.public_id}/active`),
       { is_active: isActive },
       {
         preserveScroll: true,
-        onStart: () => (busyUserId.value = user.public_id),
-        onFinish: () => (busyUserId.value = null),
+        onFinish: () => activity.done(),
       },
     );
   }
 
   function toggleActive(user: User) {
-    if (busyUserId.value) return;
+    if (activity.isRunning.value) return;
     if (!user.is_active) {
-      applyActive(user, true);
+      activity.start(user);
+      applyActivation(user, true);
       return;
     }
-    pendingToggle.value = user;
+    activity.open(user);
   }
 
   function confirmToggleActive() {
-    const user = pendingToggle.value;
-    if (!user || togglingActive.value) return;
-    togglingActive.value = true;
-    router.post(
-      usersURL(`/${user.public_id}/active`),
-      { is_active: false },
-      {
-        preserveScroll: true,
-        onStart: () => (busyUserId.value = user.public_id),
-        onFinish: () => {
-          togglingActive.value = false;
-          busyUserId.value = null;
-          pendingToggle.value = null;
-        },
-      },
-    );
+    const user = activity.subject.value;
+    if (!user || activity.isRunning.value) return;
+    activity.confirm();
+    applyActivation(user, false);
   }
 
   // ---- Change role (confirmed through a modal, never inline) ----
@@ -140,6 +150,7 @@ export function useUserForms(props: UsersProps) {
   const roleOpen = roleChange.isOpen;
   const roleSaving = roleChange.isSaving;
   const roleValue = roleChange.role;
+  const busyUserId = computed(() => roleChange.busyId.value ?? activity.busyId.value);
 
   function requestRoleChange(user: User) {
     if (busyUserId.value) return;
@@ -169,10 +180,9 @@ export function useUserForms(props: UsersProps) {
       },
       {
         preserveScroll: true,
-        onStart: () => (busyUserId.value = user.public_id),
-        onFinish: () => (busyUserId.value = null),
         onSuccess: () => roleChange.committed(),
         onError: () => roleChange.failed(),
+        onFinish: () => roleChange.failed(),
       },
     );
   }
@@ -203,24 +213,25 @@ export function useUserForms(props: UsersProps) {
     ];
   }
 
-  const passwordTarget = ref<User | null>(null);
-  const passwordForm = useForm({ password: "" });
+  // ---- Reset password ----
+  const password = useDialog<User, { password: string }>({
+    label: "reset password",
+    initialValues: () => ({ password: "" }),
+    idOf: (user) => user.public_id,
+  });
+
+  const passwordTarget = subjectModel(password);
+  const passwordForm = formView(password);
 
   function resetPassword(user: User) {
-    passwordTarget.value = user;
-    passwordForm.reset();
-    passwordForm.clearErrors();
+    if (password.isOpen.value) return;
+    password.open(user);
   }
 
   function confirmResetPassword() {
-    const user = passwordTarget.value;
-    if (!user) return;
-    passwordForm.post(usersURL(`/${user.public_id}/password`), {
-      onSuccess: () => {
-        passwordTarget.value = null;
-        passwordForm.reset();
-      },
-    });
+    const user = password.subject.value;
+    if (!user || password.isSaving.value) return;
+    router.post(usersURL(`/${user.public_id}/password`), { password: password.values.password }, dialogHooks(password));
   }
 
   return {

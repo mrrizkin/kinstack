@@ -22,20 +22,15 @@ import (
 )
 
 var (
-	// ErrUnavailable identifies an unreachable or misconfigured provider.
-	ErrUnavailable = errors.New("oauth provider is unavailable")
-	// ErrInvalidState identifies a forged or expired authorization state.
-	ErrInvalidState = errors.New("oauth state is invalid or expired")
-	// ErrInvalidCode identifies a rejected authorization code or token response.
-	ErrInvalidCode = errors.New("oauth authorization code is invalid")
-	// ErrInvalidConfig identifies an incomplete provider configuration.
+	ErrUnavailable   = errors.New("oauth provider is unavailable")
+	ErrInvalidState  = errors.New("oauth state is invalid or expired")
+	ErrInvalidCode   = errors.New("oauth authorization code is invalid")
 	ErrInvalidConfig = errors.New("oauth provider configuration is invalid")
 )
 
 // Identity is the verified external subject returned by a provider.
 type Identity struct {
-	// Provider names the identity source (for example "google" or "saml"). It is
-	// part of the local identity binding together with Subject.
+	// Provider and Subject form the local identity binding.
 	Provider      string
 	Subject       string
 	Email         string
@@ -43,7 +38,6 @@ type Identity struct {
 	DisplayName   string
 }
 
-// AuthorizationRequest carries the parameters needed to build a provider URL.
 type AuthorizationRequest struct {
 	RedirectURI  string
 	State        string
@@ -51,7 +45,6 @@ type AuthorizationRequest struct {
 	CodeVerifier string
 }
 
-// ExchangeRequest carries the parameters needed to redeem an authorization code.
 type ExchangeRequest struct {
 	Code        string
 	Verifier    string
@@ -76,12 +69,9 @@ type ContinuationStore interface {
 type Provider interface {
 	// Name is the URL-safe slug used in routes and the signed state.
 	Name() string
-	// Label is the human-readable button label shown on the sign-in page.
 	Label() string
-	// Start begins the authorization flow and returns the provider URL to send
-	// the browser to. Continuation state is stored through store.
+	// Start returns the URL to send the browser to; continuation state goes to store.
 	Start(context.Context, AuthorizationRequest, ContinuationStore) (string, error)
-	// Complete redeems the callback and returns the verified identity.
 	Complete(context.Context, ExchangeRequest, ContinuationStore) (Identity, error)
 }
 
@@ -92,7 +82,6 @@ func (UnavailableProvider) Name() string { return "unavailable" }
 
 func (UnavailableProvider) Label() string { return "Unavailable" }
 
-// Start always fails because SSO is disabled.
 func (UnavailableProvider) Start(
 	context.Context,
 	AuthorizationRequest,
@@ -101,7 +90,6 @@ func (UnavailableProvider) Start(
 	return "", ErrUnavailable
 }
 
-// Complete always fails because SSO is disabled.
 func (UnavailableProvider) Complete(
 	context.Context,
 	ExchangeRequest,
@@ -110,8 +98,8 @@ func (UnavailableProvider) Complete(
 	return Identity{}, ErrUnavailable
 }
 
-// HTTPProvider is a generic OAuth 2.0 / OIDC authorization-code adapter with
-// PKCE. The provider-specific endpoints are injected at composition time.
+// HTTPProvider is the generic OAuth 2.0 / OIDC code adapter; endpoints are
+// injected at composition time.
 type HTTPProvider struct {
 	ProviderName string
 	DisplayLabel string
@@ -152,7 +140,6 @@ func (p *HTTPProvider) validate() error {
 	return nil
 }
 
-// Start builds the provider redirect with PKCE and OIDC nonce.
 func (p *HTTPProvider) Start(
 	_ context.Context,
 	request AuthorizationRequest,
@@ -178,25 +165,47 @@ func (p *HTTPProvider) Start(
 	return parsed.String(), nil
 }
 
-// Complete redeems the authorization code and loads the verified identity.
 func (p *HTTPProvider) Complete(
 	ctx context.Context,
 	exchange ExchangeRequest,
 	_ ContinuationStore,
 ) (Identity, error) {
-	code, verifier := exchange.Code, exchange.Verifier
 	if err := p.validate(); err != nil {
 		return Identity{}, err
 	}
-	if strings.TrimSpace(code) == "" || strings.TrimSpace(verifier) == "" ||
-		strings.TrimSpace(exchange.Nonce) == "" || strings.TrimSpace(exchange.RedirectURI) == "" {
-		return Identity{}, ErrInvalidCode
+	if err := validateExchange(exchange); err != nil {
+		return Identity{}, err
 	}
+	token, err := p.exchangeCode(ctx, exchange)
+	if err != nil {
+		return Identity{}, err
+	}
+	return p.loadIdentity(ctx, token)
+}
+
+// validateExchange fails before any network call.
+func validateExchange(exchange ExchangeRequest) error {
+	if strings.TrimSpace(exchange.Code) == "" || strings.TrimSpace(exchange.Verifier) == "" ||
+		strings.TrimSpace(exchange.Nonce) == "" || strings.TrimSpace(exchange.RedirectURI) == "" {
+		return ErrInvalidCode
+	}
+	return nil
+}
+
+type tokenResponse struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+}
+
+func (p *HTTPProvider) exchangeCode(
+	ctx context.Context,
+	exchange ExchangeRequest,
+) (tokenResponse, error) {
 	form := url.Values{
 		"grant_type":    {"authorization_code"},
-		"code":          {code},
+		"code":          {exchange.Code},
 		"redirect_uri":  {exchange.RedirectURI},
-		"code_verifier": {verifier},
+		"code_verifier": {exchange.Verifier},
 	}
 	request, err := http.NewRequestWithContext(
 		ctx,
@@ -205,43 +214,48 @@ func (p *HTTPProvider) Complete(
 		strings.NewReader(form.Encode()),
 	)
 	if err != nil {
-		return Identity{}, fmt.Errorf("%w: create oauth token request: %v", ErrUnavailable, err)
+		return tokenResponse{}, fmt.Errorf(
+			"%w: create oauth token request: %w",
+			ErrUnavailable,
+			err,
+		)
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.SetBasicAuth(p.ClientID, p.ClientSecret)
 
-	client := p.httpClient()
-	response, err := client.Do(request)
+	response, err := p.httpClient().Do(request)
 	if err != nil {
-		return Identity{}, fmt.Errorf("%w: exchange oauth code: %v", ErrUnavailable, err)
+		return tokenResponse{}, fmt.Errorf("%w: exchange oauth code: %w", ErrUnavailable, err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return Identity{}, ErrInvalidCode
+		return tokenResponse{}, ErrInvalidCode
 	}
-	var token struct {
-		AccessToken string `json:"access_token"`
-		TokenType   string `json:"token_type"`
-	}
+	var token tokenResponse
 	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&token); err != nil ||
 		token.AccessToken == "" {
-		return Identity{}, ErrInvalidCode
+		return tokenResponse{}, ErrInvalidCode
 	}
-	userRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, p.UserInfoURL, nil)
+	return token, nil
+}
+
+func (p *HTTPProvider) loadIdentity(ctx context.Context, token tokenResponse) (Identity, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, p.UserInfoURL, nil)
 	if err != nil {
-		return Identity{}, fmt.Errorf("%w: create oauth userinfo request: %v", ErrUnavailable, err)
+		return Identity{}, fmt.Errorf("%w: create oauth userinfo request: %w", ErrUnavailable, err)
 	}
 	tokenType := strings.TrimSpace(token.TokenType)
 	if tokenType == "" {
 		tokenType = "Bearer"
 	}
-	userRequest.Header.Set("Authorization", tokenType+" "+token.AccessToken)
-	userResponse, err := client.Do(userRequest)
+	request.Header.Set("Authorization", tokenType+" "+token.AccessToken)
+
+	response, err := p.httpClient().Do(request)
 	if err != nil {
-		return Identity{}, fmt.Errorf("%w: load oauth identity: %v", ErrUnavailable, err)
+		return Identity{}, fmt.Errorf("%w: load oauth identity: %w", ErrUnavailable, err)
 	}
-	defer userResponse.Body.Close()
-	if userResponse.StatusCode < 200 || userResponse.StatusCode >= 300 {
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return Identity{}, ErrInvalidCode
 	}
 	var identity struct {
@@ -250,7 +264,7 @@ func (p *HTTPProvider) Complete(
 		EmailVerified bool   `json:"email_verified"`
 		Name          string `json:"name"`
 	}
-	if err := json.NewDecoder(io.LimitReader(userResponse.Body, 64<<10)).
+	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<10)).
 		Decode(&identity); err != nil {
 		return Identity{}, ErrInvalidCode
 	}
@@ -279,7 +293,6 @@ func (p *HTTPProvider) httpClient() *http.Client {
 	}
 }
 
-// RandomToken returns a cryptographically secure URL-safe token.
 func RandomToken(size int) (string, error) {
 	if size < 16 {
 		size = 32
@@ -291,16 +304,13 @@ func RandomToken(size int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
-// CodeChallenge derives an S256 PKCE challenge from a verifier.
 func CodeChallenge(verifier string) string {
 	digest := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(digest[:])
 }
 
-// StateSigner seals and opens short-lived SSO state payloads. The value is
-// authenticated and encrypted with AES-256-GCM so it can travel through the
-// authorization request (and be posted back by providers that use form_post)
-// without depending on a browser session cookie.
+// StateSigner seals short-lived SSO state: AES-256-GCM so it survives the
+// redirect without a session cookie.
 type StateSigner struct {
 	aead cipher.AEAD
 	ttl  time.Duration
@@ -344,7 +354,6 @@ func NewStateSigner(secret string, ttl time.Duration) (*StateSigner, error) {
 	return &StateSigner{aead: aead, ttl: ttl}, nil
 }
 
-// Seal returns an opaque, authenticated value carrying the payload.
 func (s *StateSigner) Seal(payload StatePayload, now time.Time) (string, error) {
 	if s == nil || s.aead == nil ||
 		strings.TrimSpace(payload.State) == "" ||

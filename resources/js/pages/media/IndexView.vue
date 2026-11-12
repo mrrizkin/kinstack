@@ -9,6 +9,7 @@ import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { type Asset, mediaPageSchema } from "@/lib/contracts/media";
+import { subjectModel, useConfirmation } from "@/lib/dialog";
 import { fieldMessage } from "@/lib/errors";
 import { icons } from "@/lib/icons";
 import { usePageProps, usePageSchema } from "@/lib/page-props";
@@ -34,8 +35,10 @@ const form = useForm<{ file: File | null }>({ file: null });
 const fileInput = ref<HTMLInputElement | null>(null);
 const dragging = ref(false);
 const clientError = ref("");
-const deleteTarget = ref<Asset | null>(null);
-const deleting = ref(false);
+
+const deletion = useConfirmation<Asset>({ label: "delete asset", idOf: (asset) => asset.public_id });
+const deleteTarget = subjectModel(deletion);
+const deleting = deletion.isRunning;
 
 function pickFile() {
   fileInput.value?.click();
@@ -91,19 +94,17 @@ function upload() {
 }
 
 function remove(asset: Asset) {
-  deleteTarget.value = asset;
+  if (deletion.isOpen.value) return;
+  deletion.open(asset);
 }
 
 function confirmRemove() {
-  const asset = deleteTarget.value;
-  if (!asset || deleting.value) return;
+  const asset = deletion.subject.value;
+  if (!asset || deletion.isRunning.value) return;
+  deletion.confirm();
   router.post(`/media/${asset.public_id}/delete${pageQuery.value}`, undefined, {
     preserveScroll: true,
-    onStart: () => (deleting.value = true),
-    onFinish: () => {
-      deleting.value = false;
-      deleteTarget.value = null;
-    },
+    onFinish: () => deletion.done(),
   });
 }
 

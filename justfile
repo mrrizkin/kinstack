@@ -104,6 +104,7 @@ test-frontend:
 # Coverage-guided fuzzing. Not part of verify: it runs until interrupted.
 fuzz:
     go test -run '^$$' -fuzz FuzzSplitToken -fuzztime 30s ./internal/features/apitoken
+    go test -run '^$$' -fuzz FuzzParseRequest -fuzztime 30s ./internal/pkg/pagination
 
 # Print a local Go coverage report. This is informational, not a CI gate.
 coverage:
@@ -138,6 +139,11 @@ migrate:
 
 migrate-down:
     go run ./cmd/migrate down
+
+# Re-seal the migration checksums after adding a migration. Editing an already
+# sealed migration is caught by the runner; this command is for new files only.
+migrations-seal:
+    cd db/migrations && sha256sum *.sql | sort -k2 > checksums.tsv
 
 migrate-status:
     go run ./cmd/migrate status

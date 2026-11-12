@@ -76,7 +76,7 @@ func TestCreateValidatesName(t *testing.T) {
 	if _, err := service.Create(
 		context.Background(),
 		"user-1",
-		strings.Repeat("a", maxNameLength+1),
+		strings.Repeat("a", nameLengthMax+1),
 		0,
 		nil,
 	); !errors.Is(

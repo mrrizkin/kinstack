@@ -2,6 +2,11 @@ package pagination
 
 import (
 	"errors"
+	"os"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -22,7 +27,7 @@ func TestNewNormalizesBounds(t *testing.T) {
 		{
 			name:    "oversized per page",
 			page:    2,
-			perPage: MaxPerPage + 1,
+			perPage: PerPageMax + 1,
 			want:    Query{Page: 2, PerPage: DefaultPerPage},
 		},
 		{name: "valid", page: 4, perPage: 50, want: Query{Page: 4, PerPage: 50}},
@@ -42,7 +47,7 @@ func TestSizeOrDefault(t *testing.T) {
 			t.Fatalf("SizeOrDefault(%d) = %d, want %d", size, got, size)
 		}
 	}
-	for _, size := range []int{0, -5, 1, 7, MaxPerPage + 1} {
+	for _, size := range []int{0, -5, 1, 7, PerPageMax + 1} {
 		if got := SizeOrDefault(size); got != DefaultPerPage {
 			t.Fatalf("SizeOrDefault(%d) = %d, want %d", size, got, DefaultPerPage)
 		}
@@ -212,14 +217,14 @@ func TestWindowClampsToAvailableRows(t *testing.T) {
 }
 
 func TestLimitCapsHandBuiltQueries(t *testing.T) {
-	if got := (Query{Page: 1, PerPage: 1000}).Limit(); got != MaxPerPage {
-		t.Fatalf("limit = %d, want %d", got, MaxPerPage)
+	if got := (Query{Page: 1, PerPage: 1000}).Limit(); got != PerPageMax {
+		t.Fatalf("limit = %d, want %d", got, PerPageMax)
 	}
 	if got := (Query{Page: 1, PerPage: 0}).Limit(); got != DefaultPerPage {
 		t.Fatalf("limit = %d, want %d", got, DefaultPerPage)
 	}
-	if got := (Query{Page: 2, PerPage: 1000}).Offset(); got != MaxPerPage {
-		t.Fatalf("offset = %d, want %d", got, MaxPerPage)
+	if got := (Query{Page: 2, PerPage: 1000}).Offset(); got != PerPageMax {
+		t.Fatalf("offset = %d, want %d", got, PerPageMax)
 	}
 }
 
@@ -244,5 +249,74 @@ func TestPageHintAndQueryIgnoreLowAndMalformedValues(t *testing.T) {
 		if got := PageQuery(test.raw); got != test.wantQuery {
 			t.Fatalf("PageQuery(%q) = %q, want %q", test.raw, got, test.wantQuery)
 		}
+	}
+}
+
+// The preference constraint and the code's allowlist must agree: a size the
+// database rejects would fail on save, and a size the code rejects would be
+// unreachable from the UI.
+func TestAllowedSizesMatchPreferenceConstraint(t *testing.T) {
+	body, err := os.ReadFile("../../../db/migrations/202601010019_add_page_size_preference.sql")
+	if err != nil {
+		t.Fatalf("read preference migration: %v", err)
+	}
+	match := regexp.MustCompile(`page_size IN \(([^)]*)\)`).FindStringSubmatch(string(body))
+	if match == nil {
+		t.Fatalf("migration has no page_size CHECK constraint")
+	}
+	var constraint []int
+	for _, field := range strings.Split(match[1], ",") {
+		value, err := strconv.Atoi(strings.TrimSpace(field))
+		if err != nil {
+			t.Fatalf("parse constraint size %q: %v", field, err)
+		}
+		constraint = append(constraint, value)
+	}
+	if !slices.Equal(constraint, allowedSizes) {
+		t.Fatalf("allowedSizes %v must match the CHECK constraint %v", allowedSizes, constraint)
+	}
+}
+
+func TestParseLimit(t *testing.T) {
+	cases := []struct {
+		name     string
+		raw      string
+		fallback int
+		want     int
+		wantErr  bool
+	}{
+		{name: "absent uses the fallback", raw: "", fallback: 10, want: 10},
+		{
+			name:     "invalid fallback falls back to the default",
+			raw:      "",
+			fallback: PerPageMax + 1,
+			want:     DefaultPerPage,
+		},
+		{name: "explicit value", raw: "25", fallback: 10, want: 25},
+		{name: "zero is malformed", raw: "0", fallback: 10, wantErr: true},
+		{name: "negative is malformed", raw: "-1", fallback: 10, wantErr: true},
+		{name: "over the cap is malformed", raw: "101", fallback: 10, wantErr: true},
+		{name: "text is malformed", raw: "ten", fallback: 10, wantErr: true},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := ParseLimit(test.raw, test.fallback)
+			if test.wantErr {
+				if !errors.Is(err, ErrInvalidRequest) {
+					t.Fatalf("expected ErrInvalidRequest, got %v", err)
+				}
+				return
+			}
+			if err != nil || got != test.want {
+				t.Fatalf(
+					"ParseLimit(%q, %d) = %d, %v; want %d",
+					test.raw,
+					test.fallback,
+					got,
+					err,
+					test.want,
+				)
+			}
+		})
 	}
 }

@@ -54,8 +54,10 @@ jobs:
       # Same seed corpus as `just fuzz`, on a budget: a fuzz target nobody runs
       # decays into an expensive unit test.
       - run: go test -run=NONE -fuzz=FuzzSplitToken -fuzztime=30s ./internal/features/apitoken
+      - run: go test -run=NONE -fuzz=FuzzParseRequest -fuzztime=30s ./internal/pkg/pagination
 
       - run: ./scripts/check-feature-slices.sh
+      - run: ./scripts/check-complexity.sh
       - run: ./scripts/check-determinism.sh
       - run: go mod tidy -diff
       - run: ./scripts/check-observability.sh

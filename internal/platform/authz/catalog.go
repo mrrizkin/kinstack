@@ -1,16 +1,11 @@
-// Package authz owns hybrid RBAC + ABAC authorization for KinStack.
+// Package authz owns hybrid RBAC + ABAC authorization.
 //
-// RBAC provides the baseline: a role grants a set of permission codes, and a
-// user may carry explicit allow/deny overrides for individual permissions. ABAC
-// adds attribute guardrails on top: registered policies can inspect the request
-// (principal attributes plus resource attributes such as ownership, amount, or
-// shift state) and deny or, in narrow cases, grant a decision.
+// RBAC is the baseline: a role grants permission codes, and a user may carry
+// allow/deny overrides. ABAC adds policies over principal and resource
+// attributes, which may deny or narrowly grant.
 //
-// Permission codes are the single source of truth in this package. The database
-// stores codes only; the catalog provides the label, category and description
-// used by the access management UI.
-//
-// Feature slices register their own permission codes here as they are built.
+// Permission codes are defined here; the database stores codes only. Slices
+// register their codes as they are built.
 package authz
 
 import (
@@ -26,16 +21,11 @@ type Permission string
 // self-service routes that must not require a dedicated permission.
 const Authenticated Permission = "authenticated"
 
-// BrowserSession is a sentinel meaning "an actor signed in through the browser
-// session". Personal API tokens are authenticated actors too, but they carry a
-// scope allowlist that only restricts permission checks: the Authenticated
-// sentinel short-circuits those checks, so token requests would otherwise reach
-// credential management routes (profile, 2FA, passkeys, API tokens, session
-// revocation) with the full authority of the account owner. Guard those routes
-// with BrowserSession so a stolen token can never rotate credentials.
-//
-// Like Authenticated it is internal: it is not part of the assignable catalog
-// and IsKnown reports false for it.
+// BrowserSession is a sentinel for "signed in through the browser session".
+// API tokens are authenticated but their scope allowlist only restricts
+// permission checks, so the Authenticated sentinel would let a stolen token
+// reach credential management (profile, 2FA, passkeys, tokens, session
+// revocation). Guard those routes with BrowserSession.
 const BrowserSession Permission = "browser_session"
 
 // Permission codes recognised by the application.
@@ -104,14 +94,12 @@ var catalog = []Definition{
 	},
 }
 
-// Catalog returns a copy of the ordered permission catalog.
 func Catalog() []Definition {
 	definitions := make([]Definition, len(catalog))
 	copy(definitions, catalog)
 	return definitions
 }
 
-// All returns every known permission code in catalog order.
 func All() []Permission {
 	codes := make([]Permission, 0, len(catalog))
 	for _, definition := range catalog {
@@ -120,7 +108,6 @@ func All() []Permission {
 	return codes
 }
 
-// Lookup resolves a permission code to its catalog definition.
 func Lookup(code Permission) (Definition, bool) {
 	for _, definition := range catalog {
 		if definition.Code == code {
@@ -130,14 +117,12 @@ func Lookup(code Permission) (Definition, bool) {
 	return Definition{}, false
 }
 
-// IsKnown reports whether the permission exists in the catalog (excluding the
-// Authenticated sentinel).
+// IsKnown ignores the Authenticated sentinel.
 func IsKnown(code Permission) bool {
 	_, ok := Lookup(code)
 	return ok
 }
 
-// KnownCodes returns the catalog as a set, useful for validation.
 func KnownCodes() map[Permission]struct{} {
 	codes := make(map[Permission]struct{}, len(catalog))
 	for _, definition := range catalog {
@@ -146,12 +131,10 @@ func KnownCodes() map[Permission]struct{} {
 	return codes
 }
 
-// CategoryOrder returns the canonical UI ordering of permission categories.
 func CategoryOrder() []string {
 	return []string{CategorySystem}
 }
 
-// SortByCategory returns catalog definitions ordered by category then label.
 func SortByCategory() []Definition {
 	definitions := Catalog()
 	order := make(map[string]int, len(CategoryOrder()))

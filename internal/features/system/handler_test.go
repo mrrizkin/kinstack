@@ -88,7 +88,7 @@ func TestCSPReportLogsStructuredFieldsOnly(t *testing.T) {
 	if strings.ContainsAny(blocked, "\r\n\x00") {
 		t.Fatalf("blocked_uri must not contain control characters: %q", blocked)
 	}
-	if len(blocked) > maxCSPLogValue {
+	if len(blocked) > cspLogValueMax {
 		t.Fatalf("blocked_uri must be bounded, got %d bytes", len(blocked))
 	}
 	if _, ok := logger.fields["report"]; ok {
@@ -116,16 +116,16 @@ func TestCSPReportTruncatesOversizedBodies(t *testing.T) {
 }
 
 func TestSanitizeCSPValueBoundsLength(t *testing.T) {
-	got := sanitizeCSPValue(strings.Repeat("a", maxCSPLogValue+50))
-	if len(got) != maxCSPLogValue {
-		t.Fatalf("len=%d, want %d", len(got), maxCSPLogValue)
+	got := sanitizeCSPValue(strings.Repeat("a", cspLogValueMax+50))
+	if len(got) != cspLogValueMax {
+		t.Fatalf("len=%d, want %d", len(got), cspLogValueMax)
 	}
-	multibyte := sanitizeCSPValue(strings.Repeat("é", maxCSPLogValue+10))
+	multibyte := sanitizeCSPValue(strings.Repeat("é", cspLogValueMax+10))
 	if !utf8.ValidString(multibyte) {
 		t.Fatalf("truncation must not split a rune: %q", multibyte)
 	}
-	if runes := len([]rune(multibyte)); runes != maxCSPLogValue {
-		t.Fatalf("rune length=%d, want %d", runes, maxCSPLogValue)
+	if runes := len([]rune(multibyte)); runes != cspLogValueMax {
+		t.Fatalf("rune length=%d, want %d", runes, cspLogValueMax)
 	}
 	if got := sanitizeCSPValue("a\tb\nc\x00d"); got != "a b c d" {
 		t.Fatalf("unexpected sanitized value: %q", got)

@@ -156,7 +156,7 @@ services:
     environment:
       DATABASE_URL: postgres://glitchtip:glitchtip@glitchtip-postgres:5432/glitchtip
       VALKEY_URL: redis://:${VALKEY_PASSWORD:?VALKEY_PASSWORD must be set}@valkey:6379/2
-      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-local-glitchtip-secret-change-me}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?GLITCHTIP_SECRET_KEY must be set}
       EMAIL_URL: smtp://mailpit:1025
       GLITCHTIP_DOMAIN: http://localhost:8000
       DEFAULT_FROM_EMAIL: no-reply@kinstack.local
@@ -200,8 +200,8 @@ services:
     environment:
       DATABASE_URL: postgresql://umami:umami@umami-postgres:5432/umami
       DATABASE_TYPE: postgresql
-      APP_SECRET: ${UMAMI_APP_SECRET:-local-umami-secret-change-me}
-      TWO_FACTOR_ENCRYPTION_KEY: ${UMAMI_TWO_FACTOR_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      APP_SECRET: ${UMAMI_APP_SECRET:?UMAMI_APP_SECRET must be set}
+      TWO_FACTOR_ENCRYPTION_KEY: ${UMAMI_TWO_FACTOR_KEY:?UMAMI_TWO_FACTOR_KEY must be set}
     ports:
       - "3003:3000"
     depends_on:
@@ -236,7 +236,7 @@ services:
     profiles: ["observability"]
     environment:
       ZO_ROOT_USER_EMAIL: ${OPENOBSERVE_ROOT_EMAIL:-root@kinstack.local}
-      ZO_ROOT_USER_PASSWORD: ${OPENOBSERVE_ROOT_PASSWORD:-KinStack!2026}
+      ZO_ROOT_USER_PASSWORD: ${OPENOBSERVE_ROOT_PASSWORD:?OPENOBSERVE_ROOT_PASSWORD must be set}
       ZO_DATA_DIR: /data
       ZO_TELEMETRY: "false"
     ports:

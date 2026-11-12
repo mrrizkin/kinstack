@@ -23,19 +23,14 @@ import (
 )
 
 var (
-	// ErrUnavailable identifies an unreachable or misconfigured provider.
-	ErrUnavailable = errors.New("saml provider is unavailable")
-	// ErrInvalidConfig identifies an incomplete provider configuration.
-	ErrInvalidConfig = errors.New("saml provider configuration is invalid")
-	// ErrInvalidResponse identifies a rejected or invalid SAML response.
+	ErrUnavailable     = errors.New("saml provider is unavailable")
+	ErrInvalidConfig   = errors.New("saml provider configuration is invalid")
 	ErrInvalidResponse = errors.New("saml response is invalid")
-	// ErrUnstableSubject identifies an assertion whose subject cannot identify
-	// an account across logins (missing or transient NameID).
+	// ErrUnstableSubject means a missing or transient NameID.
 	ErrUnstableSubject = errors.New("saml subject identifier is not persistent")
 )
 
-// Config carries the service-provider settings. Every value is required when
-// SAML is enabled; config validation guarantees completeness before startup.
+// Config is complete whenever SAML is enabled; validation runs before startup.
 type Config struct {
 	EntityID       string
 	RootURL        string
@@ -45,12 +40,10 @@ type Config struct {
 	HTTPClient     *http.Client
 }
 
-// Provider is the SAML service provider consumed by auth.
 type Provider struct {
 	serviceProvider *saml.ServiceProvider
 }
 
-// New builds and validates the service provider, fetching IdP metadata.
 func New(ctx context.Context, cfg Config) (*Provider, error) {
 	root, err := url.Parse(strings.TrimRight(cfg.RootURL, "/"))
 	if err != nil || root.Scheme == "" || root.Host == "" {
@@ -87,7 +80,6 @@ func New(ctx context.Context, cfg Config) (*Provider, error) {
 	}}, nil
 }
 
-// Metadata renders the service-provider metadata XML for IdP registration.
 func (p *Provider) Metadata() ([]byte, error) {
 	if p == nil || p.serviceProvider == nil {
 		return nil, ErrUnavailable
@@ -117,7 +109,6 @@ func (p *Provider) Start(relayState string) (string, string, error) {
 	return redirect.String(), request.ID, nil
 }
 
-// Complete validates the SAML response and returns the asserted identity.
 func (p *Provider) Complete(
 	request *http.Request,
 	requestID string,
@@ -131,15 +122,13 @@ func (p *Provider) Complete(
 	}
 	assertion, err := parseResponseSafely(p.serviceProvider, request, ids)
 	if err != nil {
-		return platformoauth.Identity{}, fmt.Errorf("%w: %v", ErrInvalidResponse, err)
+		return platformoauth.Identity{}, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 	}
 	return identityFromAssertion(assertion)
 }
 
-// parseResponseSafely isolates the upstream parser. GO-2026-6909 reports a
-// nil-pointer panic reachable from an unauthenticated response with no patched
-// release; a hostile assertion must reject the login, not end the process. See
-// the recorded deviation in PILLARS.md.
+// parseResponseSafely converts the GO-2026-6909 nil-pointer panic, reachable
+// from an unauthenticated response, into a rejected login. See PILLARS.md.
 func parseResponseSafely(
 	provider *saml.ServiceProvider,
 	request *http.Request,
@@ -154,9 +143,6 @@ func parseResponseSafely(
 	return provider.ParseResponse(request, ids)
 }
 
-// identityFromAssertion extracts the base identity fields. A subject that is
-// missing or explicitly transient cannot be bound to an account: accepting it
-// would create a new identity row on every login.
 func identityFromAssertion(assertion *saml.Assertion) (platformoauth.Identity, error) {
 	subject, err := stableSubject(assertion.Subject)
 	if err != nil {
@@ -172,9 +158,8 @@ func identityFromAssertion(assertion *saml.Assertion) (platformoauth.Identity, e
 	return identity, nil
 }
 
-// stableSubject extracts the only identifier that may be bound to an account. A
-// subject that is missing, or explicitly transient, changes on every login and
-// would create a new identity row each time.
+// stableSubject rejects a missing or transient NameID: it would bind a new
+// identity row on every login.
 func stableSubject(subject *saml.Subject) (string, error) {
 	if subject == nil || subject.NameID == nil {
 		return "", ErrUnstableSubject
@@ -189,9 +174,7 @@ func stableSubject(subject *saml.Subject) (string, error) {
 	return value, nil
 }
 
-// fillFromAttributes takes the first email and the first display name the
-// assertion offers. Later attributes of the same kind are ignored rather than
-// overwriting an earlier truth.
+// fillFromAttributes keeps the first email and display name offered.
 func fillFromAttributes(
 	identity *platformoauth.Identity,
 	statements []saml.AttributeStatement,
@@ -220,8 +203,6 @@ func applyAttribute(identity *platformoauth.Identity, attribute saml.Attribute) 
 	}
 }
 
-// transientNameIDFormat is the SAML 2.0 transient NameID format. Identities in
-// this format are valid only for one session.
 const transientNameIDFormat = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
 
 func isTransientNameIDFormat(format string) bool {
@@ -280,7 +261,6 @@ func parsePrivateKey(raw string) (*rsa.PrivateKey, error) {
 	return key, nil
 }
 
-// normalizePEM accepts certificates and keys supplied with escaped newlines.
 func normalizePEM(raw string) string {
 	return strings.ReplaceAll(strings.TrimSpace(raw), "\\n", "\n")
 }

@@ -103,7 +103,7 @@ func (s *Service) passkeyRecords(ctx context.Context, id string) ([]PasskeyRecor
 func (s *Service) SavePasskey(ctx context.Context, id string, record PasskeyRecord) error {
 	record.Name = strings.TrimSpace(record.Name)
 	if len(record.ID) == 0 || !bytes.Equal(record.ID, record.Credential.ID) ||
-		record.Name == "" || len(record.Name) > maxPasskeyNameLength {
+		record.Name == "" || len(record.Name) > passkeyNameLengthMax {
 		return ErrPasskeyInvalid
 	}
 	return s.repository.SavePasskey(ctx, strings.TrimSpace(id), record)

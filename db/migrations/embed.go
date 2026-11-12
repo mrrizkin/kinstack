@@ -5,5 +5,5 @@ import "embed"
 
 // Files is embedded so application and migration commands use the same schema.
 //
-//go:embed *.sql
+//go:embed *.sql checksums.tsv
 var Files embed.FS

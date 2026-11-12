@@ -117,20 +117,20 @@ func (c *Client) ConvertHTML(
 	header.Set("Content-Type", "text/html; charset=utf-8")
 	part, err := writer.CreatePart(header)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
+		return nil, fmt.Errorf("%w: %w", ErrConversion, err)
 	}
 	if _, err := part.Write(document); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
+		return nil, fmt.Errorf("%w: %w", ErrConversion, err)
 	}
 
 	fields := pageFields(options)
 	for key, value := range fields {
 		if err := writer.WriteField(key, value); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrConversion, err)
+			return nil, fmt.Errorf("%w: %w", ErrConversion, err)
 		}
 	}
 	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
+		return nil, fmt.Errorf("%w: %w", ErrConversion, err)
 	}
 
 	request, err := http.NewRequestWithContext(
@@ -140,19 +140,19 @@ func (c *Client) ConvertHTML(
 		body,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
+		return nil, fmt.Errorf("%w: %w", ErrConversion, err)
 	}
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
+		return nil, fmt.Errorf("%w: %w", ErrConversion, err)
 	}
 	defer func() { _ = response.Body.Close() }()
 
 	content, err := io.ReadAll(io.LimitReader(response.Body, documentBytesMax))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConversion, err)
+		return nil, fmt.Errorf("%w: %w", ErrConversion, err)
 	}
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf(

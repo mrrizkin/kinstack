@@ -15,6 +15,7 @@ import AppCellTime from "@/components/cells/AppCellTime.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { auditPageSchema } from "@/lib/contracts/audit";
+import { useAction } from "@/lib/dialog";
 import { icons } from "@/lib/icons";
 import { usePageProps, usePageSchema } from "@/lib/page-props";
 import { useTableView } from "@/lib/table-view";
@@ -81,7 +82,10 @@ function toQuery(state: Filters): Record<string, string> {
 // Pagination must carry the filters the server actually applied, not a draft.
 const activeFilters = computed<Record<string, string>>(() => toQuery(currentFilters.value));
 
-const applying = ref(false);
+// One visit at a time: a second preset click while the first is in flight would
+// race the filter state against the URL.
+const refresh = useAction();
+const applying = refresh.isRunning;
 const activeFilterCount = computed(() => Object.keys(activeFilters.value).length);
 const hasFilters = computed(() => activeFilterCount.value > 0);
 
@@ -121,12 +125,12 @@ function clearFilterErrors() {
 }
 
 function navigate(query: Record<string, string>) {
+  if (!refresh.start()) return;
   router.get("/audit", query, {
     preserveState: true,
     preserveScroll: true,
     replace: true,
-    onStart: () => (applying.value = true),
-    onFinish: () => (applying.value = false),
+    onFinish: () => refresh.settled(),
   });
 }
 

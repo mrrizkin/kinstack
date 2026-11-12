@@ -37,9 +37,9 @@ var ErrInvalidPasswordHash = errors.New("invalid argon2id password hash")
 // tampered stored hash must not turn one login attempt into an unbounded
 // allocation. The defaults and the one-time cost both fit well inside them.
 const (
-	maxMemoryKiB   = 256 * 1024
-	maxIterations  = 10
-	maxParallelism = 8
+	memoryKiBMax   = 256 * 1024
+	iterationsMax  = 10
+	parallelismMax = 8
 )
 
 var dummyHash = func() string {
@@ -155,15 +155,15 @@ func parseArgon2Params(raw string) (parsedHash, error) {
 		}
 		values[key] = value
 	}
-	memory, err := boundedParam(values["m"], maxMemoryKiB)
+	memory, err := boundedParam(values["m"], memoryKiBMax)
 	if err != nil {
 		return parsedHash{}, err
 	}
-	iterations, err := boundedParam(values["t"], maxIterations)
+	iterations, err := boundedParam(values["t"], iterationsMax)
 	if err != nil {
 		return parsedHash{}, err
 	}
-	parallelism, err := boundedParam(values["p"], maxParallelism)
+	parallelism, err := boundedParam(values["p"], parallelismMax)
 	if err != nil {
 		return parsedHash{}, err
 	}

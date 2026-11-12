@@ -14,14 +14,12 @@ import (
 )
 
 const (
-	// DefaultCacheTTL bounds how long a resolved permission set may be reused.
-	// The cache is per instance, so revocations propagate to other replicas
-	// within this window rather than instantly.
+	// DefaultCacheTTL is per instance: a revocation reaches other replicas within
+	// this window, not instantly.
 	DefaultCacheTTL = 15 * time.Second
-	// maxCacheEntries caps the per-instance resolution cache so a long-lived
-	// process cannot grow it without bound.
-	maxCacheEntries = 10_000
-	maxReasonLength = 200
+	// cacheEntriesMax keeps a long-lived process bounded.
+	cacheEntriesMax = 10_000
+	reasonLengthMax = 200
 )
 
 var roleCodePattern = regexp.MustCompile(`^[a-z][a-z0-9._-]{2,31}$`)
@@ -72,11 +70,9 @@ func New(d ServiceDependency) *Service {
 	}
 }
 
-// Engine returns the ABAC engine used by the service.
 func (s *Service) Engine() *Engine { return s.engine }
 
-// Can evaluates one permission for a principal, optionally with resource
-// attributes for ABAC policies.
+// Can evaluates one permission, with resource attributes for ABAC policies.
 func (s *Service) Can(
 	ctx context.Context,
 	principal Principal,
@@ -105,10 +101,10 @@ func (s *Service) Can(
 	if err != nil {
 		return Deny("resolution", i18n.T("authz.reason.resolution_failed"))
 	}
-	return s.engine.Decide(ctx, principal, granted, permission, resource)
+	return s.engine.Decide(principal, granted, permission, resource)
 }
 
-// Permissions returns the sorted effective permission codes for a principal.
+// Permissions are sorted effective codes.
 func (s *Service) Permissions(ctx context.Context, principal Principal) ([]Permission, error) {
 	granted, err := s.effective(ctx, principal)
 	if err != nil {
@@ -136,7 +132,6 @@ func (s *Service) Has(
 	return ok, nil
 }
 
-// Invalidate drops the cached resolution for one user.
 func (s *Service) Invalidate(publicID string) {
 	if s.ttl <= 0 || publicID == "" {
 		return
@@ -146,7 +141,6 @@ func (s *Service) Invalidate(publicID string) {
 	s.mu.Unlock()
 }
 
-// InvalidateRole drops cached resolutions for every user holding the role.
 func (s *Service) InvalidateRole(role string) {
 	if s.ttl <= 0 || role == "" {
 		return
@@ -160,8 +154,8 @@ func (s *Service) InvalidateRole(role string) {
 	s.mu.Unlock()
 }
 
-// evictLocked drops expired entries first and, when the cache is still at its
-// cap, a slice of arbitrary entries. Callers must hold s.mu.
+// evictLocked expires entries first, then drops arbitrary ones at the cap.
+// Callers must hold s.mu.
 func (s *Service) evictLocked() {
 	now := s.now()
 	for publicID, entry := range s.cache {
@@ -169,11 +163,11 @@ func (s *Service) evictLocked() {
 			delete(s.cache, publicID)
 		}
 	}
-	if len(s.cache) < maxCacheEntries {
+	if len(s.cache) < cacheEntriesMax {
 		return
 	}
 	// Nothing expired: drop roughly a tenth so the next inserts are cheap.
-	victims := maxCacheEntries / 10
+	victims := cacheEntriesMax / 10
 	for publicID := range s.cache {
 		if victims == 0 {
 			break
@@ -204,7 +198,7 @@ func (s *Service) effective(
 		set = loaded
 		if s.ttl > 0 && principal.PublicID != "" {
 			s.mu.Lock()
-			if len(s.cache) >= maxCacheEntries {
+			if len(s.cache) >= cacheEntriesMax {
 				s.evictLocked()
 			}
 			s.cache[principal.PublicID] = resolvedPermissions{
@@ -218,8 +212,7 @@ func (s *Service) effective(
 	return restrictToScopes(set, principal.Scopes), nil
 }
 
-// restrictToScopes intersects a resolved permission set with a token allowlist.
-// A nil allowlist keeps the set unchanged; an empty allowlist denies everything.
+// restrictToScopes: nil allowlist keeps the set, empty denies everything.
 func restrictToScopes(set map[Permission]struct{}, scopes []string) map[Permission]struct{} {
 	if scopes == nil {
 		return set
@@ -286,7 +279,6 @@ func (s *Service) fromCache(principal Principal) (map[Permission]struct{}, bool)
 	return clone, true
 }
 
-// FindRole resolves a single role.
 func (s *Service) FindRole(ctx context.Context, code string) (Role, error) {
 	return s.repository.FindRole(ctx, strings.TrimSpace(code))
 }
@@ -300,7 +292,7 @@ func (s *Service) ListRoles(ctx context.Context, query pagination.Query) ([]Role
 	return s.repository.ListRoles(ctx, query)
 }
 
-// AllRoles pages through the catalog for selects that must list every role.
+// AllRoles pages through the catalog: role selects must list every role.
 func (s *Service) AllRoles(ctx context.Context) ([]Role, error) {
 	total, err := s.repository.CountRoles(ctx)
 	if err != nil {
@@ -308,7 +300,7 @@ func (s *Service) AllRoles(ctx context.Context) ([]Role, error) {
 	}
 	roles := make([]Role, 0, total)
 	for page := 1; len(roles) < total; page++ {
-		batch, err := s.repository.ListRoles(ctx, pagination.New(page, pagination.MaxPerPage))
+		batch, err := s.repository.ListRoles(ctx, pagination.New(page, pagination.PerPageMax))
 		if err != nil {
 			return nil, err
 		}
@@ -320,7 +312,6 @@ func (s *Service) AllRoles(ctx context.Context) ([]Role, error) {
 	return roles, nil
 }
 
-// RolePermissions returns the permission codes granted to a role.
 func (s *Service) RolePermissions(ctx context.Context, code string) ([]Permission, error) {
 	permissions, err := s.repository.RolePermissions(ctx, code)
 	if err != nil {
@@ -336,8 +327,7 @@ func (s *Service) RolePermissions(ctx context.Context, code string) ([]Permissio
 	return result, nil
 }
 
-// RolePermissionsMany returns the permission sets of several roles in one
-// round trip, filtering unknown codes like RolePermissions does.
+// RolePermissionsMany filters unknown codes like RolePermissions.
 func (s *Service) RolePermissionsMany(
 	ctx context.Context,
 	codes []string,
@@ -361,7 +351,6 @@ func (s *Service) RolePermissionsMany(
 	return result, nil
 }
 
-// CreateRole validates and persists a new role.
 func (s *Service) CreateRole(
 	ctx context.Context,
 	code string,
@@ -393,8 +382,7 @@ func (s *Service) CreateRole(
 	return role, nil
 }
 
-// UpdateRole edits a custom role's metadata. Built-in roles are immutable and
-// the actor may not raise a role above their own rank.
+// UpdateRole refuses built-in roles and a rank above the actor's own.
 func (s *Service) UpdateRole(
 	ctx context.Context,
 	code string,
@@ -426,7 +414,7 @@ func (s *Service) UpdateRole(
 	return role, nil
 }
 
-// DeleteRole removes a custom role that is not assigned to any user.
+// DeleteRole refuses built-in roles and roles still assigned to a user.
 func (s *Service) DeleteRole(ctx context.Context, code string) error {
 	existing, err := s.repository.FindRole(ctx, code)
 	if err != nil {
@@ -449,7 +437,6 @@ func (s *Service) DeleteRole(ctx context.Context, code string) error {
 	return nil
 }
 
-// ReplaceRolePermissions validates and replaces a role's permission set.
 func (s *Service) ReplaceRolePermissions(
 	ctx context.Context,
 	code string,
@@ -476,7 +463,6 @@ func (s *Service) ReplaceRolePermissions(
 	return nil
 }
 
-// UserOverrides returns the active and expired overrides for a user.
 func (s *Service) UserOverrides(ctx context.Context, publicID string) ([]Override, error) {
 	overrides, err := s.repository.UserOverrides(ctx, publicID)
 	if err != nil {
@@ -488,8 +474,7 @@ func (s *Service) UserOverrides(ctx context.Context, publicID string) ([]Overrid
 	return overrides, nil
 }
 
-// UserOverridesMany returns overrides for several users in one query. Users
-// without overrides map to an empty slice.
+// UserOverridesMany maps users without overrides to an empty slice.
 func (s *Service) UserOverridesMany(
 	ctx context.Context,
 	publicIDs []string,
@@ -512,7 +497,6 @@ func (s *Service) UserOverridesMany(
 	return result, nil
 }
 
-// SetOverride validates and upserts a per-user permission override.
 func (s *Service) SetOverride(
 	ctx context.Context,
 	publicID string,
@@ -526,7 +510,7 @@ func (s *Service) SetOverride(
 	if publicID == "" || !IsKnown(permission) {
 		return Override{}, ErrUnknownPermission
 	}
-	if !effect.Valid() || len(reason) > maxReasonLength {
+	if !effect.Valid() || len(reason) > reasonLengthMax {
 		return Override{}, ErrInvalidOverride
 	}
 	if err := s.AuthorizePermissions(ctx, []Permission{permission}); err != nil {
@@ -549,7 +533,6 @@ func (s *Service) SetOverride(
 	return override, nil
 }
 
-// DeleteOverride removes a per-user override.
 func (s *Service) DeleteOverride(
 	ctx context.Context,
 	publicID string,
@@ -571,7 +554,6 @@ func (s *Service) DeleteOverride(
 	return nil
 }
 
-// AssignRole changes a user's role.
 func (s *Service) AssignRole(ctx context.Context, publicID string, role string) error {
 	publicID = strings.TrimSpace(publicID)
 	role = strings.TrimSpace(strings.ToLower(role))

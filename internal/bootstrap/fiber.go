@@ -47,7 +47,7 @@ func newFiberApp(d FiberAppDependency) *fiber.App {
 			}
 
 			if len(recovererStackFrames) > 0 {
-				d.Log.Errorw(
+				log.ForRequest(d.Log, c.RequestID()).Errorw(
 					"unexpected request failed",
 					"code",
 					problem.Code,

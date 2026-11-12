@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	applog "kinstack/internal/pkg/log"
+
 	"codeberg.org/mrrizkin/dstsim"
 )
 
@@ -169,6 +171,7 @@ func lockoutSimulation(sim *dstsim.Sim) {
 		simulationFailureRecord,
 		simulationLockoutWindow,
 		clock.Now,
+		applog.NewNoopLogger(),
 	)
 	model := newLockoutModel()
 	ctx := context.Background()

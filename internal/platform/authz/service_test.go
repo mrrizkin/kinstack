@@ -366,7 +366,7 @@ func TestEffectiveBoundsTheResolutionCache(t *testing.T) {
 	service.ttl = time.Minute
 
 	service.mu.Lock()
-	for index := 0; index < maxCacheEntries; index++ {
+	for index := 0; index < cacheEntriesMax; index++ {
 		service.cache[fmt.Sprintf("cached-%d", index)] = resolvedPermissions{
 			role:      adminRole,
 			set:       map[Permission]struct{}{PermissionUsersView: {}},
@@ -386,7 +386,7 @@ func TestEffectiveBoundsTheResolutionCache(t *testing.T) {
 	size := len(service.cache)
 	_, cached := service.cache["fresh-1"]
 	service.mu.RUnlock()
-	if size >= maxCacheEntries {
+	if size >= cacheEntriesMax {
 		t.Fatalf("cache must stay bounded, got %d entries", size)
 	}
 	if !cached {

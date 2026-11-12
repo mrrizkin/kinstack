@@ -27,20 +27,8 @@ Go builds embed `assets/emails/dist`; `just` targets build it on demand.
 
 ## Commands
 
-```bash
-just dev                 # application + Vite
-just test                # types, Go tests, frontend tests
-just verify              # build, tests, vet, staticcheck, lint, format
-just audit               # frontend audit + govulncheck
-just coverage            # informational Go coverage report
-just build               # production assets + binary
-just migrate             # apply Goose migrations
-just migrate-status      # show the applied migration
-just smoke-csp           # CSP smoke test with a production build
-just infra-up            # local infrastructure from deploy/compose.yml
-just infra-up-core       # core infrastructure only
-just infra-down          # stop local infrastructure
-```
+`just --list` prints every recipe with its comment. `PILLARS.md` names the gate
+each one enforces; `just verify` is the run that must pass before a change lands.
 
 ## Layout
 

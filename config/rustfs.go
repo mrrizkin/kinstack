@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"kinstack/internal/pkg/assert"
 )
@@ -20,6 +21,9 @@ type RustFSConfig struct {
 	Bucket    string
 	Region    string
 	UseSSL    bool
+	// Timeout bounds every S3 request so a stalled object store cannot pin a
+	// request or a background job forever (PILLARS §2).
+	Timeout time.Duration
 }
 
 func (c *RustFSConfig) Load() {
@@ -31,6 +35,7 @@ func (c *RustFSConfig) Load() {
 	c.Bucket = env("RUSTFS_BUCKET", "kinstack")
 	c.Region = env("RUSTFS_REGION", "us-east-1")
 	c.UseSSL = assert.OK(envBool("RUSTFS_USE_SSL", false))
+	c.Timeout = assert.OK(envDuration("RUSTFS_TIMEOUT", 30*time.Second))
 }
 
 // Validate checks the RustFS settings only when the media slice is enabled. An
@@ -45,6 +50,9 @@ func (c RustFSConfig) Validate() error {
 	}
 	if err := validateURL("RUSTFS_PUBLIC_URL", c.PublicURL, false); err != nil {
 		return err
+	}
+	if c.Timeout <= 0 {
+		return fmt.Errorf("RUSTFS_TIMEOUT must be positive")
 	}
 	if c.AccessKey == "" || c.SecretKey == "" || c.Bucket == "" || c.Region == "" {
 		return fmt.Errorf("rustfs endpoint, credentials, bucket, and region are required")

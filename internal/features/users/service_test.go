@@ -276,7 +276,7 @@ func TestParsePageQueryAppliesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if query.Page != 3 || query.PerPage != pagination.MaxPerPage {
+	if query.Page != 3 || query.PerPage != pagination.PerPageMax {
 		t.Fatalf("explicit page size must win, got %+v", query)
 	}
 }

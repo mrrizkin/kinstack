@@ -61,7 +61,7 @@ func New(d Dependency) *Feature {
 		Email:      d.Email,
 		EmailFrom:  d.EmailFrom,
 		BaseURL:    d.BaseURL,
-		Lockout:    NewLockout(d.Storage, d.LockoutMax, d.LockoutWindow),
+		Lockout:    NewLockout(d.Storage, d.LockoutMax, d.LockoutWindow, d.Logger),
 		Revoker:    d.Revoker,
 	})
 	handler := NewHandler(HandlerDependency{

@@ -12,6 +12,9 @@ import (
 // Error level; successful requests at Info level.
 func HTTPMiddleware(l *Logger) fiber.Handler {
 	return func(c fiber.Ctx) error {
+		// The access log measures latency against the server clock; this
+		// middleware is the clock's only consumer.
+		//kinstack:allow-nondeterminism
 		start := time.Now()
 
 		requestID := requestid.FromContext(c)
@@ -28,6 +31,8 @@ func HTTPMiddleware(l *Logger) fiber.Handler {
 
 		err := c.Next()
 
+		// Latency is wall-clock by definition.
+		//kinstack:allow-nondeterminism
 		latency := time.Since(start)
 
 		status := c.Response().StatusCode()
@@ -36,24 +41,17 @@ func HTTPMiddleware(l *Logger) fiber.Handler {
 			if e, ok := err.(*fiber.Error); ok {
 				status = e.Code
 			}
-
-			scoped.Errorw("Request completed",
-				"method", method,
-				"path", path,
-				"ip", ip,
-				"status", status,
-				"latency", latency.String(),
-				"error", err,
-			)
-		} else {
-			scoped.Infow("Request completed",
-				"method", method,
-				"path", path,
-				"ip", ip,
-				"status", status,
-				"latency", latency.String(),
-			)
 		}
+
+		// One access line per request. The failure itself is logged, with its
+		// stack, by the error handler; logging it here as well duplicated it.
+		scoped.Infow("Request completed",
+			"method", method,
+			"path", path,
+			"ip", ip,
+			"status", status,
+			"latency", latency.String(),
+		)
 
 		return err
 	}

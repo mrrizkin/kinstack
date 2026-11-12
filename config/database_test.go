@@ -26,7 +26,6 @@ func TestDatabaseConfigLoadDoesNotDefaultURL(t *testing.T) {
 }
 
 func TestLoadDatabaseOnlyRequiresDatabaseConfiguration(t *testing.T) {
-	t.Setenv("DATABASE_MODE", "postgres")
 	t.Setenv("DATABASE_URL", "postgres://localhost/kinstack")
 	cfg := LoadDatabase()
 	if cfg.URL != "postgres://localhost/kinstack" {
@@ -50,26 +49,26 @@ func TestDatabaseConfigPoolDefaultsAndValidation(t *testing.T) {
 	t.Setenv("DB_MAX_IDLE_CONNS", "")
 	var cfg DatabaseConfig
 	cfg.Load()
-	if cfg.MaxOpenConns != 10 || cfg.MaxIdleConns != 5 {
+	if cfg.OpenConnsMax != 10 || cfg.IdleConnsMax != 5 {
 		t.Fatalf("unexpected pool defaults: %+v", cfg)
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("defaults must validate: %v", err)
 	}
 
-	cfg.MaxIdleConns = 12
+	cfg.IdleConnsMax = 12
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "DB_MAX_IDLE_CONNS") {
 		t.Fatalf("expected idle pool validation error, got %v", err)
 	}
 
-	cfg.MaxIdleConns = 0
-	cfg.MaxOpenConns = -1
+	cfg.IdleConnsMax = 0
+	cfg.OpenConnsMax = -1
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "DB_MAX_CONNS") {
 		t.Fatalf("expected open pool validation error, got %v", err)
 	}
 
-	cfg.MaxOpenConns = 10
-	cfg.MaxIdleConns = -1
+	cfg.OpenConnsMax = 10
+	cfg.IdleConnsMax = -1
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "DB_MAX_IDLE_CONNS") {
 		t.Fatalf("expected idle pool validation error, got %v", err)
 	}

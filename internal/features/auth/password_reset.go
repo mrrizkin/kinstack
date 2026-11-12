@@ -20,8 +20,8 @@ const (
 	// passwordResetTTL bounds how long a self-service reset link stays valid.
 	passwordResetTTL = 60 * time.Minute
 
-	minPasswordLength = 8
-	maxPasswordLength = 72
+	passwordLengthMin = 8
+	passwordLengthMax = 72
 )
 
 // RequestPasswordReset emails a single-use reset link to the account owning the
@@ -85,17 +85,17 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken string, newPasswor
 		return ErrInvalidInput
 	}
 	switch {
-	case len(newPassword) < minPasswordLength:
+	case len(newPassword) < passwordLengthMin:
 		return fmt.Errorf(
 			"%w: new password must be at least %d characters",
 			ErrInvalidInput,
-			minPasswordLength,
+			passwordLengthMin,
 		)
-	case len(newPassword) > maxPasswordLength:
+	case len(newPassword) > passwordLengthMax:
 		return fmt.Errorf(
 			"%w: new password must be at most %d characters",
 			ErrInvalidInput,
-			maxPasswordLength,
+			passwordLengthMax,
 		)
 	}
 

@@ -7,6 +7,7 @@ import AuthLayout from "@/layouts/AuthLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import { loginPageSchema } from "@/lib/contracts/pages";
 import { passkeyCredentialSchema, passkeyOptionsSchema } from "@/lib/contracts/passkeys";
+import { useAction } from "@/lib/dialog";
 import { requestJson } from "@/lib/http";
 import { icons } from "@/lib/icons";
 import { usePageSchema } from "@/lib/page-props";
@@ -26,7 +27,8 @@ const { notice, oauth_enabled, oauth_providers, oauth_error, passkey_enabled, pa
 const { csrfToken } = usePageProps();
 const passkeySupported = supportsWebAuthn();
 const hasAlternatives = computed(() => Boolean(oauth_enabled || saml_enabled || (passkey_enabled && passkeySupported)));
-const passkeyLoading = ref(false);
+const passkeyRequest = useAction();
+const passkeyLoading = passkeyRequest.isRunning;
 const passkeyError = ref("");
 
 const form = useForm({
@@ -82,8 +84,7 @@ function submit(payload: FormSubmitEvent<Record<string, unknown>>) {
 }
 
 async function submitPasskey() {
-  if (passkeyLoading.value) return;
-  passkeyLoading.value = true;
+  if (!passkeyRequest.start()) return;
   passkeyError.value = "";
   try {
     const options = await requestJson("/login/passkey/options", passkeyOptionsSchema, {
@@ -100,7 +101,7 @@ async function submitPasskey() {
   } catch (caught) {
     passkeyError.value = caught instanceof Error ? caught.message : "Passkey sign-in failed.";
   } finally {
-    passkeyLoading.value = false;
+    passkeyRequest.settled();
   }
 }
 </script>

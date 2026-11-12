@@ -2,8 +2,6 @@ package notifications
 
 import (
 	"errors"
-	"strconv"
-	"strings"
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/log"
@@ -72,14 +70,10 @@ func (h *Handler) index(c fiber.Ctx) error {
 // feed returns the compact notification payload used by the dashboard
 // slide-over, so the shell can refresh without a full Inertia visit.
 func (h *Handler) feed(c fiber.Ctx) error {
-	limit := h.pageLimit(c)
-	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed < 1 {
-			return c.Status(fiber.StatusUnprocessableEntity).
-				JSON(fiber.Map{"error": i18n.T("common.invalid_page")})
-		}
-		limit = parsed
+	limit, err := pagination.ParseLimit(c.Query("limit"), h.pageLimit(c))
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).
+			JSON(fiber.Map{"error": i18n.T("common.invalid_page")})
 	}
 	props, err := h.service.List(c.Context(), h.recipient(c), c.Query("cursor"), limit)
 	if err != nil {

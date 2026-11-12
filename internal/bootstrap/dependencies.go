@@ -164,6 +164,12 @@ func newMediaFeature(
 	if !d.Config.RustFS.Enabled {
 		return nil
 	}
+	// The body limit and the upload cap are two numbers that must agree; a
+	// mismatch would either reject valid uploads or accept unreachable ones.
+	assert.Assert(
+		d.Config.App.HTTPBodyLimit >= mediafeature.UploadSizeMax,
+		"APP_BODY_LIMIT_MB must cover the media upload limit",
+	)
 	storage := objectstorage.New(objectstorage.Dependency{Config: d.Config.RustFS, Logger: d.Log})
 	assert.NoError(storage.EnsureBucket(context.Background()))
 	repository := assert.OK(

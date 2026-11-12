@@ -125,7 +125,7 @@ func TestUploadRejectsOversize(t *testing.T) {
 		"user-1",
 		"big.pdf",
 		"application/pdf",
-		uploadSizeMax+1,
+		UploadSizeMax+1,
 		bytes.NewReader([]byte("x")),
 	); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected invalid input, got %v", err)
@@ -150,7 +150,7 @@ func TestUploadSurfacesStorageFailure(t *testing.T) {
 
 func TestUploadRejectsImageOverDimensionLimit(t *testing.T) {
 	service, _, _ := newTestService()
-	data := testPNG(t, maxImageDimension+1)
+	data := testPNG(t, imageDimensionMax+1)
 	if _, err := service.Upload(
 		context.Background(),
 		"user-1",

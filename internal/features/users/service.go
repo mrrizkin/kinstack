@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	minPasswordLength = 8
-	maxUsernameLength = 32
+	passwordLengthMin = 8
+	usernameLengthMax = 32
 	// inviteUsernameAttempts bounds the retry when a generated username collides.
 	inviteUsernameAttempts = 5
-	maxEmailLength         = 254
+	emailLengthMax         = 254
 )
 
 var (

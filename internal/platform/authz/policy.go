@@ -32,13 +32,11 @@ const (
 	ResourceScope     = "scope"
 )
 
-// String reads a string attribute, returning "" when absent or mistyped.
 func (r Resource) String(key string) string {
 	value, _ := r[key].(string)
 	return value
 }
 
-// Float reads a numeric attribute, accepting the common numeric Go types.
 func (r Resource) Float(key string) (float64, bool) {
 	switch value := r[key].(type) {
 	case float64:
@@ -61,7 +59,6 @@ func (r Resource) Bool(key string) (bool, bool) {
 	return value, ok
 }
 
-// Request is the full input to an ABAC policy.
 type Request struct {
 	Principal  Principal
 	Permission Permission
@@ -69,19 +66,16 @@ type Request struct {
 	Now        time.Time
 }
 
-// Decision is the outcome of an authorization check.
 type Decision struct {
 	Allowed bool   `json:"allowed"`
 	Reason  string `json:"reason,omitempty"`
 	Source  string `json:"source,omitempty"`
 }
 
-// Allow builds an allowing decision.
 func Allow(source, reason string) Decision {
 	return Decision{Allowed: true, Source: source, Reason: reason}
 }
 
-// Deny builds a denying decision.
 func Deny(source, reason string) Decision {
 	return Decision{Allowed: false, Source: source, Reason: reason}
 }

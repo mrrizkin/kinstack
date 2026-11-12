@@ -43,6 +43,9 @@ func (r *credentialRevoker) RevokeAll(ctx context.Context, userPublicID string) 
 	}
 	if len(errs) > 0 {
 		if r.log != nil {
+			// The revocation runs after the response, so there is no request
+			// to bind to.
+			//kinstack:allow-unbound-log
 			r.log.Errorw(
 				"credential revocation failed",
 				"user", userPublicID,

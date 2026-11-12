@@ -1,7 +1,8 @@
-import { router, useForm } from "@inertiajs/vue3";
+import { router } from "@inertiajs/vue3";
 import QRCode from "qrcode";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
+import { dialogHooks, formView, openModel, subjectModel, useAction, useConfirmation, useDialog } from "@/lib/dialog";
 import { useServerErrors } from "@/lib/errors";
 import { queryString } from "@/lib/query";
 
@@ -17,44 +18,133 @@ interface SecurityFormsProps {
 /** A two-factor action that requires the account password first. */
 export type TwoFactorAction = "disable" | "regenerate";
 
+interface PasswordValues {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
 export function useSecurityForms(props: SecurityFormsProps) {
   const { message: fieldError, formError } = useServerErrors();
   const pageQuery = () =>
     queryString({ page: (props.sessions_page?.page ?? 1) > 1 ? props.sessions_page?.page : undefined });
 
-  const passwordForm = useForm({
-    current_password: "",
-    new_password: "",
-    confirm_password: "",
+  // ---- Change password ----
+  const password = useDialog<null, PasswordValues>({
+    label: "password change",
+    initialValues: () => ({ current_password: "", new_password: "", confirm_password: "" }),
   });
-  const passwordDialogOpen = ref(false);
+  const passwordForm = formView(password);
+  const passwordDialogOpen = openModel(password);
 
   function openPasswordDialog() {
-    passwordForm.reset();
-    passwordForm.clearErrors();
     passwordDialogOpen.value = true;
   }
 
   function submitPassword() {
-    passwordForm.post("/profile/password", {
+    if (password.isSaving.value) return;
+    const { current_password, new_password, confirm_password } = password.values;
+    router.post(
+      "/profile/password",
+      { current_password, new_password, confirm_password },
+      { preserveScroll: true, ...dialogHooks(password) },
+    );
+  }
+
+  // ---- Sessions ----
+  const session = useConfirmation<ActiveSession>({
+    label: "revoke session",
+    idOf: (target) => target.public_id,
+  });
+  const pendingSession = subjectModel(session);
+  const revokingSession = session.isRunning;
+
+  function confirmRevokeSession() {
+    const target = session.subject.value;
+    if (!target || session.isRunning.value) return;
+    session.confirm();
+    router.post(`/profile/sessions/${target.public_id}/revoke${pageQuery()}`, undefined, {
       preserveScroll: true,
-      onSuccess: () => {
-        passwordForm.reset();
-        passwordDialogOpen.value = false;
-      },
+      onFinish: () => session.done(),
     });
   }
 
-  const pendingSession = ref<ActiveSession | null>(null);
-  const revokingSession = ref(false);
-  const pendingRevokeOthers = ref(false);
-  const revokingOthers = ref(false);
+  // A confirmation without a subject, so the shared machine still owns the
+  // open/busy pair.
+  const revokeOthers = useDialog<null, Record<string, never>>({
+    label: "revoke other sessions",
+    initialValues: () => ({}),
+  });
+  const pendingRevokeOthers = openModel(revokeOthers);
+  const revokingOthers = revokeOthers.isSaving;
 
-  const beginningTwoFactor = ref(false);
-  const enrollDialogOpen = ref(false);
-  const twoFactorForm = useForm({ code: "" });
-  const twoFactorPasswordForm = useForm({ password: "" });
-  const twoFactorAction = ref<TwoFactorAction | null>(null);
+  function revokeOtherSessions() {
+    pendingRevokeOthers.value = true;
+  }
+
+  function confirmRevokeOtherSessions() {
+    if (revokeOthers.isSaving.value) return;
+    router.post(`/profile/sessions/revoke-others${pageQuery()}`, undefined, {
+      preserveScroll: true,
+      ...dialogHooks(revokeOthers),
+    });
+  }
+
+  // ---- Two-factor enrolment ----
+  const begin = useAction();
+  const beginningTwoFactor = begin.isRunning;
+  const enroll = useDialog<null, { code: string }>({
+    label: "two-factor enrolment",
+    initialValues: () => ({ code: "" }),
+  });
+  const twoFactorForm = formView(enroll);
+
+  const enrollDialogOpen = computed({
+    get: () => enroll.isOpen.value,
+    set: (open: boolean) => {
+      if (!open) {
+        enroll.close();
+        return;
+      }
+      if (enroll.isOpen.value) return;
+      enroll.open(null);
+      // A pending secret is reused so the dialog shows the existing QR code.
+      if (!props.two_factor.enabled && !props.two_factor.pending_secret) {
+        beginTwoFactor();
+      }
+    },
+  });
+
+  function beginTwoFactor() {
+    if (!begin.start()) return;
+    router.post("/profile/two-factor/begin", undefined, {
+      preserveScroll: true,
+      onFinish: () => begin.settled(),
+    });
+  }
+
+  function openEnrollDialog() {
+    enrollDialogOpen.value = true;
+  }
+
+  function closeEnrollDialog(open: boolean) {
+    if (!open) enrollDialogOpen.value = false;
+  }
+
+  function confirmTwoFactor() {
+    if (enroll.isSaving.value) return;
+    const { code } = enroll.values;
+    router.post("/profile/two-factor/confirm", { code }, { preserveScroll: true, ...dialogHooks(enroll) });
+  }
+
+  // ---- Two-factor actions that need the password ----
+  const action = useDialog<TwoFactorAction, { password: string }>({
+    label: "two-factor action",
+    initialValues: () => ({ password: "" }),
+    idOf: (kind) => kind,
+  });
+  const twoFactorAction = subjectModel(action);
+  const twoFactorPasswordForm = formView(action);
   const qrDataUrl = ref("");
 
   watch(
@@ -65,91 +155,21 @@ export function useSecurityForms(props: SecurityFormsProps) {
     { immediate: true },
   );
 
-  function openEnrollDialog() {
-    twoFactorForm.reset();
-    twoFactorForm.clearErrors();
-    enrollDialogOpen.value = true;
-    // A pending secret is reused so the dialog shows the existing QR code.
-    if (!props.two_factor.enabled && !props.two_factor.pending_secret) {
-      beginTwoFactor();
-    }
-  }
-
-  function closeEnrollDialog(open: boolean) {
-    if (!open) enrollDialogOpen.value = false;
-  }
-
-  function beginTwoFactor() {
-    if (beginningTwoFactor.value) return;
-    router.post("/profile/two-factor/begin", undefined, {
-      preserveScroll: true,
-      onStart: () => (beginningTwoFactor.value = true),
-      onFinish: () => (beginningTwoFactor.value = false),
-    });
-  }
-
-  function confirmTwoFactor() {
-    twoFactorForm.post("/profile/two-factor/confirm", {
-      preserveScroll: true,
-      onSuccess: () => {
-        twoFactorForm.reset();
-        enrollDialogOpen.value = false;
-      },
-    });
-  }
-
-  function openTwoFactorAction(action: TwoFactorAction) {
-    twoFactorPasswordForm.reset();
-    twoFactorPasswordForm.clearErrors();
-    twoFactorAction.value = action;
+  function openTwoFactorAction(kind: TwoFactorAction) {
+    if (action.isOpen.value) return;
+    action.open(kind);
   }
 
   function closeTwoFactorAction(open: boolean) {
     if (open) return;
-    twoFactorAction.value = null;
-    twoFactorPasswordForm.reset();
+    action.close();
   }
 
   function confirmTwoFactorAction() {
-    const action = twoFactorAction.value;
-    if (!action || twoFactorPasswordForm.processing) return;
-    const url = action === "disable" ? "/profile/two-factor/disable" : "/profile/two-factor/recovery-codes";
-    twoFactorPasswordForm.post(url, {
-      preserveScroll: true,
-      onSuccess: () => {
-        twoFactorAction.value = null;
-        twoFactorPasswordForm.reset();
-      },
-    });
-  }
-
-  function confirmRevokeSession() {
-    const target = pendingSession.value;
-    if (!target || revokingSession.value) return;
-    router.post(`/profile/sessions/${target.public_id}/revoke${pageQuery()}`, undefined, {
-      preserveScroll: true,
-      onStart: () => (revokingSession.value = true),
-      onFinish: () => {
-        revokingSession.value = false;
-        pendingSession.value = null;
-      },
-    });
-  }
-
-  function revokeOtherSessions() {
-    pendingRevokeOthers.value = true;
-  }
-
-  function confirmRevokeOtherSessions() {
-    if (revokingOthers.value) return;
-    router.post(`/profile/sessions/revoke-others${pageQuery()}`, undefined, {
-      preserveScroll: true,
-      onStart: () => (revokingOthers.value = true),
-      onFinish: () => {
-        revokingOthers.value = false;
-        pendingRevokeOthers.value = false;
-      },
-    });
+    const kind = action.subject.value;
+    if (!kind || action.isSaving.value) return;
+    const url = kind === "disable" ? "/profile/two-factor/disable" : "/profile/two-factor/recovery-codes";
+    router.post(url, { password: action.values.password }, { preserveScroll: true, ...dialogHooks(action) });
   }
 
   return {

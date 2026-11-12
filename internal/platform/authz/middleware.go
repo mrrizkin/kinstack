@@ -33,7 +33,6 @@ type GuardRouter struct {
 	middlewares []fiber.Handler
 }
 
-// NewGuardRouter wraps router with permission guards.
 func NewGuardRouter(
 	router fiber.Router,
 	actorBoundary *actor.Actor,
@@ -63,27 +62,22 @@ func (g *GuardRouter) WithMiddleware(middlewares ...fiber.Handler) *GuardRouter 
 	return g
 }
 
-// Get registers a guarded GET route.
 func (g *GuardRouter) Get(path string, handler any, handlers ...any) fiber.Router {
 	return register(g, fiber.MethodGet, path, handler, handlers)
 }
 
-// Post registers a guarded POST route.
 func (g *GuardRouter) Post(path string, handler any, handlers ...any) fiber.Router {
 	return register(g, fiber.MethodPost, path, handler, handlers)
 }
 
-// Put registers a guarded PUT route.
 func (g *GuardRouter) Put(path string, handler any, handlers ...any) fiber.Router {
 	return register(g, fiber.MethodPut, path, handler, handlers)
 }
 
-// Delete registers a guarded DELETE route.
 func (g *GuardRouter) Delete(path string, handler any, handlers ...any) fiber.Router {
 	return register(g, fiber.MethodDelete, path, handler, handlers)
 }
 
-// Patch registers a guarded PATCH route.
 func (g *GuardRouter) Patch(path string, handler any, handlers ...any) fiber.Router {
 	return register(g, fiber.MethodPatch, path, handler, handlers)
 }
@@ -147,7 +141,6 @@ func (g *GuardRouter) wrap(
 	return append(chain, handlers...)
 }
 
-// PrincipalFromActor projects a session actor onto an authorization principal.
 func PrincipalFromActor(session *actor.SessionActor) Principal {
 	if session == nil {
 		return Principal{}
@@ -161,11 +154,8 @@ func PrincipalFromActor(session *actor.SessionActor) Principal {
 	}
 }
 
-// RequireBrowserSession rejects personal API tokens. Credential management
-// routes (password, 2FA, passkeys, API token lifecycle, session revocation) are
-// guarded with it so a leaked token cannot mint new credentials: token scopes
-// never restrict the Authenticated sentinel, and a passkey registered by a
-// token is persistent access that outlives token revocation.
+// RequireBrowserSession rejects personal API tokens on credential management
+// routes: a leaked token must not mint new credentials.
 func RequireBrowserSession(actorBoundary *actor.Actor) fiber.Handler {
 	assert.Assert(actorBoundary != nil, "actor boundary is required")
 
@@ -185,8 +175,7 @@ func RequireBrowserSession(actorBoundary *actor.Actor) fiber.Handler {
 	}
 }
 
-// RequirePermission rejects requests whose actor lacks the permission. It is a
-// route-level RBAC guard: no resource attributes are available at this stage.
+// RequirePermission is route-level RBAC: no resource attributes are available.
 func RequirePermission(
 	actorBoundary *actor.Actor,
 	service *Service,
@@ -209,8 +198,7 @@ func RequirePermission(
 	}
 }
 
-// RequirePermissionResource is the resource-aware variant used after a handler
-// loads the target entity. resolve must be cheap and side-effect free.
+// RequirePermissionResource runs after the handler loads the target entity.
 func RequirePermissionResource(
 	actorBoundary *actor.Actor,
 	service *Service,
@@ -235,8 +223,7 @@ func RequirePermissionResource(
 	}
 }
 
-// DecisionFromContext returns the decision recorded by the most recent failed
-// guard, when available.
+// DecisionFromContext reports the most recent failed guard, if any.
 func DecisionFromContext(c fiber.Ctx) (Decision, bool) {
 	decision, ok := c.Locals(decisionLocalKey).(Decision)
 	return decision, ok

@@ -38,6 +38,7 @@ func New(d Dependency) *Client {
 	assert.Assert(cfg.AccessKey != "", "rustfs access key is required")
 	assert.Assert(cfg.SecretKey != "", "rustfs secret key is required")
 	assert.Assert(cfg.Bucket != "", "rustfs bucket is required")
+	assert.Assert(cfg.Timeout > 0, "rustfs timeout is required")
 	assert.Assert(d.Logger != nil, "logger is required")
 
 	endpoint := cfg.Endpoint
@@ -52,6 +53,9 @@ func New(d Dependency) *Client {
 		Bucket:   cfg.Bucket,
 		Endpoint: endpoint,
 		Region:   cfg.Region,
+		// Every S3 call is bounded: object storage is an external dependency and
+		// must behave like one (PILLARS §2).
+		RequestTimeout: cfg.Timeout,
 		Credentials: fibers3.Credentials{
 			AccessKey:       cfg.AccessKey,
 			SecretAccessKey: cfg.SecretKey,
@@ -138,7 +142,11 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 // PublicURL returns the browser URL for an object delivered from the bucket.
 func (c *Client) PublicURL(key string) string {
 	assert.Assert(c != nil, "rustfs client must be initialized")
-	return c.publicURL + "/" + url.PathEscape(c.bucket) + "/" + strings.TrimLeft(key, "/")
+	segments := strings.Split(strings.TrimLeft(key, "/"), "/")
+	for index, segment := range segments {
+		segments[index] = url.PathEscape(segment)
+	}
+	return c.publicURL + "/" + url.PathEscape(c.bucket) + "/" + strings.Join(segments, "/")
 }
 
 // PresignedGetURL creates a time-limited download URL for a private object.

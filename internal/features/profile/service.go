@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	minDisplayNameLength = 3
-	maxDisplayNameLength = 120
-	minPasswordLength    = 8
-	maxPasswordLength    = 72
+	displayNameLengthMin = 3
+	displayNameLengthMax = 120
+	passwordLengthMin    = 8
+	passwordLengthMax    = 72
 )
 
 type ServiceDependency struct {
@@ -65,11 +65,11 @@ func (s *Service) UpdateDisplayName(
 	request UpdateProfileRequest,
 ) (ProfileDTO, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
-	if len(displayName) < minDisplayNameLength || len(displayName) > maxDisplayNameLength {
+	if len(displayName) < displayNameLengthMin || len(displayName) > displayNameLengthMax {
 		return ProfileDTO{}, fmt.Errorf(
 			"%w: %s",
 			ErrInvalidInput,
-			i18n.T("profile.display_name_length", minDisplayNameLength, maxDisplayNameLength),
+			i18n.T("profile.display_name_length", displayNameLengthMin, displayNameLengthMax),
 		)
 	}
 
@@ -148,17 +148,17 @@ func (s *Service) ChangePassword(
 ) error {
 	newPassword := request.NewPassword
 	switch {
-	case len(newPassword) < minPasswordLength:
+	case len(newPassword) < passwordLengthMin:
 		return fmt.Errorf(
 			"%w: %s",
 			ErrInvalidInput,
-			i18n.T("profile.new_password_min", minPasswordLength),
+			i18n.T("profile.new_password_min", passwordLengthMin),
 		)
-	case len(newPassword) > maxPasswordLength:
+	case len(newPassword) > passwordLengthMax:
 		return fmt.Errorf(
 			"%w: %s",
 			ErrInvalidInput,
-			i18n.T("profile.new_password_max", maxPasswordLength),
+			i18n.T("profile.new_password_max", passwordLengthMax),
 		)
 	case newPassword != request.ConfirmPassword:
 		return ErrPasswordMismatch

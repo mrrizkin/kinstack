@@ -1,5 +1,4 @@
-// Package twofactor owns per-user two-factor authentication: TOTP enrollment,
-// login verification, and one-time recovery codes.
+// Package twofactor owns TOTP enrollment, login verification, and recovery codes.
 package twofactor
 
 import (
@@ -61,13 +60,11 @@ func New(d Dependency) *Service {
 	}
 }
 
-// Enrollment is a freshly generated secret and its provisioning URI.
 type Enrollment struct {
 	Secret string `json:"secret"`
 	URI    string `json:"uri"`
 }
 
-// IsEnabled reports whether the account requires a second factor at login.
 func (s *Service) IsEnabled(ctx context.Context, userPublicID string) (bool, error) {
 	status, err := s.repository.FindStatus(ctx, userPublicID)
 	if err != nil {
@@ -76,8 +73,8 @@ func (s *Service) IsEnabled(ctx context.Context, userPublicID string) (bool, err
 	return status.Enabled, nil
 }
 
-// Status returns the enrollment state with the secret decrypted for the
-// enrollment screen. The secret is never rendered once two-factor is enabled.
+// Status decrypts the secret for the enrollment screen; an enabled account
+// never renders it.
 func (s *Service) Status(ctx context.Context, userPublicID string) (StatusResult, error) {
 	status, err := s.repository.FindStatus(ctx, userPublicID)
 	if err != nil {
@@ -90,13 +87,11 @@ func (s *Service) Status(ctx context.Context, userPublicID string) (StatusResult
 	return StatusResult{Enabled: status.Enabled, Secret: secret, LastStep: status.LastStep}, nil
 }
 
-// ProvisioningURI rebuilds the otpauth URI for a stored secret.
 func (s *Service) ProvisioningURI(secret, account string) string {
 	return totp.ProvisioningURI(secret, account, s.issuer)
 }
 
-// BeginEnrollment stores a new pending secret. It is not active until the user
-// confirms one valid code.
+// BeginEnrollment stores a pending secret; it is inactive until one code confirms.
 func (s *Service) BeginEnrollment(
 	ctx context.Context,
 	userPublicID string,
@@ -126,8 +121,7 @@ func (s *Service) BeginEnrollment(
 	}, nil
 }
 
-// ConfirmEnrollment activates two-factor auth and returns the one-time recovery
-// codes in plaintext. They are never retrievable again.
+// ConfirmEnrollment returns the recovery codes in plaintext; never retrievable again.
 func (s *Service) ConfirmEnrollment(
 	ctx context.Context,
 	userPublicID string,
@@ -158,7 +152,6 @@ func (s *Service) ConfirmEnrollment(
 	return s.issueRecoveryCodes(ctx, userPublicID)
 }
 
-// Disable turns off two-factor auth and removes the secret and recovery codes.
 func (s *Service) Disable(ctx context.Context, userPublicID string) error {
 	if err := s.repository.Disable(ctx, userPublicID); err != nil {
 		return err
@@ -166,7 +159,6 @@ func (s *Service) Disable(ctx context.Context, userPublicID string) error {
 	return s.repository.ReplaceRecoveryCodes(ctx, userPublicID, nil)
 }
 
-// RegenerateRecoveryCodes replaces every stored code with a fresh set.
 func (s *Service) RegenerateRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
@@ -181,9 +173,7 @@ func (s *Service) RegenerateRecoveryCodes(
 	return s.issueRecoveryCodes(ctx, userPublicID)
 }
 
-// Verify accepts either a current TOTP code or an unused recovery code. A used
-// code is consumed so it cannot be replayed, and a TOTP step is recorded so a
-// captured code cannot be reused inside its validity window.
+// Verify consumes a recovery code or a TOTP step so neither can be replayed.
 func (s *Service) Verify(ctx context.Context, userPublicID, code string) (bool, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
@@ -203,7 +193,6 @@ func (s *Service) Verify(ctx context.Context, userPublicID, code string) (bool, 
 	if step, ok := totp.ValidateStep(secret, code, s.now()); ok {
 		switch err := s.repository.ConsumeStep(ctx, userPublicID, step); {
 		case errors.Is(err, ErrNotFound):
-			// The step was already used: treat a replayed code as invalid.
 			return false, nil
 		case err != nil:
 			return false, err
@@ -214,9 +203,8 @@ func (s *Service) Verify(ctx context.Context, userPublicID, code string) (bool, 
 	return s.verifyRecoveryCode(ctx, userPublicID, code)
 }
 
-// verifyRecoveryCode checks a one-time code against the unused hashes. Argon2id
-// hashes carry their own salt, so every stored hash is compared in turn; a
-// handler-level lockout bounds the cost of repeated guesses.
+// verifyRecoveryCode tries every unused hash: each carries its own salt, and the
+// handler lockout bounds repeated guesses.
 func (s *Service) verifyRecoveryCode(ctx context.Context, userPublicID, code string) (bool, error) {
 	if !recoveryCodeShape.MatchString(code) {
 		return false, nil
@@ -248,7 +236,6 @@ func (s *Service) verifyRecoveryCode(ctx context.Context, userPublicID, code str
 		}
 		switch err := s.repository.MarkRecoveryCodeUsed(ctx, stored.ID); {
 		case errors.Is(err, ErrNotFound):
-			// Another request consumed it first; keep looking.
 			continue
 		case err != nil:
 			return false, err
@@ -277,9 +264,8 @@ func (s *Service) issueRecoveryCodes(ctx context.Context, userPublicID string) (
 	return codes, nil
 }
 
-// seal converts a plaintext secret into the persisted representation. A sealing
-// failure is returned instead of falling back to plaintext: storing the secret
-// unsealed would silently weaken the at-rest guarantee.
+// seal never falls back to plaintext on failure: that would weaken the at-rest
+// guarantee silently.
 func (s *Service) seal(secret string) (Secret, error) {
 	if s.box == nil || strings.TrimSpace(secret) == "" {
 		return Secret{Plain: secret}, nil
@@ -291,7 +277,6 @@ func (s *Service) seal(secret string) (Secret, error) {
 	return Secret{Sealed: sealed, KeyVersion: s.box.Version()}, nil
 }
 
-// open returns the plaintext secret for a stored row.
 func (s *Service) open(status StatusResult) (string, error) {
 	if len(status.Sealed) > 0 {
 		if s.box == nil {
@@ -306,9 +291,8 @@ func (s *Service) open(status StatusResult) (string, error) {
 	return status.Secret, nil
 }
 
-// sealLegacy writes a sealed copy for a row that still stores plaintext and
-// clears the plaintext column. Failures are not fatal for the caller: the row
-// stays usable and the backfill command can retry later.
+// sealLegacy seals a plaintext row and clears it; a failure leaves the row usable
+// for the backfill to retry.
 func (s *Service) sealLegacy(ctx context.Context, userPublicID string, status StatusResult) {
 	if s.box == nil || strings.TrimSpace(status.Secret) == "" || len(status.Sealed) > 0 {
 		return
@@ -320,8 +304,7 @@ func (s *Service) sealLegacy(ctx context.Context, userPublicID string, status St
 	_ = s.repository.SealSecret(ctx, userPublicID, sealed, s.box.Version())
 }
 
-// GenerateRecoveryCodes returns n human-friendly one-time codes shaped
-// "XXXX-XXXX" using an alphabet without ambiguous characters.
+// GenerateRecoveryCodes returns "XXXX-XXXX" codes from an unambiguous alphabet.
 func GenerateRecoveryCodes(n int) ([]string, error) {
 	if n <= 0 {
 		return []string{}, nil
@@ -344,7 +327,6 @@ func GenerateRecoveryCodes(n int) ([]string, error) {
 	return codes, nil
 }
 
-// HashRecoveryCode normalizes a code and returns its Argon2id hash for storage.
 func HashRecoveryCode(code string) (string, error) {
 	return hashRecoveryCode(normalizeRecoveryCode(code))
 }
@@ -353,8 +335,7 @@ func hashRecoveryCode(normalized string) (string, error) {
 	return password.HashWithCost(normalized, password.OneTimeCost)
 }
 
-// BackfillSecrets seals plaintext secrets in batches and reports how many rows
-// were migrated. It is idempotent and safe to run while the service is live.
+// BackfillSecrets seals plaintext secrets in batches; idempotent, safe while live.
 func BackfillSecrets(
 	ctx context.Context,
 	repository Repository,
@@ -387,8 +368,7 @@ func BackfillSecrets(
 	}
 }
 
-// sealLegacyRows migrates one batch. A partial batch returns the rows already
-// sealed along with the error, so a retry resumes instead of restarting.
+// sealLegacyRows returns the rows sealed so far with any error, so a retry resumes.
 func sealLegacyRows(
 	ctx context.Context,
 	repository Repository,
@@ -409,5 +389,4 @@ func sealLegacyRows(
 	return sealedCount, nil
 }
 
-// RecoveryKeyInfo scopes the envelope key derivation for TOTP secrets.
 const RecoveryKeyInfo = recoveryKeyInfo

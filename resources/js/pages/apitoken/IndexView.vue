@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from "@inertiajs/vue3";
+import { Head, router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -10,6 +10,7 @@ import AppLayout from "@/layouts/AppLayout.vue";
 import BaseLayout from "@/layouts/BaseLayout.vue";
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
 import { type APIToken, apiTokensPageSchema } from "@/lib/contracts/apitoken";
+import { dialogHooks, formView, openModel, subjectModel, useConfirmation, useDialog } from "@/lib/dialog";
 import { fieldMessage } from "@/lib/errors";
 import { icons } from "@/lib/icons";
 import { usePageProps, usePageSchema } from "@/lib/page-props";
@@ -22,19 +23,30 @@ const props = usePageSchema(apiTokensPageSchema);
 const { permissions } = usePageProps();
 const { t } = useI18n();
 
-const showCreate = ref(false);
+interface CreateTokenValues {
+  name: string;
+  expires_in_days: number;
+  scopes: string[];
+}
+
+const create = useDialog<null, CreateTokenValues>({
+  label: "create token",
+  initialValues: () => ({ name: "", expires_in_days: 0, scopes: [] }),
+});
+const showCreate = openModel(create);
+const createForm = formView(create);
+
+// A copy confirmation is a timeout, not a workflow stage.
 const copied = ref(false);
 const copyError = ref("");
-const revokeTarget = ref<APIToken | null>(null);
-const revoking = ref(false);
-const createForm = useForm({ name: "", expires_in_days: 0, scopes: [] as string[] });
 
 function toggleScope(permission: string, checked: boolean) {
-  if (checked) {
-    if (!createForm.scopes.includes(permission)) createForm.scopes.push(permission);
-    return;
-  }
-  createForm.scopes = createForm.scopes.filter((scope) => scope !== permission);
+  const scopes = createForm.scopes;
+  createForm.scopes = checked
+    ? scopes.includes(permission)
+      ? scopes
+      : [...scopes, permission]
+    : scopes.filter((scope) => scope !== permission);
 }
 
 const expiryOptions = [
@@ -47,29 +59,28 @@ const expiryOptions = [
 const hasCreated = computed(() => (props.created_token ?? "").length > 0);
 
 function submitCreate() {
-  createForm.post("/api-tokens", {
-    onSuccess: () => {
-      createForm.reset();
-      showCreate.value = false;
-    },
-  });
+  if (create.isSaving.value) return;
+  const { name, expires_in_days, scopes } = create.values;
+  router.post("/api-tokens", { name, expires_in_days, scopes }, dialogHooks(create));
 }
 
+const revocation = useConfirmation<APIToken>({ label: "revoke token", idOf: (token) => token.public_id });
+const revokeTarget = subjectModel(revocation);
+const revoking = revocation.isRunning;
+
 function revoke(token: APIToken) {
-  revokeTarget.value = token;
+  if (revocation.isOpen.value) return;
+  revocation.open(token);
 }
 
 function confirmRevoke() {
-  const token = revokeTarget.value;
-  if (!token || revoking.value) return;
+  const token = revocation.subject.value;
+  if (!token || revocation.isRunning.value) return;
   const page = props.page.page > 1 ? `?page=${props.page.page}` : "";
+  revocation.confirm();
   router.post(`/api-tokens/${token.public_id}/revoke${page}`, undefined, {
     preserveScroll: true,
-    onStart: () => (revoking.value = true),
-    onFinish: () => {
-      revoking.value = false;
-      revokeTarget.value = null;
-    },
+    onFinish: () => revocation.done(),
   });
 }
 
