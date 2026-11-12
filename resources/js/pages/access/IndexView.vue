@@ -113,14 +113,6 @@ const overrideOpen = computed({
         :description="actionError"
         class="mb-4" />
 
-      <UAlert
-        color="neutral"
-        variant="subtle"
-        :icon="icons.info"
-        title="Roles are managed from this page"
-        description="Each role has permissions you can configure. Create custom roles or add custom permissions for a single user."
-        class="mb-4" />
-
       <UTabs
         v-model="tab"
         :items="[
