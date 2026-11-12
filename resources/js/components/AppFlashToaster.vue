@@ -18,8 +18,12 @@ const flash = computed(() => (page as unknown as { flash?: FlashPayload }).flash
 watch(
   flash,
   (value) => {
-    if (value?.success) notify("success", value.success);
-    if (value?.error) notify("error", value.error);
+    if (value?.success) {
+      notify("success", value.success);
+    }
+    if (value?.error) {
+      notify("error", value.error);
+    }
   },
   { immediate: true, deep: true },
 );

@@ -13,7 +13,9 @@ defineProps<{
 }>();
 
 function previewSound(enabled: boolean) {
-  if (enabled) previewNotificationSound("info");
+  if (enabled) {
+    previewNotificationSound("info");
+  }
 }
 </script>
 

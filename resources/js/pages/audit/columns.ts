@@ -20,9 +20,15 @@ export function actionLabel(action: string) {
 }
 
 export function statusColor(status: number): CellBadgeColor {
-  if (status >= 500) return "error";
-  if (status >= 400) return "warning";
-  if (status >= 200 && status < 400) return "success";
+  if (status >= 500) {
+    return "error";
+  }
+  if (status >= 400) {
+    return "warning";
+  }
+  if (status >= 200 && status < 400) {
+    return "success";
+  }
   return "neutral";
 }
 

@@ -80,7 +80,9 @@ export function useAccessForms(props: AccessProps) {
   const savingPermissions = permissions.isSaving;
 
   function openRolePermissions(role: Role) {
-    if (permissions.isOpen.value) return;
+    if (permissions.isOpen.value) {
+      return;
+    }
     permissions.open(role);
   }
 
@@ -93,7 +95,9 @@ export function useAccessForms(props: AccessProps) {
 
   function saveRolePermissions() {
     const role = permissions.subject.value;
-    if (!role || permissions.isSaving.value) return;
+    if (!role || permissions.isSaving.value) {
+      return;
+    }
     router.post(
       accessURL(`/roles/${role.code}/permissions${rolesPageQuery.value}`),
       { permissions: permissions.values.permissions },
@@ -125,13 +129,17 @@ export function useAccessForms(props: AccessProps) {
   const deletingRole = deleteRole.isRunning;
 
   function requestDeleteRole(role: Role) {
-    if (deleteRole.isOpen.value) return;
+    if (deleteRole.isOpen.value) {
+      return;
+    }
     deleteRole.open(role);
   }
 
   function confirmDeleteRole() {
     const role = deleteRole.subject.value;
-    if (!role || deleteRole.isRunning.value) return;
+    if (!role || deleteRole.isRunning.value) {
+      return;
+    }
     deleteRole.confirm();
     router.post(
       accessURL(`/roles/${role.code}/delete${rolesPageQuery.value}`),
@@ -158,13 +166,17 @@ export function useAccessForms(props: AccessProps) {
   const editRoleForm = formView(editRole);
 
   function openEditRole(role: Role) {
-    if (editRole.isOpen.value) return;
+    if (editRole.isOpen.value) {
+      return;
+    }
     editRole.open(role);
   }
 
   function submitEditRole() {
     const role = editRole.subject.value;
-    if (!role || editRole.isSaving.value) return;
+    if (!role || editRole.isSaving.value) {
+      return;
+    }
     const { name, description, rank } = editRole.values;
     router.put(
       accessURL(`/roles/${role.code}${rolesPageQuery.value}`),
@@ -199,7 +211,9 @@ export function useAccessForms(props: AccessProps) {
   }
 
   function openUserOverrides(user: UserAccess) {
-    if (overrides.isOpen.value) return;
+    if (overrides.isOpen.value) {
+      return;
+    }
     overrides.open({ id: user.public_id });
   }
 
@@ -209,7 +223,9 @@ export function useAccessForms(props: AccessProps) {
 
   function submitOverride() {
     const user = editingUser.value;
-    if (!user || overrides.isSaving.value) return;
+    if (!user || overrides.isSaving.value) {
+      return;
+    }
     const { permission, effect, reason, expires } = overrides.values;
     if (!permission) {
       overrides.invalid({ permission: "Select a permission first." });
@@ -233,13 +249,17 @@ export function useAccessForms(props: AccessProps) {
   const removingOverride = removeOverride.isRunning;
 
   function requestRemoveOverride(user: UserAccess, override: Override) {
-    if (removeOverride.isOpen.value) return;
+    if (removeOverride.isOpen.value) {
+      return;
+    }
     removeOverride.open({ user, override });
   }
 
   function confirmRemoveOverride() {
     const pending = removeOverride.subject.value;
-    if (!pending || removeOverride.isRunning.value) return;
+    if (!pending || removeOverride.isRunning.value) {
+      return;
+    }
     removeOverride.confirm();
     router.post(
       accessURL(`/users/${pending.user.public_id}/permissions/delete${pageQuery.value}`),
@@ -256,7 +276,9 @@ export function useAccessForms(props: AccessProps) {
   const roleValue = roleChange.role;
 
   function requestRoleChange(user: UserAccess) {
-    if (roleSaving.value) return;
+    if (roleSaving.value) {
+      return;
+    }
     roleChange.open({ id: user.public_id, name: user.display_name, currentRole: user.role });
   }
 
@@ -266,9 +288,13 @@ export function useAccessForms(props: AccessProps) {
 
   function submitRoleChange() {
     const target = roleTarget.value;
-    if (!target) return;
+    if (!target) {
+      return;
+    }
     const user = props.users.find((candidate) => candidate.public_id === target.id);
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     if (roleValue.value === user.role) {
       roleChange.close();
       return;

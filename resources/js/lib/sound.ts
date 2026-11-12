@@ -19,10 +19,14 @@ const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function resolveContext(): AudioContext | undefined {
-  if (typeof window === "undefined") return undefined;
+  if (typeof window === "undefined") {
+    return undefined;
+  }
   const Constructor =
     window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Constructor) return undefined;
+  if (!Constructor) {
+    return undefined;
+  }
   if (!context) {
     context = new Constructor();
   }
@@ -83,7 +87,9 @@ function marimba(audio: AudioContext, frequency: number, offset: number, duratio
  * a rising pair for success, a single note for info, a falling pair for error.
  */
 export function playNotificationSound(kind: NotificationSound = "info") {
-  if (!enabled.value) return;
+  if (!enabled.value) {
+    return;
+  }
   previewNotificationSound(kind);
 }
 
@@ -92,9 +98,13 @@ export function playNotificationSound(kind: NotificationSound = "info") {
  * when the user enables it from the settings page.
  */
 export function previewNotificationSound(kind: NotificationSound = "info") {
-  if (prefersReducedMotion()) return;
+  if (prefersReducedMotion()) {
+    return;
+  }
   const audio = resolveContext();
-  if (!audio) return;
+  if (!audio) {
+    return;
+  }
 
   if (kind === "success") {
     marimba(audio, 783.99, 0, 0.22, 0.06);

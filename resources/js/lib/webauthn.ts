@@ -30,7 +30,9 @@ function prepareOptions(
   }
   if (registration) {
     const user = { ...(publicKey.user as Record<string, unknown>) };
-    if (typeof user.id === "string") user.id = decode(user.id);
+    if (typeof user.id === "string") {
+      user.id = decode(user.id);
+    }
     publicKey.user = user;
     const excludeCredentials = publicKey.excludeCredentials as Array<Record<string, unknown>> | undefined;
     if (excludeCredentials) {
@@ -77,19 +79,27 @@ export function supportsWebAuthn(): boolean {
 }
 
 export async function createPasskey(payload: PasskeyOptions): Promise<PasskeyCredential> {
-  if (!supportsWebAuthn()) throw new Error("This browser does not support WebAuthn.");
+  if (!supportsWebAuthn()) {
+    throw new Error("This browser does not support WebAuthn.");
+  }
   const credential = await navigator.credentials.create({
     publicKey: prepareOptions(payload, true) as PublicKeyCredentialCreationOptions,
   });
-  if (!(credential instanceof PublicKeyCredential)) throw new Error("The authenticator did not return a passkey.");
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new Error("The authenticator did not return a passkey.");
+  }
   return serializeCredential(credential);
 }
 
 export async function getPasskey(payload: PasskeyOptions): Promise<PasskeyCredential> {
-  if (!supportsWebAuthn()) throw new Error("This browser does not support WebAuthn.");
+  if (!supportsWebAuthn()) {
+    throw new Error("This browser does not support WebAuthn.");
+  }
   const credential = await navigator.credentials.get({
     publicKey: prepareOptions(payload, false) as PublicKeyCredentialRequestOptions,
   });
-  if (!(credential instanceof PublicKeyCredential)) throw new Error("The authenticator did not return a passkey.");
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new Error("The authenticator did not return a passkey.");
+  }
   return serializeCredential(credential);
 }

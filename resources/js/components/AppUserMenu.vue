@@ -30,7 +30,9 @@ const appearanceOptions = computed<{ label: string; value: ThemePreference; icon
 // The menu applies the theme instantly, then persists it for the account. The
 // break-glass super admin has no profile row, so it stays browser-local.
 function persistTheme(next: ThemePreference) {
-  if (actor.value?.superuser) return;
+  if (actor.value?.superuser) {
+    return;
+  }
   void requestJson("/profile/theme", z.unknown(), {
     method: "POST",
     body: { theme: next },

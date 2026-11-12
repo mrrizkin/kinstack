@@ -16,7 +16,9 @@ const props = defineProps<{
 
 const roleLabel = computed(() => {
   const code = props.profile.role;
-  if (!code) return "No role";
+  if (!code) {
+    return "No role";
+  }
   return code.charAt(0).toUpperCase() + code.slice(1);
 });
 const roleColor = "neutral" as const;

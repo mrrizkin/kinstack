@@ -37,7 +37,9 @@ async function refresh() {
 }
 
 function stopPolling() {
-  if (timer === undefined) return;
+  if (timer === undefined) {
+    return;
+  }
   clearInterval(timer);
   timer = undefined;
 }
@@ -60,7 +62,9 @@ function onVisibilityChange() {
 
 onMounted(() => {
   void refresh();
-  if (!document.hidden) startPolling();
+  if (!document.hidden) {
+    startPolling();
+  }
   document.addEventListener("visibilitychange", onVisibilityChange);
 });
 

@@ -57,7 +57,9 @@ const calendarValue = computed<DateValue | CalendarRange | null>(() => {
     const start = toCalendarDate(value.start);
     const end = toCalendarDate(value.end);
     const from = start ?? end;
-    if (!from) return null;
+    if (!from) {
+      return null;
+    }
     // Keep a partially selected range incomplete so UCalendar keeps its anchor.
     return (end ? { start: from, end } : { start: from }) as CalendarRange;
   }

@@ -112,7 +112,9 @@ export function useNotificationFeed(options: NotificationFeedOptions): Notificat
   }
 
   async function refresh(): Promise<void> {
-    if (stage.value.status !== "idle") return;
+    if (stage.value.status !== "idle") {
+      return;
+    }
     send({ type: "refresh" });
     error.value = null;
     try {
@@ -128,7 +130,9 @@ export function useNotificationFeed(options: NotificationFeedOptions): Notificat
   }
 
   async function loadMore(): Promise<void> {
-    if (stage.value.status !== "idle" || nextCursor.value === "") return;
+    if (stage.value.status !== "idle" || nextCursor.value === "") {
+      return;
+    }
     send({ type: "loadMore" });
     error.value = null;
     try {
@@ -148,7 +152,9 @@ export function useNotificationFeed(options: NotificationFeedOptions): Notificat
   }
 
   async function markRead(notification: NotificationItem): Promise<void> {
-    if (stage.value.status !== "idle" || notification.read) return;
+    if (stage.value.status !== "idle" || notification.read) {
+      return;
+    }
     send({ type: "mark", id: notification.public_id });
     error.value = null;
     try {
@@ -167,7 +173,9 @@ export function useNotificationFeed(options: NotificationFeedOptions): Notificat
   }
 
   async function markAllRead(): Promise<void> {
-    if (stage.value.status !== "idle" || unread.value === 0) return;
+    if (stage.value.status !== "idle" || unread.value === 0) {
+      return;
+    }
     send({ type: "markAll" });
     error.value = null;
     try {

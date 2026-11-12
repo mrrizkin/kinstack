@@ -188,9 +188,13 @@ const searchGroups = computed<{ id: string; label: string; items: CommandGroupIt
 );
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key.toLowerCase() !== "n" || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key.toLowerCase() !== "n" || event.metaKey || event.ctrlKey || event.altKey) {
+    return;
+  }
   const target = event.target as HTMLElement | null;
-  if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+  if (target?.closest("input, textarea, select, [contenteditable='true']")) {
+    return;
+  }
   event.preventDefault();
   notificationsOpen.value = !notificationsOpen.value;
 }

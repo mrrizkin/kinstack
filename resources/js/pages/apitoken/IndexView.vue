@@ -42,11 +42,14 @@ const copyError = ref("");
 
 function toggleScope(permission: string, checked: boolean) {
   const scopes = createForm.scopes;
-  createForm.scopes = checked
-    ? scopes.includes(permission)
-      ? scopes
-      : [...scopes, permission]
-    : scopes.filter((scope) => scope !== permission);
+  if (!checked) {
+    createForm.scopes = scopes.filter((scope) => scope !== permission);
+    return;
+  }
+  if (scopes.includes(permission)) {
+    return;
+  }
+  createForm.scopes = [...scopes, permission];
 }
 
 const expiryOptions = [
@@ -59,7 +62,9 @@ const expiryOptions = [
 const hasCreated = computed(() => (props.created_token ?? "").length > 0);
 
 function submitCreate() {
-  if (create.isSaving.value) return;
+  if (create.isSaving.value) {
+    return;
+  }
   const { name, expires_in_days, scopes } = create.values;
   router.post("/api-tokens", { name, expires_in_days, scopes }, dialogHooks(create));
 }
@@ -69,13 +74,17 @@ const revokeTarget = subjectModel(revocation);
 const revoking = revocation.isRunning;
 
 function revoke(token: APIToken) {
-  if (revocation.isOpen.value) return;
+  if (revocation.isOpen.value) {
+    return;
+  }
   revocation.open(token);
 }
 
 function confirmRevoke() {
   const token = revocation.subject.value;
-  if (!token || revocation.isRunning.value) return;
+  if (!token || revocation.isRunning.value) {
+    return;
+  }
   const page = props.page.page > 1 ? `?page=${props.page.page}` : "";
   revocation.confirm();
   router.post(`/api-tokens/${token.public_id}/revoke${page}`, undefined, {
@@ -85,7 +94,9 @@ function confirmRevoke() {
 }
 
 async function copyToken() {
-  if (!props.created_token) return;
+  if (!props.created_token) {
+    return;
+  }
   copyError.value = "";
   try {
     await navigator.clipboard.writeText(props.created_token);

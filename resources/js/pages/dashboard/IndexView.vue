@@ -34,9 +34,15 @@ const roleLabel = computed(() => (isSuperuser.value ? "Super Admin" : actor.valu
 const now = new Date();
 const greeting = computed(() => {
   const hour = now.getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  if (hour < 21) return "Good evening";
+  if (hour < 12) {
+    return "Good morning";
+  }
+  if (hour < 18) {
+    return "Good afternoon";
+  }
+  if (hour < 21) {
+    return "Good evening";
+  }
   return "Good night";
 });
 const formattedDate = new Intl.DateTimeFormat("en-US", {

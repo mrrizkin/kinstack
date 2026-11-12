@@ -6,5 +6,10 @@
   },
   "categories": {
     "correctness": "error"
+  },
+  "rules": {
+    "curly": "error",
+    "no-lonely-if": "error",
+    "no-nested-ternary": "error"
   }
 }

@@ -71,8 +71,12 @@ function submit(payload: FormSubmitEvent<Record<string, unknown>>) {
   form.password = String(payload.data.password ?? "");
 
   const validation: { username?: string; password?: string } = {};
-  if (!form.username) validation.username = "Username is required.";
-  if (!form.password) validation.password = "Password is required.";
+  if (!form.username) {
+    validation.username = "Username is required.";
+  }
+  if (!form.password) {
+    validation.password = "Password is required.";
+  }
   if (Object.keys(validation).length > 0) {
     form.setError(validation);
     return;
@@ -84,7 +88,9 @@ function submit(payload: FormSubmitEvent<Record<string, unknown>>) {
 }
 
 async function submitPasskey() {
-  if (!passkeyRequest.start()) return;
+  if (!passkeyRequest.start()) {
+    return;
+  }
   passkeyError.value = "";
   try {
     const options = await requestJson("/login/passkey/options", passkeyOptionsSchema, {

@@ -53,11 +53,15 @@ const props = defineProps<{
 }>();
 
 function closePendingSession(value: boolean) {
-  if (!value) pendingSession.value = null;
+  if (!value) {
+    pendingSession.value = null;
+  }
 }
 
 function closeRevokeOthers(value: boolean) {
-  if (!value) pendingRevokeOthers.value = false;
+  if (!value) {
+    pendingRevokeOthers.value = false;
+  }
 }
 
 const twoFactorActionDialog = computed(() => {

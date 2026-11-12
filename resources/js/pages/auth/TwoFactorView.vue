@@ -58,7 +58,9 @@ function toggleRecoveryCode() {
 }
 
 function submitRecoveryCode() {
-  if (!form.code.trim() || form.processing) return;
+  if (!form.code.trim() || form.processing) {
+    return;
+  }
   form.post("/2fa", {
     onFinish: () => form.reset("code"),
   });

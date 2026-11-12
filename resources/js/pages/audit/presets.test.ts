@@ -23,7 +23,9 @@ const base: AuditFilterState = {
 
 function preset(key: string, actorKey = "actor-1"): AuditPreset {
   const found = createAuditPresets({ today: "2026-03-15", actorKey }).find((item) => item.key === key);
-  if (!found) throw new Error(`missing preset ${key}`);
+  if (!found) {
+    throw new Error(`missing preset ${key}`);
+  }
   return found;
 }
 

@@ -419,6 +419,10 @@ Frontend specifics:
   machine-readable `<time datetime>` attribute.
 - Send JSON through `requestJson` in `resources/js/lib/http.ts`, which uses
   Inertia's HTTP client. Do not call `fetch` directly.
+- An `if`/`else` body always takes braces, an `else` never wraps a lone `if`,
+  and ternaries never nest. `oxlint` (`curly`, `no-lonely-if`,
+  `no-nested-ternary`) enforces the rules; `oxfmt` then puts each brace on its
+  own line, so a one-line `if (x) return y;` cannot pass `just verify`.
 
 `[GATE]` `just verify`, `just check-feature-slices`, `just check-icons`.
 

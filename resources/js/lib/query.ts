@@ -7,7 +7,9 @@ export type QueryValue = string | number | boolean | null | undefined;
 export function queryString(values: Record<string, QueryValue>): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
-    if (value === null || value === undefined || value === "") continue;
+    if (value === null || value === undefined || value === "") {
+      continue;
+    }
     params.set(key, String(value));
   }
   const query = params.toString();

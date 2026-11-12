@@ -45,17 +45,23 @@ function pickFile() {
 }
 
 function validateFile(file: File): string {
-  if (file.size > MAX_UPLOAD) return "File size exceeds the 10 MB limit.";
+  if (file.size > MAX_UPLOAD) {
+    return "File size exceeds the 10 MB limit.";
+  }
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
   const allowedExtension = ["jpg", "jpeg", "png", "webp", "gif", "pdf", "txt", "csv"].includes(extension);
   const allowedType = ACCEPTED.split(",").includes(file.type);
-  if (!allowedType && !allowedExtension) return "File type is not supported.";
+  if (!allowedType && !allowedExtension) {
+    return "File type is not supported.";
+  }
   return "";
 }
 
 function selectFile(file: File | undefined) {
   clientError.value = "";
-  if (!file) return;
+  if (!file) {
+    return;
+  }
   const error = validateFile(file);
   if (error) {
     clientError.value = error;
@@ -77,7 +83,9 @@ function onDrop(event: DragEvent) {
 }
 
 function upload() {
-  if (!form.file) return;
+  if (!form.file) {
+    return;
+  }
   form.post(`/media${pageQuery.value}`, {
     forceFormData: true,
     preserveScroll: true,
@@ -94,13 +102,17 @@ function upload() {
 }
 
 function remove(asset: Asset) {
-  if (deletion.isOpen.value) return;
+  if (deletion.isOpen.value) {
+    return;
+  }
   deletion.open(asset);
 }
 
 function confirmRemove() {
   const asset = deletion.subject.value;
-  if (!asset || deletion.isRunning.value) return;
+  if (!asset || deletion.isRunning.value) {
+    return;
+  }
   deletion.confirm();
   router.post(`/media/${asset.public_id}/delete${pageQuery.value}`, undefined, {
     preserveScroll: true,
@@ -109,8 +121,12 @@ function confirmRemove() {
 }
 
 function humanSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 

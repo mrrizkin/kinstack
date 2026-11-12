@@ -12,6 +12,8 @@ export function isNavigationItemVisible(
   can: (code: string) => boolean,
   mediaEnabled: boolean,
 ): boolean {
-  if (item.requiresMedia && !mediaEnabled) return false;
+  if (item.requiresMedia && !mediaEnabled) {
+    return false;
+  }
   return !item.permission || can(item.permission);
 }

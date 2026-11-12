@@ -42,7 +42,9 @@ export function useSecurityForms(props: SecurityFormsProps) {
   }
 
   function submitPassword() {
-    if (password.isSaving.value) return;
+    if (password.isSaving.value) {
+      return;
+    }
     const { current_password, new_password, confirm_password } = password.values;
     router.post(
       "/profile/password",
@@ -61,7 +63,9 @@ export function useSecurityForms(props: SecurityFormsProps) {
 
   function confirmRevokeSession() {
     const target = session.subject.value;
-    if (!target || session.isRunning.value) return;
+    if (!target || session.isRunning.value) {
+      return;
+    }
     session.confirm();
     router.post(`/profile/sessions/${target.public_id}/revoke${pageQuery()}`, undefined, {
       preserveScroll: true,
@@ -83,7 +87,9 @@ export function useSecurityForms(props: SecurityFormsProps) {
   }
 
   function confirmRevokeOtherSessions() {
-    if (revokeOthers.isSaving.value) return;
+    if (revokeOthers.isSaving.value) {
+      return;
+    }
     router.post(`/profile/sessions/revoke-others${pageQuery()}`, undefined, {
       preserveScroll: true,
       ...dialogHooks(revokeOthers),
@@ -106,7 +112,9 @@ export function useSecurityForms(props: SecurityFormsProps) {
         enroll.close();
         return;
       }
-      if (enroll.isOpen.value) return;
+      if (enroll.isOpen.value) {
+        return;
+      }
       enroll.open(null);
       // A pending secret is reused so the dialog shows the existing QR code.
       if (!props.two_factor.enabled && !props.two_factor.pending_secret) {
@@ -116,7 +124,9 @@ export function useSecurityForms(props: SecurityFormsProps) {
   });
 
   function beginTwoFactor() {
-    if (!begin.start()) return;
+    if (!begin.start()) {
+      return;
+    }
     router.post("/profile/two-factor/begin", undefined, {
       preserveScroll: true,
       onFinish: () => begin.settled(),
@@ -128,11 +138,15 @@ export function useSecurityForms(props: SecurityFormsProps) {
   }
 
   function closeEnrollDialog(open: boolean) {
-    if (!open) enrollDialogOpen.value = false;
+    if (!open) {
+      enrollDialogOpen.value = false;
+    }
   }
 
   function confirmTwoFactor() {
-    if (enroll.isSaving.value) return;
+    if (enroll.isSaving.value) {
+      return;
+    }
     const { code } = enroll.values;
     router.post("/profile/two-factor/confirm", { code }, { preserveScroll: true, ...dialogHooks(enroll) });
   }
@@ -156,18 +170,24 @@ export function useSecurityForms(props: SecurityFormsProps) {
   );
 
   function openTwoFactorAction(kind: TwoFactorAction) {
-    if (action.isOpen.value) return;
+    if (action.isOpen.value) {
+      return;
+    }
     action.open(kind);
   }
 
   function closeTwoFactorAction(open: boolean) {
-    if (open) return;
+    if (open) {
+      return;
+    }
     action.close();
   }
 
   function confirmTwoFactorAction() {
     const kind = action.subject.value;
-    if (!kind || action.isSaving.value) return;
+    if (!kind || action.isSaving.value) {
+      return;
+    }
     const url = kind === "disable" ? "/profile/two-factor/disable" : "/profile/two-factor/recovery-codes";
     router.post(url, { password: action.values.password }, { preserveScroll: true, ...dialogHooks(action) });
   }

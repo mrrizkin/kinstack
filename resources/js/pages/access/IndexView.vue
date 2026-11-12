@@ -83,7 +83,9 @@ const emptyRoleActions = computed(() => [
 const overrideOpen = computed({
   get: () => editingUser.value !== null,
   set: (value: boolean) => {
-    if (!value) closeUserOverrides();
+    if (!value) {
+      closeUserOverrides();
+    }
   },
 });
 </script>

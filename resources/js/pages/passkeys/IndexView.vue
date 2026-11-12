@@ -52,12 +52,16 @@ function failureMessage(caught: unknown, fallback: string): string {
 }
 
 function openAddDialog() {
-  if (!supported) return;
+  if (!supported) {
+    return;
+  }
   addDialogOpen.value = true;
 }
 
 async function confirmAddPasskey() {
-  if (add.isSaving.value) return;
+  if (add.isSaving.value) {
+    return;
+  }
   const chosenName = add.values.name.trim();
   if (!chosenName) {
     add.invalid({ name: "Enter a name so you can recognize this passkey later." });
@@ -91,13 +95,17 @@ async function confirmAddPasskey() {
 }
 
 function revokePasskey(passkey: PasskeySummary) {
-  if (revocation.isOpen.value) return;
+  if (revocation.isOpen.value) {
+    return;
+  }
   revocation.open(passkey);
 }
 
 async function confirmRevokePasskey() {
   const passkey = revocation.subject.value;
-  if (!passkey || revocation.isRunning.value) return;
+  if (!passkey || revocation.isRunning.value) {
+    return;
+  }
   revocation.confirm();
   try {
     await requestJson(`/passkeys/${encodeURIComponent(passkey.id)}/delete`, z.unknown(), {

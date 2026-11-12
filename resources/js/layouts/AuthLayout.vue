@@ -11,9 +11,15 @@ const { t } = useI18n();
 
 const greeting = computed(() => {
   const hour = new Date().getHours();
-  if (hour < 11) return t("shell.auth.greetingMorning");
-  if (hour < 15) return t("shell.auth.greetingAfternoon");
-  if (hour < 19) return t("shell.auth.greetingEvening");
+  if (hour < 11) {
+    return t("shell.auth.greetingMorning");
+  }
+  if (hour < 15) {
+    return t("shell.auth.greetingAfternoon");
+  }
+  if (hour < 19) {
+    return t("shell.auth.greetingEvening");
+  }
   return t("shell.auth.greetingNight");
 });
 </script>

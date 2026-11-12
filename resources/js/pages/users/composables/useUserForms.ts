@@ -128,7 +128,9 @@ export function useUserForms(props: UsersProps) {
   }
 
   function toggleActive(user: User) {
-    if (activity.isRunning.value) return;
+    if (activity.isRunning.value) {
+      return;
+    }
     if (!user.is_active) {
       activity.start(user);
       applyActivation(user, true);
@@ -139,7 +141,9 @@ export function useUserForms(props: UsersProps) {
 
   function confirmToggleActive() {
     const user = activity.subject.value;
-    if (!user || activity.isRunning.value) return;
+    if (!user || activity.isRunning.value) {
+      return;
+    }
     activity.confirm();
     applyActivation(user, false);
   }
@@ -153,7 +157,9 @@ export function useUserForms(props: UsersProps) {
   const busyUserId = computed(() => roleChange.busyId.value ?? activity.busyId.value);
 
   function requestRoleChange(user: User) {
-    if (busyUserId.value) return;
+    if (busyUserId.value) {
+      return;
+    }
     roleChange.open({ id: user.public_id, name: user.display_name, currentRole: user.role });
   }
 
@@ -163,9 +169,13 @@ export function useUserForms(props: UsersProps) {
 
   function submitRoleChange() {
     const target = roleTarget.value;
-    if (!target) return;
+    if (!target) {
+      return;
+    }
     const user = props.users.find((candidate) => candidate.public_id === target.id);
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     if (roleValue.value === user.role) {
       roleChange.close();
       return;
@@ -224,13 +234,17 @@ export function useUserForms(props: UsersProps) {
   const passwordForm = formView(password);
 
   function resetPassword(user: User) {
-    if (password.isOpen.value) return;
+    if (password.isOpen.value) {
+      return;
+    }
     password.open(user);
   }
 
   function confirmResetPassword() {
     const user = password.subject.value;
-    if (!user || password.isSaving.value) return;
+    if (!user || password.isSaving.value) {
+      return;
+    }
     router.post(usersURL(`/${user.public_id}/password`), { password: password.values.password }, dialogHooks(password));
   }
 

@@ -70,12 +70,24 @@ const outcomeOptions = [
 
 function toQuery(state: Filters): Record<string, string> {
   const query: Record<string, string> = {};
-  if (state.actor_key) query.actor_key = state.actor_key;
-  if (state.action !== ALL_FILTER) query.action = state.action;
-  if (state.outcome !== ALL_FILTER) query.outcome = state.outcome;
-  if (state.search) query.search = state.search;
-  if (state.from) query.from = state.from;
-  if (state.to) query.to = state.to;
+  if (state.actor_key) {
+    query.actor_key = state.actor_key;
+  }
+  if (state.action !== ALL_FILTER) {
+    query.action = state.action;
+  }
+  if (state.outcome !== ALL_FILTER) {
+    query.outcome = state.outcome;
+  }
+  if (state.search) {
+    query.search = state.search;
+  }
+  if (state.from) {
+    query.from = state.from;
+  }
+  if (state.to) {
+    query.to = state.to;
+  }
   return query;
 }
 
@@ -125,7 +137,9 @@ function clearFilterErrors() {
 }
 
 function navigate(query: Record<string, string>) {
-  if (!refresh.start()) return;
+  if (!refresh.start()) {
+    return;
+  }
   router.get("/audit", query, {
     preserveState: true,
     preserveScroll: true,
@@ -135,7 +149,9 @@ function navigate(query: Record<string, string>) {
 }
 
 function applyFilters() {
-  if (!validateFilters()) return;
+  if (!validateFilters()) {
+    return;
+  }
   filterMenu.value?.close();
   navigate(toQuery(form.value));
 }
@@ -150,7 +166,9 @@ function selectQuickFilter(key: string) {
     return;
   }
   const preset = presets.find((item) => item.key === key);
-  if (!preset) return;
+  if (!preset) {
+    return;
+  }
   const next = togglePreset(currentFilters.value, preset);
   form.value = { ...next };
   clearFilterErrors();
