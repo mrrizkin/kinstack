@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"kinstack/config"
@@ -114,11 +115,59 @@ func registerStaticAssets(app *fiber.App) {
 		static.Config{MaxAge: 31536000, CacheDuration: -1},
 	))
 
-	for _, file := range []string{"favicon.svg", "robots.txt", "manifest.webmanifest"} {
+	for _, file := range []string{"favicon.svg", "robots.txt"} {
 		path := "public/" + file
 		if _, err := os.Stat(path); err != nil {
 			continue
 		}
 		app.Get("/"+file, static.New(path, static.Config{MaxAge: 86400, CacheDuration: -1}))
 	}
+
+	registerPWA(app)
+}
+
+// registerPWA serves the install assets vite-plugin-pwa emits into public/build
+// at the root paths the browser requires.
+func registerPWA(app *fiber.App) {
+	registerPWAFile(app, "manifest.webmanifest", static.Config{
+		// Fiber maps .webmanifest to text/plain; the install criteria reject it.
+		ModifyResponse: func(c fiber.Ctx) error {
+			c.Set(fiber.HeaderContentType, "application/manifest+json")
+			c.Set(fiber.HeaderCacheControl, "no-cache")
+
+			return nil
+		},
+	})
+	// A cached worker keeps running the previous precache manifest.
+	registerPWAFile(app, "sw.js", static.Config{
+		ModifyResponse: func(c fiber.Ctx) error {
+			c.Set(fiber.HeaderCacheControl, "no-cache")
+
+			return nil
+		},
+	})
+
+	// sw.js imports its workbox runtime from the same scope under a hashed name.
+	if chunks, err := filepath.Glob("public/build/workbox-*.js"); err == nil {
+		for _, chunk := range chunks {
+			app.Get(
+				"/"+filepath.Base(chunk),
+				static.New(chunk, static.Config{MaxAge: 31536000, CacheDuration: -1}),
+			)
+		}
+	}
+
+	app.Get("/icons/*", static.New(
+		"public/icons",
+		static.Config{MaxAge: 604800, CacheDuration: -1},
+	))
+}
+
+func registerPWAFile(app *fiber.App, file string, cfg static.Config) {
+	path := "public/build/" + file
+	if _, err := os.Stat(path); err != nil {
+		return
+	}
+	cfg.CacheDuration = -1
+	app.Get("/"+file, static.New(path, cfg))
 }

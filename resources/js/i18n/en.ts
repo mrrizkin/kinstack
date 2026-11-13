@@ -78,6 +78,12 @@ export const messages = {
     sidebar: {
       toggle: "Open or close sidebar",
     },
+    pwa: {
+      title: "Update available",
+      description: "Reload to run the latest version of KinStack.",
+      reload: "Reload",
+      later: "Later",
+    },
     pagination: {
       showing: "Showing {from}–{to} of {total}",
       rowsPerPage: "Rows per page",

@@ -7,9 +7,16 @@ import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import laravel from "laravel-vite-plugin";
 import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 import vueDevTools from "vite-plugin-vue-devtools";
 
 import { icons } from "./resources/js/lib/icons.ts";
+
+const pwaIcons = [
+  { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+  { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+  { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+];
 
 export default defineConfig({
   plugins: [
@@ -108,6 +115,29 @@ export default defineConfig({
         contextMenu: { defaultVariants: { size: "sm" } },
         commandPalette: { defaultVariants: { size: "sm" } },
         listbox: { defaultVariants: { size: "sm" } },
+      },
+    }),
+    VitePWA({
+      // AppUpdatePrompt.vue registers the worker; templ renders the shell.
+      injectRegister: false,
+      registerType: "prompt",
+      workbox: {
+        globPatterns: ["**/*.{js,css,woff2,png,svg,ico}"],
+        // Inertia documents are server-rendered per route; a cached shell would
+        // serve stale pages and stale X-Inertia payloads.
+        navigateFallback: null,
+        cleanupOutdatedCaches: true,
+      },
+      manifest: {
+        name: "KinStack",
+        short_name: "KinStack",
+        description: "KinStack: internal operations management.",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#171717",
+        icons: pwaIcons,
       },
     }),
     tailwindcss(),

@@ -12,6 +12,12 @@ templ InertiaEntry(viteTags, inertiaHead, inertia, nonce string) {
 				content="KinStack: internal operations management."
 				data-inertia="description"/>
 			<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+			<link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png"/>
+			<link rel="manifest" href="/manifest.webmanifest"/>
+			<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
+			<meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)"/>
+			<meta name="mobile-web-app-capable" content="yes"/>
+			<meta name="apple-mobile-web-app-title" content="KinStack"/>
 			<script nonce={ nonce }>
 				// Applies the persisted color mode before first paint to avoid a flash.
 				(function () {

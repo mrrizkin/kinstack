@@ -1,3 +1,5 @@
+import type { Toast } from "@nuxt/ui/composables";
+
 import { icons } from "./icons";
 import { playNotificationSound, type NotificationSound } from "./sound";
 
@@ -10,20 +12,31 @@ const TOAST: Record<NotifyKind, { icon: string; color: "success" | "error" | "in
   info: { icon: icons.info, color: "info", duration: 5000 },
 };
 
+/** `duration: 0` keeps the toast open until the user acts. */
+export interface NotifyOptions extends Pick<Partial<Toast>, "id" | "description" | "duration" | "actions" | "close"> {
+  silent?: boolean;
+}
+
 /**
  * Pairs a chime with a toast so every reported outcome uses one path.
  */
 export function useNotify() {
   const toast = useToast();
 
-  return function notify(kind: NotifyKind, title: string) {
-    playNotificationSound(kind);
-    const options = TOAST[kind];
+  return function notify(kind: NotifyKind, title: string, options: NotifyOptions = {}) {
+    const defaults = TOAST[kind];
+    if (!options.silent) {
+      playNotificationSound(kind);
+    }
     toast.add({
+      id: options.id,
       title,
-      icon: options.icon,
-      color: options.color,
-      duration: options.duration,
+      description: options.description,
+      actions: options.actions,
+      close: options.close,
+      icon: defaults.icon,
+      color: defaults.color,
+      duration: options.duration ?? defaults.duration,
     });
   };
 }

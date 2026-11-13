@@ -3,6 +3,7 @@ import { en as uiEn } from "@nuxt/ui/locale";
 import { useI18n } from "vue-i18n";
 
 import AppFlashToaster from "@/components/AppFlashToaster.vue";
+import AppUpdatePrompt from "@/components/AppUpdatePrompt.vue";
 
 const { t } = useI18n();
 </script>
@@ -15,6 +16,7 @@ const { t } = useI18n();
       {{ t("shell.auth.skipToContent") }}
     </a>
     <AppFlashToaster />
+    <AppUpdatePrompt />
     <slot />
   </UApp>
 </template>
