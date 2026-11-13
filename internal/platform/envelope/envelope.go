@@ -16,22 +16,19 @@ import (
 )
 
 const (
-	// KeySize is the AES-256 key length.
 	KeySize   = 32
 	nonceSize = 12
 )
 
-// ErrMalformed is returned when a ciphertext cannot be opened.
 var ErrMalformed = errors.New("invalid encrypted payload")
 
-// Box seals and opens secrets with one derived key.
 type Box struct {
 	aead    cipher.AEAD
 	version int
 }
 
-// New derives an encryption key from material using HKDF-SHA256. The version
-// is stored next to every ciphertext so keys can be rotated later.
+// New derives the key with HKDF-SHA256; the version travels with every ciphertext
+// so keys can rotate.
 func New(material, info string, version int) (*Box, error) {
 	if len(strings.TrimSpace(material)) < KeySize {
 		return nil, fmt.Errorf("envelope key material must be at least %d bytes", KeySize)
@@ -57,7 +54,6 @@ func New(material, info string, version int) (*Box, error) {
 	return &Box{aead: aead, version: version}, nil
 }
 
-// Version reports the key version this box writes.
 func (b *Box) Version() int {
 	if b == nil {
 		return 0
@@ -65,7 +61,6 @@ func (b *Box) Version() int {
 	return b.version
 }
 
-// Seal encrypts plaintext and returns nonce||ciphertext.
 func (b *Box) Seal(plaintext []byte) ([]byte, error) {
 	if b == nil {
 		return nil, errors.New("envelope box is nil")
@@ -77,7 +72,6 @@ func (b *Box) Seal(plaintext []byte) ([]byte, error) {
 	return b.aead.Seal(nonce, nonce, plaintext, []byte(b.additionalData())), nil
 }
 
-// Open decrypts a payload produced by Seal.
 func (b *Box) Open(payload []byte) ([]byte, error) {
 	if b == nil {
 		return nil, errors.New("envelope box is nil")
@@ -93,7 +87,6 @@ func (b *Box) Open(payload []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// additionalData binds a ciphertext to its key version.
 func (b *Box) additionalData() string {
 	return fmt.Sprintf("kinstack/envelope/v%d", b.version)
 }

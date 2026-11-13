@@ -43,7 +43,6 @@ type Dependency struct {
 	SAMLACSURL   string
 }
 
-// Feature owns authentication service and HTTP entry points.
 type Feature struct {
 	service *Service
 	handler *Handler

@@ -23,7 +23,6 @@ import (
 // documentTimeout bounds one shell render, which only writes buffered strings.
 const documentTimeout = 10 * time.Second
 
-// Adapter is the application's Inertia boundary: Fibertia plus shared response helpers.
 type Adapter struct {
 	*fibertia.Fibertia
 }
@@ -145,7 +144,6 @@ func Middleware(adapter *Adapter) fiber.Handler {
 	}
 }
 
-// ValidationErrors uses the "form" key for errors without a field.
 func (a *Adapter) ValidationErrors(c fiber.Ctx, back string, fields map[string]string) error {
 	bag := make(map[string][]string, len(fields))
 	for field, message := range fields {
@@ -195,7 +193,6 @@ func (a *Adapter) RedirectWithFlashError(c fiber.Ctx, target string, message str
 	return c.Redirect().Status(fiber.StatusSeeOther).To(target)
 }
 
-// FailedPayload: JSON clients get a 400 envelope, Inertia visits a form error.
 func (a *Adapter) FailedPayload(c fiber.Ctx, back string, message string) error {
 	if WantsJSON(c) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": message})
@@ -203,8 +200,8 @@ func (a *Adapter) FailedPayload(c fiber.Ctx, back string, message string) error 
 	return a.ValidationErrors(c, back, map[string]string{"form": message})
 }
 
-// FailedAction answers a rejected mutation: JSON clients get the status
-// envelope, Inertia visits an error flash and a redirect.
+// FailedAction answers a rejected mutation: JSON gets the status envelope, Inertia gets
+// an error flash and a redirect.
 func (a *Adapter) FailedAction(c fiber.Ctx, back string, status int, message string) error {
 	if WantsJSON(c) {
 		return c.Status(status).JSON(fiber.Map{"error": message})

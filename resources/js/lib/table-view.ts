@@ -5,10 +5,8 @@ import { computed, type ComputedRef, isRef, ref } from "vue";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "./pagination";
 
 /**
- * Client-side table view state (hidden columns and page size).
- *
- * The page and the table card share one module-level state keyed by page key, so
- * both stay in sync. Column visibility lives for the current browser session.
+ * Table view state keyed by page key, so the page and its table card share one
+ * source. Column visibility lives for the browser session.
  */
 export interface TableViewItem {
   id: string;

@@ -22,7 +22,6 @@ type ownedStatement struct {
 	stmt *sqlx.Stmt
 }
 
-// NewStatementOwner creates an owner for statements prepared from db.
 func NewStatementOwner(db *sqlx.DB) *StatementOwner {
 	return &StatementOwner{db: db}
 }

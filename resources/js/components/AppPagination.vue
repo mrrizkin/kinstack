@@ -8,8 +8,7 @@ import { icons } from "@/lib/icons";
 import { pageSizeOptions } from "@/lib/pagination";
 
 /**
- * The account's stored page size arrives already applied in `page.per_page`, so
- * the selector never has to know about preferences.
+ * The stored page size already arrives applied in `page.per_page`.
  */
 const props = withDefaults(
   defineProps<{

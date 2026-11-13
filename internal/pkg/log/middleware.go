@@ -7,9 +7,6 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 )
 
-// HTTPMiddleware logs each HTTP request with structured fields: request ID,
-// method, path, client IP, status code, and latency. Errors are logged at
-// Error level; successful requests at Info level.
 func HTTPMiddleware(l *Logger) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		// The access log measures latency against the server clock; this

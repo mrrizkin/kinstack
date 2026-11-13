@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// MemoryRepository stores audit records in memory for tests and local runs.
 type MemoryRepository struct {
 	mu     sync.RWMutex
 	nextID int64
@@ -16,12 +15,10 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository creates an empty repository.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{nextID: 1, events: make([]AuditRecord, 0)}
 }
 
-// Insert appends a record and assigns its identifier.
 func (r *MemoryRepository) Insert(ctx context.Context, record AuditRecord) (AuditRecord, error) {
 	if err := ctx.Err(); err != nil {
 		return AuditRecord{}, err
@@ -35,7 +32,6 @@ func (r *MemoryRepository) Insert(ctx context.Context, record AuditRecord) (Audi
 	return recordWithClonedMetadata(record), nil
 }
 
-// List returns matching records in reverse chronological order.
 func (r *MemoryRepository) List(ctx context.Context, query RepositoryQuery) ([]AuditRecord, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -67,7 +63,6 @@ func (r *MemoryRepository) List(ctx context.Context, query RepositoryQuery) ([]A
 	return records, nil
 }
 
-// DeleteBefore removes in-memory records older than the cutoff.
 func (r *MemoryRepository) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err

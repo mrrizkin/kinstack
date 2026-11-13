@@ -13,7 +13,6 @@ const (
 	runtimeDelimRight = "]]"
 )
 
-// templates holds every Maizzle-compiled HTML template, parsed once at init.
 var templates = template.Must(
 	template.New("emails").
 		Delims(runtimeDelimLeft, runtimeDelimRight).

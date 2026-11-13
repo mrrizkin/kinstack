@@ -9,7 +9,6 @@ import (
 	"kinstack/internal/platform/i18n"
 )
 
-// Effect is the polarity of a per-user permission override.
 type Effect string
 
 const (
@@ -19,12 +18,10 @@ const (
 	EffectDeny Effect = "deny"
 )
 
-// Valid reports whether the effect is known.
 func (e Effect) Valid() bool {
 	return e == EffectAllow || e == EffectDeny
 }
 
-// Role is an authorization role owned by the access feature.
 type Role struct {
 	Code        string    `db:"code"`
 	Name        string    `db:"name"`
@@ -42,7 +39,6 @@ type Override struct {
 	ExpiresAt  *time.Time `db:"expires_at"`
 }
 
-// Expired reports whether the override is no longer active at now.
 func (o Override) Expired(now time.Time) bool {
 	return o.ExpiresAt != nil && !o.ExpiresAt.After(now)
 }
@@ -95,22 +91,13 @@ type Repository interface {
 	UserRole(context.Context, string) (string, error)
 }
 
-// Errors returned by the authz repository and service.
 var (
-	// ErrRoleNotFound identifies a missing role.
-	ErrRoleNotFound = errors.New(i18n.T("authz.reason.role_not_found"))
-	// ErrRoleInUse identifies a role still assigned to one or more users.
-	ErrRoleInUse = errors.New(i18n.T("authz.reason.role_in_use"))
-	// ErrSystemRole identifies a protected built-in role.
-	ErrSystemRole = errors.New(i18n.T("authz.reason.system_role"))
-	// ErrRoleCodeTaken identifies a duplicate role code.
-	ErrRoleCodeTaken = errors.New(i18n.T("authz.reason.role_code_taken"))
-	// ErrInvalidRole identifies a malformed role payload.
-	ErrInvalidRole = errors.New(i18n.T("authz.reason.invalid_role"))
-	// ErrUnknownPermission identifies a permission code outside the catalog.
+	ErrRoleNotFound      = errors.New(i18n.T("authz.reason.role_not_found"))
+	ErrRoleInUse         = errors.New(i18n.T("authz.reason.role_in_use"))
+	ErrSystemRole        = errors.New(i18n.T("authz.reason.system_role"))
+	ErrRoleCodeTaken     = errors.New(i18n.T("authz.reason.role_code_taken"))
+	ErrInvalidRole       = errors.New(i18n.T("authz.reason.invalid_role"))
 	ErrUnknownPermission = errors.New(i18n.T("authz.reason.unknown_permission_code"))
-	// ErrInvalidOverride identifies a malformed override payload.
-	ErrInvalidOverride = errors.New(i18n.T("authz.reason.invalid_override"))
-	// ErrUserNotFound identifies a missing user account.
-	ErrUserNotFound = errors.New(i18n.T("authz.reason.user_not_found"))
+	ErrInvalidOverride   = errors.New(i18n.T("authz.reason.invalid_override"))
+	ErrUserNotFound      = errors.New(i18n.T("authz.reason.user_not_found"))
 )

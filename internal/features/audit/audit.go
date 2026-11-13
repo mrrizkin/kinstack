@@ -18,7 +18,6 @@ type Dependency struct {
 	Inertia    *platforminertia.Adapter
 }
 
-// Feature owns the audit viewer service and HTTP entry point.
 type Feature struct {
 	service *Service
 	handler *Handler

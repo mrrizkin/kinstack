@@ -3,10 +3,7 @@ package config
 
 import "kinstack/internal/pkg/assert"
 
-// Configuration is a single application configuration section.
-//
-// Load reads the section from the environment and Validate checks the loaded
-// values. Config uses this contract to orchestrate all sections.
+// Configuration is one application configuration section.
 type Configuration interface {
 	Load()
 	Validate() error

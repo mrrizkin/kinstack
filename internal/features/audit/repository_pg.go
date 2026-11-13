@@ -29,7 +29,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return &SQLRepository{db: dependency.DB}, nil
 }
 
-// Close releases resources owned by the repository.
 func (r *SQLRepository) Close() error {
 	return nil
 }
@@ -38,7 +37,6 @@ const auditEntryProjection = `
 id, occurred_at, request_id, actor_key, action, resource, method, status,
 outcome, metadata::text`
 
-// List returns matching audit entries plus the total number of matches.
 func (r *SQLRepository) List(ctx context.Context, query Query) (Page, error) {
 	where, args := buildAuditFilter(query)
 

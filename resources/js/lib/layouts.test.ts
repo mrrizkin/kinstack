@@ -3,10 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 /**
- * Structural regression tests for the Inertia layout migration:
- *
- * - `UApp` lives only in `BaseLayout.vue`.
- * - each page declares the layout chain it needs via `defineOptions`.
+ * Layout regression tests: `UApp` lives only in `BaseLayout.vue`, and each page
+ * declares the layout chain it needs.
  */
 const root = join(import.meta.dir, "..");
 const pagesDir = join(root, "pages");

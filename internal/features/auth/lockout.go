@@ -165,7 +165,6 @@ func (l *Lockout) locked(ctx context.Context, key string) bool {
 	return len(raw) > 0
 }
 
-// Allowed requires both the pair and the account-wide key to be clear.
 func (l *Lockout) Allowed(ctx context.Context, username, client string) bool {
 	return l.AllowedPair(ctx, username, client) && !l.AccountLocked(ctx, username)
 }
@@ -244,7 +243,6 @@ func (l *Lockout) bump(ctx context.Context, keys lockoutKeys, limit int) {
 	}
 }
 
-// Success clears the pair and account-wide counters: the owner is present.
 func (l *Lockout) Success(ctx context.Context, username, client string) {
 	if !l.enabled() {
 		return

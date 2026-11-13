@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * Role picker shared by the users and access tables. Changing a role is a
- * deliberate action, so it never happens inline in a table row: the row menu
- * opens this modal with a searchable, eagerly loaded role list.
+ * Role picker for the users and access tables. A role change is never inline:
+ * this modal opens from the row menu.
  */
 import { icons } from "@/lib/icons";
 

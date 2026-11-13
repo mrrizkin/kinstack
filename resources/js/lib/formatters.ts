@@ -1,5 +1,3 @@
-/** Formatting helpers shared across KinStack pages. */
-
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) {
     return "-";

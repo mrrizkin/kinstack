@@ -7,7 +7,6 @@ import (
 	"kinstack/internal/pkg/pagination"
 )
 
-// UserResult is the account projection shared by user queries.
 type UserResult struct {
 	PublicID    string     `db:"public_id"`
 	Username    string     `db:"username"`
@@ -35,7 +34,6 @@ type UpdateUserInput struct {
 	DisplayName string
 }
 
-// UserCounts is the aggregate projection used by the dashboard and pagination.
 type UserCounts struct {
 	Total  int
 	Active int

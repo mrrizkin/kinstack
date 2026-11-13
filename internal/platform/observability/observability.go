@@ -1,8 +1,5 @@
-// Package observability wires opt-in error tracking (GlitchTip/Sentry) and
-// OpenTelemetry traces, logs, and metrics for OpenObserve.
-//
-// Every integration is disabled unless its configuration is explicitly
-// enabled, so the base keeps working with no external observability backend.
+// Package observability wires opt-in error tracking and OpenTelemetry. Every
+// integration is off unless configured, so the base runs without a backend.
 package observability
 
 import (
@@ -37,8 +34,6 @@ type Dependency struct {
 	Config config.Config
 }
 
-// Telemetry owns the optional observability clients. A zero-value Telemetry is
-// a safe no-op.
 type Telemetry struct {
 	tracer         trace.Tracer
 	tracerProvider *sdktrace.TracerProvider
@@ -59,8 +54,6 @@ type otelProviders struct {
 	requestLatency otelmetric.Float64Histogram
 }
 
-// New builds the enabled observability clients. Disabled integrations are
-// skipped without opening network connections.
 func New(d Dependency) (*Telemetry, error) {
 	t := &Telemetry{}
 	if d.Config.OpenObserve.Enabled {
@@ -97,13 +90,10 @@ func New(d Dependency) (*Telemetry, error) {
 	return t, nil
 }
 
-// Enabled reports whether any observability backend is active.
 func (t *Telemetry) Enabled() bool {
 	return t != nil && (t.tracerProvider != nil || t.sentryEnabled)
 }
 
-// LogWriter returns an extra writer that ships zerolog JSON lines over OTLP.
-// It returns nil when log export is disabled.
 func (t *Telemetry) LogWriter() *LogWriter {
 	if t == nil {
 		return nil
@@ -111,8 +101,6 @@ func (t *Telemetry) LogWriter() *LogWriter {
 	return t.logWriter
 }
 
-// Middleware traces and measures every HTTP request with OpenTelemetry. It is a
-// no-op when OpenObserve is disabled.
 func (t *Telemetry) Middleware() fiber.Handler {
 	if t == nil || t.tracer == nil {
 		return func(c fiber.Ctx) error { return c.Next() }
@@ -200,8 +188,6 @@ func (t *Telemetry) CaptureException(c fiber.Ctx, err error) {
 	})
 }
 
-// Shutdown flushes pending metrics, logs, traces, and error events. It is safe
-// to call on a nil Telemetry.
 func (t *Telemetry) Shutdown(ctx context.Context) error {
 	if t == nil {
 		return nil

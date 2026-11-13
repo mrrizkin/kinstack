@@ -39,7 +39,6 @@ type SocialProviderConfig struct {
 	ClientSecret string
 }
 
-// SAMLProviderConfig configures the SAML 2.0 service provider.
 type SAMLProviderConfig struct {
 	Enabled        bool
 	EntityID       string
@@ -97,13 +96,11 @@ func (c *AuthConfig) Load() {
 	c.SAML.PrivateKey = os.Getenv("AUTH_SAML_KEY")
 }
 
-// OAuthEnabled reports whether at least one OAuth 2.0 / OIDC provider is on.
 func (c AuthConfig) OAuthEnabled() bool {
 	return c.OIDC.Enabled || c.Google.Enabled || c.Apple.Enabled ||
 		c.Facebook.Enabled || c.GitHub.Enabled
 }
 
-// OIDCProviderName returns a URL-safe slug for the generic OIDC provider.
 func (c OIDCProviderConfig) ProviderName() string {
 	return slug(c.Name, "oidc")
 }

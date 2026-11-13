@@ -68,7 +68,6 @@ export function useAccessForms(props: AccessProps) {
 
   const roleOptions = computed(() => props.role_options.map((role) => ({ label: role.name, value: role.code })));
 
-  // ---- Role permission matrix ----
   const permissions = useDialog<Role, { permissions: string[] }>({
     label: "role permissions",
     initialValues: (role) => ({ permissions: role ? [...role.permissions] : [] }),
@@ -105,7 +104,6 @@ export function useAccessForms(props: AccessProps) {
     );
   }
 
-  // ---- Create role ----
   const createRole = useDialog<null, RoleCreateValues>({
     label: "create role",
     initialValues: () => ({ code: "", name: "", description: "", rank: 20 }),
@@ -123,7 +121,6 @@ export function useAccessForms(props: AccessProps) {
     );
   }
 
-  // ---- Delete role (confirmed) ----
   const deleteRole = useConfirmation<Role>({ label: "delete role", idOf: (role) => role.code });
   const pendingDeleteRole = subjectModel(deleteRole);
   const deletingRole = deleteRole.isRunning;
@@ -151,7 +148,6 @@ export function useAccessForms(props: AccessProps) {
     );
   }
 
-  // ---- Edit role metadata (name/description/rank are data, not code) ----
   const editRole = useDialog<Role, RoleEditValues>({
     label: "edit role",
     initialValues: (role) => ({
@@ -185,10 +181,7 @@ export function useAccessForms(props: AccessProps) {
     );
   }
 
-  // ---- User custom permissions ----
-  // The dialog tracks only the selected user's id so the panel always reflects
-  // the latest props after an Inertia reload (a stored object snapshot would go
-  // stale).
+  // The dialog tracks the user's id, so the panel always reflects the latest props.
   const overrides = useDialog<{ id: string }, OverrideForm>({
     label: "user overrides",
     initialValues: () => ({
@@ -239,7 +232,6 @@ export function useAccessForms(props: AccessProps) {
     );
   }
 
-  // ---- Delete custom permission (confirmed) ----
   const removeOverride = useConfirmation<{ user: UserAccess; override: Override }>({
     label: "remove custom permission",
     idOf: (pending) => `${pending.user.public_id}:${pending.override.permission}`,
@@ -268,7 +260,6 @@ export function useAccessForms(props: AccessProps) {
     );
   }
 
-  // ---- Change user role (confirmed through a modal, never inline) ----
   const roleChange = useRoleChange();
   const roleTarget = roleChange.target;
   const roleOpen = roleChange.isOpen;

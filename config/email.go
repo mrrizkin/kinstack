@@ -8,7 +8,6 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// EmailConfig configures the outbound SMTP relay used by application emails.
 type EmailConfig struct {
 	Host     string
 	Port     int
@@ -27,7 +26,6 @@ func (c *EmailConfig) Load() {
 	c.From = os.Getenv("SMTP_FROM")
 }
 
-// Validate checks SMTP settings when email delivery is configured.
 func (c EmailConfig) Validate() error {
 	if c.Host != "" {
 		if c.Port < 1 || c.Port > 65535 || c.From == "" {

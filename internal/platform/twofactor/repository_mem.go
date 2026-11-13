@@ -32,7 +32,6 @@ func NewMemoryRepository(userPublicIDs ...string) *MemoryRepository {
 	return repository
 }
 
-// FindStatus returns the stored state of one account.
 func (r *MemoryRepository) FindStatus(
 	ctx context.Context,
 	userPublicID string,
@@ -55,7 +54,6 @@ func (r *MemoryRepository) FindStatus(
 	}, nil
 }
 
-// SetSecret stores a pending secret.
 func (r *MemoryRepository) SetSecret(
 	ctx context.Context,
 	userPublicID string,
@@ -78,7 +76,6 @@ func (r *MemoryRepository) SetSecret(
 	return nil
 }
 
-// SealSecret stores an encrypted copy and drops the plaintext.
 func (r *MemoryRepository) SealSecret(
 	ctx context.Context,
 	userPublicID string,
@@ -100,7 +97,6 @@ func (r *MemoryRepository) SealSecret(
 	return nil
 }
 
-// Enable activates two-factor auth and records the accepted TOTP step.
 func (r *MemoryRepository) Enable(ctx context.Context, userPublicID string, lastStep int64) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -116,7 +112,6 @@ func (r *MemoryRepository) Enable(ctx context.Context, userPublicID string, last
 	return nil
 }
 
-// Disable deactivates two-factor auth.
 func (r *MemoryRepository) Disable(ctx context.Context, userPublicID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -135,7 +130,6 @@ func (r *MemoryRepository) Disable(ctx context.Context, userPublicID string) err
 	return nil
 }
 
-// ConsumeStep records the accepted TOTP step, failing on replay.
 func (r *MemoryRepository) ConsumeStep(ctx context.Context, userPublicID string, step int64) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -153,7 +147,6 @@ func (r *MemoryRepository) ConsumeStep(ctx context.Context, userPublicID string,
 	return nil
 }
 
-// ReplaceRecoveryCodes swaps the stored recovery code hashes.
 func (r *MemoryRepository) ReplaceRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
@@ -176,7 +169,6 @@ func (r *MemoryRepository) ReplaceRecoveryCodes(
 	return nil
 }
 
-// UnusedRecoveryCodes lists the stored hashes for one account.
 func (r *MemoryRepository) UnusedRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
@@ -197,7 +189,6 @@ func (r *MemoryRepository) UnusedRecoveryCodes(
 	return codes, nil
 }
 
-// MarkRecoveryCodeUsed consumes a recovery code.
 func (r *MemoryRepository) MarkRecoveryCodeUsed(ctx context.Context, id int64) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -215,7 +206,6 @@ func (r *MemoryRepository) MarkRecoveryCodeUsed(ctx context.Context, id int64) e
 	return ErrNotFound
 }
 
-// ReplaceRecoveryCodeHash upgrades one stored hash in place.
 func (r *MemoryRepository) ReplaceRecoveryCodeHash(
 	ctx context.Context,
 	id int64,
@@ -238,7 +228,6 @@ func (r *MemoryRepository) ReplaceRecoveryCodeHash(
 	return ErrNotFound
 }
 
-// LegacySecrets lists accounts whose secret is still stored in plaintext.
 func (r *MemoryRepository) LegacySecrets(ctx context.Context, limit int) ([]LegacySecret, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

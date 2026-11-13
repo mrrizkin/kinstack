@@ -13,13 +13,9 @@ import {
 } from "./contracts/page-props";
 
 /**
- * Parses a page's own props at the Inertia boundary and returns the typed copy.
- *
- * Inertia keeps the component mounted for mutations (POST/PUT/PATCH/DELETE
- * default `preserveState` to true) while replacing `page.props`, so a one-off
- * parse would freeze the page on its first props. Each key is therefore read
- * through a computed: the object identity stays stable for composables, while
- * every access tracks the latest parsed props.
+ * Parses a page's own props at the Inertia boundary. `page.props` is replaced on
+ * every visit while the component stays mounted, so each key is read through a
+ * computed instead of freezing the first parse.
  */
 export function usePageSchema<S extends z.ZodType>(schema: S): z.infer<S> {
   const page = usePage();
@@ -36,12 +32,7 @@ export function usePageSchema<S extends z.ZodType>(schema: S): z.infer<S> {
   return props as z.infer<S>;
 }
 
-/**
- * Typed access to the shared Inertia props.
- *
- * This is the single place where `page.props` is parsed. Pages and layouts read
- * these computed values instead of casting the raw prop bag themselves.
- */
+/** Typed access to the shared Inertia props, parsed in one place. */
 export function usePageProps() {
   const page = usePage();
 

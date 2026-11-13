@@ -9,13 +9,10 @@ import (
 	"kinstack/internal/platform/sessionregistry"
 )
 
-// credentialRevoker revokes every session and personal API token of an account.
-// Password resets (self-service and administrative) use it so credentials that
-// predate the reset cannot keep acting on the account.
-//
-// Services are attached after construction because the composition root builds
-// the session registry before the auth feature and the API token feature after
-// it. Wiring finishes before the server accepts requests.
+// credentialRevoker revokes every session and API token of an account, so
+// credentials that predate a password reset cannot keep acting. Services are
+// attached after construction because the composition root builds the session
+// registry before the auth feature and the API token feature after it.
 type credentialRevoker struct {
 	log      applog.Log
 	sessions *sessionregistry.Service

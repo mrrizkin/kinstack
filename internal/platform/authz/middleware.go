@@ -8,7 +8,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// decisionLocalKey is the context key holding the last authorization decision.
 const decisionLocalKey = "authz_decision"
 
 // RoutePolicy maps "METHOD /path" to the permission required by that route.
@@ -19,10 +18,8 @@ type RoutePolicy map[string]Permission
 // It must be cheap and side-effect free; returning nil means "no attributes".
 type ResourceResolver func(fiber.Ctx) Resource
 
-// GuardRouter decorates a fiber.Router so each registered route carries the
-// permission guard declared in a RoutePolicy. This keeps the route table in
-// bootstrap/web_routes.go as the single place that decides who may do what,
-// without threading an authorizer through every feature handler.
+// GuardRouter keeps bootstrap/web_routes.go the single place that decides who may
+// do what, without threading an authorizer through every handler.
 type GuardRouter struct {
 	fiber.Router
 
@@ -46,17 +43,11 @@ func NewGuardRouter(
 	return &GuardRouter{Router: router, actor: actorBoundary, service: service, policy: policy}
 }
 
-// WithResolvers attaches resource resolvers for routes that need ABAC
-// attributes (for example ownership of a sale). It returns the same router so
-// it can be chained during wiring.
 func (g *GuardRouter) WithResolvers(resolvers map[string]ResourceResolver) *GuardRouter {
 	g.resolvers = resolvers
 	return g
 }
 
-// WithMiddleware prepends middleware that runs before the authorization guard
-// on every guarded route (for example session validation). It returns the same
-// router so it can be chained during wiring.
 func (g *GuardRouter) WithMiddleware(middlewares ...fiber.Handler) *GuardRouter {
 	g.middlewares = append(g.middlewares, middlewares...)
 	return g
@@ -175,7 +166,6 @@ func RequireBrowserSession(actorBoundary *actor.Actor) fiber.Handler {
 	}
 }
 
-// RequirePermission is route-level RBAC: no resource attributes are available.
 func RequirePermission(
 	actorBoundary *actor.Actor,
 	service *Service,
@@ -223,7 +213,6 @@ func RequirePermissionResource(
 	}
 }
 
-// DecisionFromContext reports the most recent failed guard, if any.
 func DecisionFromContext(c fiber.Ctx) (Decision, bool) {
 	decision, ok := c.Locals(decisionLocalKey).(Decision)
 	return decision, ok

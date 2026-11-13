@@ -138,7 +138,6 @@ func permissionCatalog() []PermissionDTO {
 	return dtos
 }
 
-// CreateRole validates and persists a new role.
 func (s *Service) CreateRole(ctx context.Context, request CreateRoleRequest) (RoleDTO, error) {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
@@ -157,7 +156,6 @@ func (s *Service) CreateRole(ctx context.Context, request CreateRoleRequest) (Ro
 	return roleToDTO(role, nil), nil
 }
 
-// UpdateRole edits a custom role.
 func (s *Service) UpdateRole(
 	ctx context.Context,
 	code string,
@@ -180,7 +178,6 @@ func (s *Service) UpdateRole(
 	return roleToDTO(role, nil), nil
 }
 
-// DeleteRole removes a custom role that is not assigned to any user.
 func (s *Service) DeleteRole(ctx context.Context, code string) error {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
@@ -189,7 +186,6 @@ func (s *Service) DeleteRole(ctx context.Context, code string) error {
 	return authorization.DeleteRole(ctx, code)
 }
 
-// SetRolePermissions replaces a role's permission set.
 func (s *Service) SetRolePermissions(ctx context.Context, code string, permissions []string) error {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
@@ -202,7 +198,6 @@ func (s *Service) SetRolePermissions(ctx context.Context, code string, permissio
 	return authorization.ReplaceRolePermissions(ctx, code, codes)
 }
 
-// AssignRole changes a user's role.
 func (s *Service) AssignRole(ctx context.Context, publicID, role string) error {
 	authorization, err := s.requireAuthorization()
 	if err != nil {
@@ -211,7 +206,6 @@ func (s *Service) AssignRole(ctx context.Context, publicID, role string) error {
 	return authorization.AssignRole(ctx, publicID, role)
 }
 
-// SetOverride validates and upserts a per-user permission override.
 func (s *Service) SetOverride(
 	ctx context.Context,
 	publicID string,

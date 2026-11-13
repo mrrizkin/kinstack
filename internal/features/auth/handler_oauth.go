@@ -17,20 +17,16 @@ func (h *Handler) oauthAvailable() bool {
 	return !h.oauthRegistry.Empty() && h.oauthSigner != nil && h.ssoStorage != nil
 }
 
-// ssoContinuation returns the namespaced store that carries provider
-// continuation blobs (for example a marshaled goth session) across the
-// callback. It lives in shared server-side storage, never in the session
-// cookie, because POST callbacks are cross-site.
+// ssoContinuation lives in shared storage, never in the session cookie, because
+// POST callbacks are cross-site.
 func (h *Handler) ssoContinuation() ssoStore {
 	return newSSOStore(h.ssoStorage, ssoOAuthPrefix)
 }
 
-// pkceVerifierStore holds the PKCE verifier of one authorization request.
 func (h *Handler) pkceVerifierStore() ssoStore {
 	return newSSOStore(h.ssoStorage, ssoVerifierPrefix)
 }
 
-// oauthStart begins the authorization-code flow for one registered provider.
 func (h *Handler) oauthStart(c fiber.Ctx) error {
 	if !h.oauthAvailable() {
 		return fiber.ErrServiceUnavailable
@@ -78,13 +74,10 @@ func (h *Handler) oauthStart(c fiber.Ctx) error {
 	return c.Redirect().Status(fiber.StatusSeeOther).To(authURL)
 }
 
-// oauthCallback opens the sealed state, redeems the code, and signs the
-// matching existing account in. It accepts POST because providers such as Apple
-// post the authorization response back as a form. No session cookie is
-// required: the state is sealed, and transaction data lives in shared storage.
-// oauthReject ends a callback that cannot be completed. Every path out of the
-// callback leaves a line naming why, so a login that fails in production can be
-// explained from the log instead of reproduced.
+// oauthCallback opens the sealed state, redeems the code, and signs the matching account
+// in. It accepts POST because providers such as Apple post the response back as a form.
+// oauthReject logs a line naming why the callback failed, so a production login failure
+// can be explained from the log.
 func (h *Handler) oauthReject(c fiber.Ctx, reason string, cause error) error {
 	if cause != nil {
 		log.ForRequest(h.logger, c.RequestID()).

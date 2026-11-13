@@ -18,9 +18,8 @@ declare global {
 }
 
 /**
- * Installs the Umami tracker once per document. The tracker observes the
- * History API, so Inertia navigations are recorded without an extra page-view
- * call (which would double count).
+ * Installs the tracker once. It observes the History API, so Inertia navigations
+ * are recorded without a second page-view call.
  */
 export function installUmami(config?: UmamiConfig): void {
   if (!config?.enabled || !config.script_url || !config.website_id) {

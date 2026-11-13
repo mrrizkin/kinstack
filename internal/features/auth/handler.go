@@ -36,10 +36,9 @@ type HandlerDependency struct {
 	SAMLProvider *platformsaml.Provider
 	SAMLACSURL   string
 
-	// ContinuationStorage is the shared server-side storage that carries SSO
-	// transaction data across the cross-site callback. It is required whenever
-	// OAuth or SAML is enabled; a browser session cookie cannot be relied on
-	// because POST callbacks do not send SameSite=Lax cookies.
+	// ContinuationStorage carries SSO transaction data across the cross-site
+	// callback. It is required whenever OAuth or SAML is enabled: POST callbacks
+	// carry no SameSite=Lax cookie.
 	ContinuationStorage fiber.Storage
 }
 
@@ -141,8 +140,7 @@ func (h *Handler) twoFactorPath() string {
 	return "/2fa"
 }
 
-// homePath returns the landing route after sign-in. Every actor lands on the
-// dashboard; account-scoped pages are available from the account menu.
+// homePath is the landing route after sign-in.
 func (h *Handler) homePath(_ bool) string {
 	return "/dashboard"
 }
@@ -158,7 +156,6 @@ func (h *Handler) loginPage(c fiber.Ctx) error {
 	return err
 }
 
-// loginProps exposes the enabled sign-in methods to the sign-in page.
 func (h *Handler) loginProps() fiber.Map {
 	props := fiber.Map{
 		"passkey_enabled":        h.passkeyEnabled,

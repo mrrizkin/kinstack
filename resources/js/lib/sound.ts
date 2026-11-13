@@ -36,7 +36,6 @@ function resolveContext(): AudioContext | undefined {
   return context;
 }
 
-// Browsers only allow audio after a user gesture: warm the context on the first one.
 if (typeof window !== "undefined") {
   const warm = () => {
     resolveContext();
@@ -87,10 +86,8 @@ function marimba(audio: AudioContext, note: ChimeNote) {
   modulator.stop(start + duration + 0.05);
 }
 
-/**
- * Plays a short marimba chime for the given notification kind:
- * a rising pair for success, a single note for info, a falling pair for error.
- */
+/** Plays the chime for a notification kind: a rising pair for success, a falling
+ * pair for error. */
 export function playNotificationSound(kind: NotificationSound = "info") {
   if (!enabled.value) {
     return;
@@ -113,10 +110,6 @@ const CHIMES: Record<NotificationSound, ChimeNote[]> = {
   mute: [{ frequency: 523.25, offset: 0, duration: 0.12, peak: 0.05 }],
 };
 
-/**
- * Plays the chime regardless of the mute preference: used to preview the sound
- * when the user enables it from the settings page.
- */
 export function previewNotificationSound(kind: NotificationSound = "info") {
   if (prefersReducedMotion()) {
     return;
@@ -130,7 +123,6 @@ export function previewNotificationSound(kind: NotificationSound = "info") {
   }
 }
 
-/** Shared mute preference for the notification chime. */
 export function useNotificationSound() {
   watch(enabled, (value) => {
     if (typeof window !== "undefined") {

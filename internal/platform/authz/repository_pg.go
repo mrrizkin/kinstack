@@ -253,7 +253,6 @@ func (r *SQLRepository) CreateRole(ctx context.Context, input CreateRoleInput) (
 	return role, nil
 }
 
-// UpdateRole edits a role's metadata.
 func (r *SQLRepository) UpdateRole(ctx context.Context, input UpdateRoleInput) (Role, error) {
 	var role Role
 	err := r.updateRoleStmt.GetContext(
@@ -273,7 +272,6 @@ func (r *SQLRepository) UpdateRole(ctx context.Context, input UpdateRoleInput) (
 	return role, nil
 }
 
-// DeleteRole removes a role, mapping foreign-key conflicts to ErrRoleInUse.
 func (r *SQLRepository) DeleteRole(ctx context.Context, code string) error {
 	result, err := r.deleteRoleStmt.ExecContext(ctx, code)
 	if isForeignKeyViolation(err) {
@@ -300,13 +298,11 @@ func (r *SQLRepository) RolePermissions(ctx context.Context, code string) ([]Per
 	return permissions, nil
 }
 
-// rolePermissionRow is the flat projection used by the batched permission query.
 type rolePermissionRow struct {
 	RoleCode   string     `db:"role_code"`
 	Permission Permission `db:"permission_code"`
 }
 
-// RolePermissionsMany returns the permission sets of several roles in one query.
 func (r *SQLRepository) RolePermissionsMany(
 	ctx context.Context,
 	codes []string,
@@ -325,7 +321,6 @@ func (r *SQLRepository) RolePermissionsMany(
 	return result, nil
 }
 
-// ReplaceRolePermissions atomically replaces a role's permission set.
 func (r *SQLRepository) ReplaceRolePermissions(
 	ctx context.Context,
 	code string,
@@ -341,7 +336,6 @@ func (r *SQLRepository) ReplaceRolePermissions(
 	return nil
 }
 
-// UserOverrides returns the overrides recorded for a user.
 func (r *SQLRepository) UserOverrides(ctx context.Context, publicID string) ([]Override, error) {
 	overrides := make([]Override, 0)
 	if err := r.overridesStmt.SelectContext(ctx, &overrides, publicID); err != nil {
@@ -350,7 +344,6 @@ func (r *SQLRepository) UserOverrides(ctx context.Context, publicID string) ([]O
 	return overrides, nil
 }
 
-// userOverrideRow is the flat projection used by the batched override query.
 type userOverrideRow struct {
 	UserPublicID string     `db:"user_public_id"`
 	Permission   Permission `db:"permission_code"`
@@ -384,7 +377,6 @@ func (r *SQLRepository) UserOverridesMany(
 	return result, nil
 }
 
-// SetUserOverride upserts a per-user permission override.
 func (r *SQLRepository) SetUserOverride(
 	ctx context.Context,
 	input SetOverrideInput,
@@ -408,7 +400,6 @@ func (r *SQLRepository) SetUserOverride(
 	return override, nil
 }
 
-// DeleteUserOverride removes a per-user permission override.
 func (r *SQLRepository) DeleteUserOverride(
 	ctx context.Context,
 	publicID string,
@@ -446,7 +437,6 @@ func (r *SQLRepository) AssignUserRole(ctx context.Context, publicID string, rol
 	return nil
 }
 
-// CountRoleAssignments counts non-deleted users holding a role.
 func (r *SQLRepository) CountRoleAssignments(ctx context.Context, code string) (int, error) {
 	var count int
 	if err := r.countAssignmentsStmt.GetContext(ctx, &count, code); err != nil {

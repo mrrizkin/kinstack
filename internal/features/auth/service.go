@@ -26,9 +26,7 @@ type ServiceDependency struct {
 	Now        func() time.Time
 }
 
-// CredentialRevoker revokes every browser session and personal API token of a
-// user. It is invoked after a password reset so old credentials cannot outlive
-// the new password.
+// CredentialRevoker revokes every session and API token after a password reset.
 type CredentialRevoker interface {
 	RevokeAll(ctx context.Context, userPublicID string) error
 }
@@ -66,9 +64,6 @@ func NewService(dependency ServiceDependency) *Service {
 	}
 }
 
-// SecondFactorAllowed reports whether the account may still attempt a second
-// factor from this client. It uses a separate key namespace from password
-// attempts so a 2FA lockout never blocks a fresh sign-in.
 func (s *Service) SecondFactorAllowed(ctx context.Context, userPublicID, client string) bool {
 	if s.lockout == nil {
 		return true
@@ -76,9 +71,6 @@ func (s *Service) SecondFactorAllowed(ctx context.Context, userPublicID, client 
 	return s.lockout.AllowedPair(ctx, secondFactorAccount(userPublicID), client)
 }
 
-// RecordSecondFactorFailure counts one rejected second-factor attempt. A 2FA
-// code is short, so the account-wide counter also applies to slow distributed
-// guessing.
 func (s *Service) RecordSecondFactorFailure(ctx context.Context, userPublicID, client string) {
 	if s.lockout == nil {
 		return
@@ -93,17 +85,13 @@ func (s *Service) ClearSecondFactorFailures(ctx context.Context, userPublicID, c
 	s.lockout.Success(ctx, secondFactorAccount(userPublicID), client)
 }
 
-// secondFactorAccount namespaces lockout keys for the second-factor challenge.
 func secondFactorAccount(userPublicID string) string {
 	return "2fa:" + strings.TrimSpace(userPublicID)
 }
 
-// Login verifies credentials and returns the authenticated session actor. Every
-// credential failure returns the same error so callers cannot enumerate users.
-//
-// The environment ACCESS_KEY/SECRET_KEY pair is a break-glass super admin. Like
-// HTTP basic auth it is checked before the database and has no stored account:
-// the returned session is ephemeral and bypasses RBAC entirely.
+// Login verifies credentials and returns the session actor; every failure returns the
+// same error. The environment ACCESS_KEY/SECRET_KEY pair is a break-glass super admin,
+// checked before the database and bypassing RBAC.
 func (s *Service) Login(
 	ctx context.Context,
 	username string,
@@ -112,9 +100,7 @@ func (s *Service) Login(
 	return s.LoginFrom(ctx, username, rawPassword, "")
 }
 
-// LoginFrom is Login with the calling client (usually the remote IP). Failures
-// are throttled per (account, client) pair, so one client cannot lock a known
-// account for everyone else.
+// LoginFrom throttles per (account, client), so one client cannot lock a known account.
 func (s *Service) LoginFrom(
 	ctx context.Context,
 	username string,
@@ -136,8 +122,7 @@ func (s *Service) LoginFrom(
 	}
 	result, err := s.repository.FindUserByUsername(ctx, username)
 	if errors.Is(err, ErrNotFound) {
-		// Hash a dummy value so response timing does not reveal whether the
-		// username exists.
+		// Hash a dummy value so timing does not reveal whether the username exists.
 		_ = platformpassword.Compare(platformpassword.DummyHash(), rawPassword)
 		return SessionResponse{}, s.rejectLogin(ctx, username, client, ErrInvalidCredentials)
 	}
@@ -162,8 +147,7 @@ func (s *Service) LoginFrom(
 	}, nil
 }
 
-// lockoutAllows is the one place the lockout question is asked, so a new
-// credential path cannot forget it. The break-glass account skips the
+// lockoutAllows is the only place the lockout question is asked; break-glass skips the
 // account-wide lock and keeps its own pair limit.
 func (s *Service) lockoutAllows(
 	ctx context.Context,
@@ -180,9 +164,8 @@ func (s *Service) lockoutAllows(
 	return allowed
 }
 
-// rejectLogin records the failure before returning the error the caller sees.
-// The absent user, the wrong password, and the inactive account all count the
-// same way, so timing and lockout behavior do not reveal which one it was.
+// rejectLogin counts the failure; absent user, wrong password and inactive account count
+// the same so neither timing nor lockout reveals which one it was.
 func (s *Service) rejectLogin(
 	ctx context.Context,
 	username, client string,
@@ -200,7 +183,6 @@ func (s *Service) recordLoginSuccess(ctx context.Context, username, client strin
 	}
 }
 
-// Session is for an account that already passed credential and 2FA checks.
 func (s *Service) Session(ctx context.Context, publicID string) (SessionResponse, error) {
 	result, err := s.repository.FindUserByPublicID(ctx, publicID)
 	if errors.Is(err, ErrNotFound) {
@@ -229,8 +211,6 @@ func (s *Service) isSuperAdmin(username, rawPassword string) bool {
 	return usernameMatch && passwordMatch
 }
 
-// superAdminSession builds the ephemeral break-glass session. Nothing is
-// persisted, so the operator can always sign in regardless of database state.
 func (s *Service) superAdminSession(username string) SessionResponse {
 	return SessionResponse{
 		PublicID:    platformactor.SuperuserPublicID,

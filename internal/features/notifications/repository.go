@@ -18,7 +18,6 @@ const (
 
 func (s Status) valid() bool { return s == StatusUnread || s == StatusRead }
 
-// Event asks a notification to move forward.
 type Event string
 
 const (

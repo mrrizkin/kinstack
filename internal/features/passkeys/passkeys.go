@@ -24,7 +24,6 @@ type Dependency struct {
 	Logger     applog.Log
 }
 
-// Feature owns the passkey service and HTTP handler.
 type Feature struct {
 	service *Service
 	handler *Handler

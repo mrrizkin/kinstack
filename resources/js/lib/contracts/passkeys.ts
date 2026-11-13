@@ -3,10 +3,8 @@ import { z } from "zod";
 import { pageInfoSchema } from "./pages";
 
 /**
- * WebAuthn the browser gives us a `PublicKeyCredential`, but the Go boundary
- * only declares the generic `{ publicKey: object }` envelope. The decoded
- * binary fields are browser-native, so they stay `unknown` until the WebAuthn
- * API consumes them (see `lib/webauthn.ts` for the documented casts).
+ * WebAuthn returns browser-native binary fields, so these stay `unknown` until
+ * `lib/webauthn.ts` casts them at the API boundary.
  */
 export const passkeyOptionsSchema = z.looseObject({
   publicKey: z.record(z.string(), z.unknown()),

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-/** Active/inactive badge shared by tables and mobile lists. */
 import AppCellBadge from "@/components/cells/AppCellBadge.vue";
 
 withDefaults(defineProps<{ active: boolean; activeLabel?: string; inactiveLabel?: string }>(), {

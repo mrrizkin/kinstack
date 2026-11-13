@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * Right-aligned row action menu. Desktop tables and mobile cards share one
- * ellipsis trigger so the same item list drives both layouts.
+ * Row action menu, shared by desktop tables and mobile cards.
  */
 import type { DropdownMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";
 

@@ -10,7 +10,6 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// DatabaseConfig selects the event repository and its connection string.
 type DatabaseConfig struct {
 	URL              string
 	StatementTimeout time.Duration
@@ -33,7 +32,6 @@ func LoadDatabase() DatabaseConfig {
 	return cfg
 }
 
-// Validate checks the database settings required by the application.
 func (c DatabaseConfig) Validate() error {
 	dsn, err := parseDatabaseURL(c.URL)
 	if err != nil {

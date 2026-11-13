@@ -43,8 +43,7 @@ func requireRecipient(recipientPublicID string) (string, error) {
 	return trimmed, nil
 }
 
-// Notify creates one notification for a recipient. Other slices use this to
-// emit user-facing events without coupling to the HTTP boundary.
+// Notify lets other slices emit user-facing events without coupling to HTTP.
 func (s *Service) Notify(
 	ctx context.Context,
 	recipientPublicID, kind, title, body string,
@@ -149,7 +148,6 @@ func decodeCursor(value string) (*Cursor, error) {
 	return &Cursor{CreatedAt: time.UnixMicro(micros).UTC(), ID: id}, nil
 }
 
-// MarkRead marks one owned notification as read.
 func (s *Service) MarkRead(ctx context.Context, recipientPublicID, publicID string) error {
 	recipientPublicID, err := requireRecipient(recipientPublicID)
 	if err != nil {
@@ -165,7 +163,6 @@ func (s *Service) MarkRead(ctx context.Context, recipientPublicID, publicID stri
 	return nil
 }
 
-// MarkAllRead marks every unread notification of the recipient as read.
 func (s *Service) MarkAllRead(ctx context.Context, recipientPublicID string) error {
 	recipientPublicID, err := requireRecipient(recipientPublicID)
 	if err != nil {

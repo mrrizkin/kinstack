@@ -1,9 +1,6 @@
 <script setup lang="ts">
 /**
- * Badge cell with one shared visual recipe.
- *
- * The wrapper exists so every table and mobile list renders the same variant and
- * size, and so badges can be created from `h()` in a `.ts` column definition.
+ * One badge recipe, so every table and mobile list renders the same variant.
  */
 import type { CellBadgeColor, CellBadgeSize, CellBadgeVariant } from "./types";
 

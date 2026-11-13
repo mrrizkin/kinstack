@@ -51,14 +51,12 @@ func (r *MemoryRepository) AddUser(user FindUserByUsernameResult) {
 	r.users[strings.ToLower(strings.TrimSpace(user.Username))] = user
 }
 
-// Touched reports accounts whose last-login timestamp was updated.
 func (r *MemoryRepository) Touched() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return append([]string(nil), r.touch...)
 }
 
-// FindIdentityUser resolves the account bound to a provider subject.
 func (r *MemoryRepository) FindIdentityUser(
 	_ context.Context,
 	provider string,
@@ -73,7 +71,6 @@ func (r *MemoryRepository) FindIdentityUser(
 	return r.FindUserByPublicID(context.Background(), identity.userPublicID)
 }
 
-// UpsertIdentity binds a provider subject to an account.
 func (r *MemoryRepository) UpsertIdentity(
 	_ context.Context,
 	userPublicID string,

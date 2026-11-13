@@ -1,9 +1,6 @@
 /**
- * Deterministic avatar helper backed by the DiceBear HTTP API.
- *
- * The seed is the account's public id, which never changes; username only
- * covers actors without a profile row. Size is capped to keep the request
- * (and the rendered SVG) small.
+ * Deterministic DiceBear avatar. The seed is the public id, which never
+ * changes; size is capped so the rendered SVG stays small.
  */
 const DICEBEAR_ENDPOINT = "https://api.dicebear.com/9.x/notionists-neutral/svg";
 const MAX_SIZE = 256;
@@ -12,7 +9,6 @@ const MAX_SIZE = 256;
 const AVATAR_BACKGROUND = "e5e7eb";
 const FALLBACK_SEED = "user";
 
-/** Identity fields an avatar seed is derived from, in priority order. */
 export interface AvatarSeed {
   public_id?: string | null;
   username?: string | null;

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 /**
- * Primary and secondary text lines for a table cell.
- *
- * Props only, so the cell can be rendered from `h()` in a column definition.
- * `mono` marks identifier lines (request ids, resource names, role codes).
+ * Two text lines for a cell, renderable from `h()` in a column definition.
  */
 import AppCellBadge from "@/components/cells/AppCellBadge.vue";
 import type { CellBadgeSpec } from "@/components/cells/types";

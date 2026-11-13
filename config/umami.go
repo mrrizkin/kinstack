@@ -25,7 +25,6 @@ func (c *UmamiConfig) Load() {
 	c.AutoTrack = assert.OK(envBool("UMAMI_AUTO_TRACK", true))
 }
 
-// Validate checks analytics settings. Disabled analytics ignore every setting.
 func (c UmamiConfig) Validate() error {
 	if !c.Enabled {
 		return nil

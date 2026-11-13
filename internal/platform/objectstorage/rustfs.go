@@ -31,7 +31,6 @@ type Dependency struct {
 	Logger applog.Log
 }
 
-// New creates a RustFS client through Fiber's S3-compatible storage adapter.
 func New(d Dependency) *Client {
 	cfg := d.Config
 	assert.Assert(cfg.Endpoint != "", "rustfs endpoint is required")
@@ -70,7 +69,6 @@ func New(d Dependency) *Client {
 	return client
 }
 
-// EnsureBucket creates the application bucket when it does not exist.
 func (c *Client) EnsureBucket(ctx context.Context) error {
 	assert.Assert(c != nil && c.storage != nil, "rustfs client must be initialized")
 	_, err := c.storage.Conn().HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(c.bucket)})
@@ -85,7 +83,6 @@ func (c *Client) EnsureBucket(ctx context.Context) error {
 	return nil
 }
 
-// Put stores an object.
 func (c *Client) Put(
 	ctx context.Context,
 	key string,
@@ -111,7 +108,6 @@ func (c *Client) Put(
 	return nil
 }
 
-// Get opens an object for streaming delivery.
 func (c *Client) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	assert.Assert(c != nil && c.storage != nil, "rustfs client must be initialized")
 	assert.Assert(key != "", "object key is required")
@@ -139,7 +135,6 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// PublicURL returns the browser URL for an object delivered from the bucket.
 func (c *Client) PublicURL(key string) string {
 	assert.Assert(c != nil, "rustfs client must be initialized")
 	segments := strings.Split(strings.TrimLeft(key, "/"), "/")
@@ -149,7 +144,6 @@ func (c *Client) PublicURL(key string) string {
 	return c.publicURL + "/" + url.PathEscape(c.bucket) + "/" + strings.Join(segments, "/")
 }
 
-// PresignedGetURL creates a time-limited download URL for a private object.
 func (c *Client) PresignedGetURL(
 	ctx context.Context,
 	key string,

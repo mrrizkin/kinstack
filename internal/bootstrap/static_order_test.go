@@ -7,9 +7,8 @@ import (
 )
 
 // TestStaticAssetsAreMountedBetweenTransportAndAccessMiddleware guards the
-// composition contract: assets must run after the header/logging layer (so they
-// carry CSP and HSTS) but before the session layer (so cached files never touch
-// the session store).
+// composition contract: assets need the header layer, but must not touch the
+// session store.
 func TestStaticAssetsAreMountedBetweenTransportAndAccessMiddleware(t *testing.T) {
 	source, err := os.ReadFile("app.go")
 	if err != nil {

@@ -1,10 +1,6 @@
 <script setup lang="ts">
 /**
- * Dashboard page header.
- *
- * Wraps the shared navbar pattern: sidebar collapse control, title and
- * description, the notification bell, and page-specific actions. The panel
- * owner supplies `#header`; this component only fills the navbar.
+ * Dashboard page header: collapse control, title, notification bell, actions.
  */
 import { useI18n } from "vue-i18n";
 

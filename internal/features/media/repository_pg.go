@@ -142,7 +142,6 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateAssetInput) (Ass
 	return asset, nil
 }
 
-// Count returns the number of active assets owned by the actor.
 func (r *SQLRepository) Count(ctx context.Context, ownerPublicID string) (int, error) {
 	var count int
 	if err := r.countStmt.GetContext(ctx, &count, ownerPublicID); err != nil {

@@ -20,7 +20,6 @@ WHERE public_id = $1
   AND is_active
 LIMIT 1`
 
-// SQLRepository resolves active actors directly from the users table.
 type SQLRepository struct {
 	owner    *platformdatabase.StatementOwner
 	findStmt *sqlx.Stmt
@@ -44,7 +43,6 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	return &SQLRepository{owner: owner, findStmt: findStmt}, nil
 }
 
-// Close releases the prepared statement owned by the repository.
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil

@@ -144,8 +144,6 @@ func (h *Handler) file(c fiber.Ctx) error {
 	return c.Send(data)
 }
 
-// headerSafeFilename keeps a stored filename printable inside a quoted header
-// parameter.
 func headerSafeFilename(filename string) string {
 	safe := strings.Map(func(r rune) rune {
 		if r < 0x20 || r == 0x7f || r == '"' || r == '\\' {

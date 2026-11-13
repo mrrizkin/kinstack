@@ -18,12 +18,10 @@ const (
 	actorSuperuserKey   = "actor_superuser"
 )
 
-// SuperuserPublicID identifies the ephemeral break-glass super admin session.
-// It is not a database account: like basic auth, the credentials come from the
-// environment and nothing is persisted.
+// SuperuserPublicID identifies the ephemeral break-glass session; no database account
+// backs it.
 const SuperuserPublicID = "break-glass"
 
-// SessionActor is the authenticated actor carried by the browser session.
 type SessionActor struct {
 	PublicID    string `json:"public_id"`
 	Username    string `json:"username,omitempty"`
@@ -35,7 +33,6 @@ type SessionActor struct {
 	Scopes []string `json:"scopes,omitempty"`
 }
 
-// SetActor establishes the authenticated actor in the current browser session.
 func (a *Actor) SetActor(c fiber.Ctx, value SessionActor) error {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {
@@ -53,14 +50,12 @@ func (a *Actor) SetActor(c fiber.Ctx, value SessionActor) error {
 	return nil
 }
 
-// SetRequestActor attaches an actor resolved by a non-session authenticator
-// (for example an API bearer token) to the current request. It is not persisted
-// to the browser session and is discarded when the request ends.
+// SetRequestActor attaches an actor resolved by a non-session authenticator (for example
+// a bearer token); it is discarded when the request ends.
 func (a *Actor) SetRequestActor(c fiber.Ctx, value SessionActor) {
 	c.Locals(actorLocalKey, &value)
 }
 
-// ClearActor destroys the current authenticated browser session.
 func (a *Actor) ClearActor(c fiber.Ctx) error {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {
@@ -69,7 +64,6 @@ func (a *Actor) ClearActor(c fiber.Ctx) error {
 	return middleware.Destroy()
 }
 
-// ActorFromContext returns the actor established by the browser session.
 func (a *Actor) ActorFromContext(c fiber.Ctx) *SessionActor {
 	if value, ok := c.Locals(actorLocalKey).(*SessionActor); ok {
 		return value
@@ -101,20 +95,17 @@ func (a *Actor) ActorFromContext(c fiber.Ctx) *SessionActor {
 // against the actor repository, so downstream guards skip a second round trip.
 const validatedLocalKey = "actor_validated"
 
-// MarkValidated records that the current request already validated its actor.
 func (a *Actor) MarkValidated(c fiber.Ctx) {
 	c.Locals(validatedLocalKey, true)
 }
 
-// Validated reports whether the current request already validated its actor.
 func (a *Actor) Validated(c fiber.Ctx) bool {
 	value, ok := c.Locals(validatedLocalKey).(bool)
 	return ok && value
 }
 
-// ValidateSession verifies that the session actor still resolves to an active
-// account. Ephemeral break-glass superuser sessions have no account and are
-// trusted as long as the session itself is intact.
+// ValidateSession rejects sessions whose account is gone or inactive; break-glass
+// sessions have no account and are trusted while the session is intact.
 func (a *Actor) ValidateSession(ctx context.Context, value *SessionActor) error {
 	if value == nil {
 		return ErrInvalidActor
@@ -125,9 +116,8 @@ func (a *Actor) ValidateSession(ctx context.Context, value *SessionActor) error 
 	return a.Validate(ctx, value.PublicID)
 }
 
-// RequireKnownActor protects routes and rejects sessions whose actor no longer
-// resolves to an active account. When the request middleware already validated
-// the actor it reuses that result instead of querying the database again.
+// RequireKnownActor reuses a validation the request middleware already did instead of
+// querying the database twice.
 func (a *Actor) RequireKnownActor() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		value := a.ActorFromContext(c)
@@ -146,8 +136,6 @@ func (a *Actor) RequireKnownActor() fiber.Handler {
 	}
 }
 
-// Current returns the session actor after validating it against the actor
-// boundary. Invalid actors are removed from the browser session.
 func (a *Actor) Current(c fiber.Ctx) (*SessionActor, error) {
 	value := a.ActorFromContext(c)
 	if value == nil {
@@ -164,7 +152,6 @@ func (a *Actor) Current(c fiber.Ctx) (*SessionActor, error) {
 	return value, nil
 }
 
-// RequireAuth protects routes that need an authenticated actor.
 func (a *Actor) RequireAuth(c fiber.Ctx) error {
 	if a.ActorFromContext(c) != nil {
 		return c.Next()

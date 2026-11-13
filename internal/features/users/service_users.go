@@ -15,7 +15,6 @@ import (
 )
 
 // Page size bounds for the users list.
-// ParsePageQuery maps a malformed request onto ErrInvalidInput.
 func ParsePageQuery(rawPage, rawPerPage string, fallbackPerPage int) (pagination.Query, error) {
 	query, err := pagination.ParseRequest(rawPage, rawPerPage, fallbackPerPage)
 	if err != nil {
@@ -24,13 +23,11 @@ func ParsePageQuery(rawPage, rawPerPage string, fallbackPerPage int) (pagination
 	return query, nil
 }
 
-// UserList is one page of accounts plus its display window.
 type UserList struct {
 	Users []UserDTO
 	Page  pagination.Page
 }
 
-// List returns one page of active (non-deleted) accounts.
 func (s *Service) List(ctx context.Context, query pagination.Query) (UserList, error) {
 	counts, err := s.repository.CountUsers(ctx)
 	if err != nil {
@@ -48,12 +45,10 @@ func (s *Service) List(ctx context.Context, query pagination.Query) (UserList, e
 	return UserList{Users: items, Page: pagination.NewPage(query, counts.Total)}, nil
 }
 
-// Count returns total and active account counts.
 func (s *Service) Count(ctx context.Context) (UserCounts, error) {
 	return s.repository.CountUsers(ctx)
 }
 
-// Create validates and persists a new account.
 func (s *Service) Create(ctx context.Context, request CreateUserRequest) (UserDTO, error) {
 	username := strings.TrimSpace(request.Username)
 	displayName := strings.TrimSpace(request.DisplayName)
@@ -106,9 +101,7 @@ func (s *Service) Create(ctx context.Context, request CreateUserRequest) (UserDT
 	return userToDTO(result), nil
 }
 
-// Invite creates an account from an email address and sends a sign-in
-// invitation. The stored password hash is unusable until the invitee sets a
-// password, so the only way in is the emailed link.
+// Invite stores an unusable password hash, so the emailed link is the only way in.
 func (s *Service) Invite(ctx context.Context, request InviteUserRequest) (UserDTO, error) {
 	invite, err := normalizeInvite(request)
 	if err != nil {
@@ -140,7 +133,6 @@ func (s *Service) Invite(ctx context.Context, request InviteUserRequest) (UserDT
 	return userToDTO(result), nil
 }
 
-// inviteRequest is the trimmed, validated form of an invitation.
 type inviteRequest struct {
 	email        string
 	displayName  string
@@ -169,8 +161,6 @@ func normalizeInvite(request InviteUserRequest) (inviteRequest, error) {
 	}, nil
 }
 
-// createInvitedUser retries a taken username with a suffix. A taken email is
-// final: the account exists, and the caller must hear about it.
 func (s *Service) createInvitedUser(
 	ctx context.Context,
 	invite inviteRequest,
@@ -235,8 +225,8 @@ func trimToLength(value string, max int) string {
 	return value[:max]
 }
 
-// invitationPasswordHash stores a hash of a discarded random secret so password
-// sign-in stays impossible until the invitee sets their own password.
+// invitationPasswordHash hashes a discarded random secret: password sign-in stays
+// impossible until the invitee sets one.
 func invitationPasswordHash() (string, error) {
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
@@ -245,7 +235,6 @@ func invitationPasswordHash() (string, error) {
 	return platformpassword.Hash(base64.RawURLEncoding.EncodeToString(secret))
 }
 
-// Update edits an account's display name and role.
 func (s *Service) Update(ctx context.Context,
 	publicID string,
 	request UpdateUserRequest,
@@ -284,7 +273,6 @@ func (s *Service) Update(ctx context.Context,
 	return userToDTO(result), nil
 }
 
-// userUpdate is the trimmed, validated form of an update request.
 type userUpdate struct {
 	displayName string
 	role        string
@@ -320,7 +308,6 @@ func mapUserError(err error) error {
 	}
 }
 
-// ResetPassword replaces an account password after validating its length.
 func (s *Service) ResetPassword(ctx context.Context, publicID, rawPassword string) error {
 	if len(rawPassword) < passwordLengthMin {
 		return ErrInvalidInput
@@ -343,8 +330,6 @@ func (s *Service) ResetPassword(ctx context.Context, publicID, rawPassword strin
 	return nil
 }
 
-// SetActive enables or disables an account. The last active account that can
-// manage access cannot be disabled.
 func (s *Service) SetActive(
 	ctx context.Context,
 	publicID string,
@@ -386,9 +371,8 @@ func (s *Service) SetActive(
 	return userToDTO(result), nil
 }
 
-// authorizeRoleGrant enforces the delegation rules for assigning roleCode. The
-// authorization service reads the acting principal from the request context, so
-// handlers attach it once per request.
+// authorizeRoleGrant reads the acting principal from the request context, which handlers
+// attach once per request.
 func (s *Service) authorizeRoleGrant(ctx context.Context, roleCode string) error {
 	if s.authorization == nil {
 		return nil
@@ -399,8 +383,6 @@ func (s *Service) authorizeRoleGrant(ctx context.Context, roleCode string) error
 	return nil
 }
 
-// authorizeUserChange protects accounts that outrank the actor and blocks
-// changing the actor's own authority.
 func (s *Service) authorizeUserChange(ctx context.Context, publicID string) error {
 	if s.authorization == nil {
 		return nil
@@ -411,8 +393,6 @@ func (s *Service) authorizeUserChange(ctx context.Context, publicID string) erro
 	return nil
 }
 
-// mapAuthorizationError projects platform authority errors onto the users
-// feature vocabulary so HTTP handlers can answer 403 with a stable message.
 func mapAuthorizationError(err error) error {
 	switch {
 	case errors.Is(err, authz.ErrSelfChange):

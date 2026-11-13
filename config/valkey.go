@@ -7,7 +7,6 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// ValkeyConfig configures the shared session/cache backend.
 type ValkeyConfig struct {
 	Host     string
 	Port     int
@@ -22,7 +21,6 @@ func (c *ValkeyConfig) Load() {
 	c.Password = os.Getenv("VALKEY_PASSWORD")
 }
 
-// Validate checks Valkey connection settings.
 func (c ValkeyConfig) Validate() error {
 	if c.Host == "" || c.Port < 1 || c.Port > 65535 || c.Database < 0 {
 		return fmt.Errorf("valkey host, port, and database are invalid")

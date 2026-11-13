@@ -1,11 +1,7 @@
-/**
- * Keeping the preset definitions out of the component makes date math and
- * matching unit-testable without mounting Vue.
- */
+// Out of the component so the date math and matching are unit-testable.
 
 import { parseDate } from "@internationalized/date";
 
-/** The audit selects use this for "no constraint". */
 export const ALL_FILTER = "all";
 
 export const RESET_FILTER_KEY = "reset";
@@ -68,10 +64,7 @@ export function isPresetActive(preset: AuditPreset, state: AuditFilterState): bo
   return Object.entries(preset.values).every(([key, value]) => state[key as keyof AuditFilterState] === value);
 }
 
-/**
- * Reset trails the presets so their position stays stable, and it only exists
- * while a filter is applied.
- */
+// Reset trails the presets and only exists while a filter is applied.
 export function createQuickFilterItems(presets: AuditPreset[], state: AuditFilterState, resetIcon: string) {
   const items: QuickFilterItem[] = presets.map((preset) => ({
     key: preset.key,
@@ -88,16 +81,12 @@ function isFilterSet(state: AuditFilterState, key: keyof AuditFilterState): bool
   return state[key] !== "" && state[key] !== ALL_FILTER;
 }
 
-/** The released value for a key: selects fall back to the "all" sentinel. */
 function resetValue(key: keyof AuditFilterState): string {
   return key === "action" || key === "outcome" ? ALL_FILTER : "";
 }
 
-/**
- * Toggles a preset: active presets release the keys they own, inactive ones
- * merge in their values. Keys the preset does not own are never touched, so a
- * quick filter composes with whatever the user already set.
- */
+// Active presets release the keys they own; inactive ones merge their values in.
+// Keys the preset does not own are never touched, so presets compose.
 export function togglePreset(state: AuditFilterState, preset: AuditPreset): AuditFilterState {
   const next = { ...state };
   const active = isPresetActive(preset, state);

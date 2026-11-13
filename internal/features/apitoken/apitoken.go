@@ -22,7 +22,6 @@ type Dependency struct {
 	Inertia       *platforminertia.Adapter
 }
 
-// Feature owns the API token service and HTTP entry points.
 type Feature struct {
 	service *Service
 	handler *Handler

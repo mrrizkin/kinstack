@@ -12,14 +12,12 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// Cost holds the Argon2id work factors used to hash one secret.
 type Cost struct {
 	Memory      uint32
 	Iterations  uint32
 	Parallelism uint8
 }
 
-// DefaultCost is the work factor used for account passwords.
 var DefaultCost = Cost{Memory: 64 * 1024, Iterations: 3, Parallelism: 2}
 
 // OneTimeCost is a lighter work factor for short-lived one-time secrets such
@@ -62,13 +60,10 @@ var dummyHash = func() string {
 	)
 }()
 
-// Hash generates an Argon2id password hash with the default cost.
 func Hash(password string) (string, error) {
 	return HashWithCost(password, DefaultCost)
 }
 
-// HashWithCost generates an Argon2id hash with explicit work factors. The
-// encoded hash carries its own parameters, so Compare verifies any cost.
 func HashWithCost(secret string, cost Cost) (string, error) {
 	if !cost.valid() {
 		return "", errors.New("invalid argon2id cost")
@@ -95,7 +90,6 @@ func HashWithCost(secret string, cost Cost) (string, error) {
 	), nil
 }
 
-// Compare verifies a password against an Argon2id password hash.
 func Compare(encoded, password string) error {
 	parsed, err := parseArgon2id(encoded)
 	if err != nil {
@@ -115,9 +109,7 @@ func Compare(encoded, password string) error {
 	return nil
 }
 
-// parsedHash is the decoded form of an Argon2id hash. Every field has been
-// bounded before it reaches the key derivation, so a hostile hash cannot ask for
-// an unbounded amount of work.
+// parsedHash has bounded every field, so a hostile hash cannot ask for unbounded work.
 type parsedHash struct {
 	memory      uint64
 	iterations  uint64
@@ -144,8 +136,8 @@ func parseArgon2id(encoded string) (parsedHash, error) {
 	return parsed, nil
 }
 
-// parseArgon2Params reads m, t, and p, rejecting values outside the ceilings the
-// service accepts so a stored hash cannot turn into a CPU or memory attack.
+// parseArgon2Params rejects values outside the ceilings, so a stored hash cannot become a
+// CPU or memory attack.
 func parseArgon2Params(raw string) (parsedHash, error) {
 	values := make(map[string]string, 3)
 	for _, item := range strings.Split(raw, ",") {
@@ -186,9 +178,8 @@ func parseArgon2Field(raw string, minimum int) ([]byte, error) {
 	return decoded, nil
 }
 
-// DummyHash returns a stable hash used to keep unknown-user authentication
-// timing consistent. Callers burn the comparison and discard the result: the
-// value answers no credential question.
+// DummyHash keeps unknown-user timing consistent; callers burn the comparison and discard
+// the result.
 func DummyHash() string {
 	return dummyHash
 }

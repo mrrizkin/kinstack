@@ -23,7 +23,6 @@ func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{nextID: 1, entries: make([]Entry, 0)}
 }
 
-// Seed inserts one entry into the memory store.
 func (r *MemoryRepository) Seed(entry Entry) Entry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -36,7 +35,6 @@ func (r *MemoryRepository) Seed(entry Entry) Entry {
 	return cloneEntry(entry)
 }
 
-// List returns matching entries in reverse chronological order.
 func (r *MemoryRepository) List(_ context.Context, query Query) (Page, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

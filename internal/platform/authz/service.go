@@ -72,7 +72,6 @@ func New(d ServiceDependency) *Service {
 
 func (s *Service) Engine() *Engine { return s.engine }
 
-// Can evaluates one permission, with resource attributes for ABAC policies.
 func (s *Service) Can(
 	ctx context.Context,
 	principal Principal,
@@ -104,7 +103,6 @@ func (s *Service) Can(
 	return s.engine.Decide(principal, granted, permission, resource)
 }
 
-// Permissions are sorted effective codes.
 func (s *Service) Permissions(ctx context.Context, principal Principal) ([]Permission, error) {
 	granted, err := s.effective(ctx, principal)
 	if err != nil {
@@ -118,7 +116,6 @@ func (s *Service) Permissions(ctx context.Context, principal Principal) ([]Permi
 	return codes, nil
 }
 
-// Has reports whether the principal holds a permission, ignoring ABAC policies.
 func (s *Service) Has(
 	ctx context.Context,
 	principal Principal,
@@ -212,7 +209,6 @@ func (s *Service) effective(
 	return restrictToScopes(set, principal.Scopes), nil
 }
 
-// restrictToScopes: nil allowlist keeps the set, empty denies everything.
 func restrictToScopes(set map[Permission]struct{}, scopes []string) map[Permission]struct{} {
 	if scopes == nil {
 		return set
@@ -287,7 +283,6 @@ func (s *Service) CountRoles(ctx context.Context) (int, error) {
 	return s.repository.CountRoles(ctx)
 }
 
-// ListRoles returns one page of roles, highest rank first.
 func (s *Service) ListRoles(ctx context.Context, query pagination.Query) ([]Role, error) {
 	return s.repository.ListRoles(ctx, query)
 }
@@ -327,7 +322,6 @@ func (s *Service) RolePermissions(ctx context.Context, code string) ([]Permissio
 	return result, nil
 }
 
-// RolePermissionsMany filters unknown codes like RolePermissions.
 func (s *Service) RolePermissionsMany(
 	ctx context.Context,
 	codes []string,
@@ -382,7 +376,6 @@ func (s *Service) CreateRole(
 	return role, nil
 }
 
-// UpdateRole refuses built-in roles and a rank above the actor's own.
 func (s *Service) UpdateRole(
 	ctx context.Context,
 	code string,
@@ -414,7 +407,6 @@ func (s *Service) UpdateRole(
 	return role, nil
 }
 
-// DeleteRole refuses built-in roles and roles still assigned to a user.
 func (s *Service) DeleteRole(ctx context.Context, code string) error {
 	existing, err := s.repository.FindRole(ctx, code)
 	if err != nil {
@@ -474,7 +466,6 @@ func (s *Service) UserOverrides(ctx context.Context, publicID string) ([]Overrid
 	return overrides, nil
 }
 
-// UserOverridesMany maps users without overrides to an empty slice.
 func (s *Service) UserOverridesMany(
 	ctx context.Context,
 	publicIDs []string,

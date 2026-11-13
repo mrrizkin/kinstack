@@ -223,7 +223,6 @@ export function useUserForms(props: UsersProps) {
     ];
   }
 
-  // ---- Reset password ----
   const password = useDialog<User, { password: string }>({
     label: "reset password",
     initialValues: () => ({ password: "" }),

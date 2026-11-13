@@ -2,10 +2,8 @@ package audit
 
 import "time"
 
-// Action identifies an audited operation.
 type Action string
 
-// Outcome identifies the result of an audited operation.
 type Outcome string
 
 const (
@@ -29,7 +27,6 @@ type Event struct {
 	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
-// ListQuery contains audit projection filters.
 type ListQuery struct {
 	ActorKey string
 	Action   Action

@@ -10,7 +10,6 @@ import (
 	"kinstack/internal/platform/clock"
 )
 
-// MemoryRepository is an in-memory Repository used by tests and local wiring.
 type MemoryRepository struct {
 	mu        sync.Mutex
 	roles     map[string]Role
@@ -32,7 +31,6 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-// SeedRole inserts or replaces a role.
 func (r *MemoryRepository) SeedRole(role Role) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -45,7 +43,6 @@ func (r *MemoryRepository) SeedRole(role Role) {
 	r.roles[role.Code] = role
 }
 
-// SeedRolePermissions replaces a role's permission set.
 func (r *MemoryRepository) SeedRolePermissions(code string, permissions ...Permission) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -56,7 +53,6 @@ func (r *MemoryRepository) SeedRolePermissions(code string, permissions ...Permi
 	r.rolePerms[code] = set
 }
 
-// SeedUser registers a user's role.
 func (r *MemoryRepository) SeedUser(publicID, role string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -101,7 +97,6 @@ func (r *MemoryRepository) CountRoles(context.Context) (int, error) {
 	return len(r.roles), nil
 }
 
-// FindRole resolves a role.
 func (r *MemoryRepository) FindRole(_ context.Context, code string) (Role, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -130,7 +125,6 @@ func (r *MemoryRepository) CreateRole(_ context.Context, input CreateRoleInput) 
 	return role, nil
 }
 
-// UpdateRole edits a role.
 func (r *MemoryRepository) UpdateRole(_ context.Context, input UpdateRoleInput) (Role, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -169,7 +163,6 @@ func (r *MemoryRepository) RolePermissions(_ context.Context, code string) ([]Pe
 	return permissions, nil
 }
 
-// RolePermissionsMany returns the permission sets of several roles at once.
 func (r *MemoryRepository) RolePermissionsMany(
 	_ context.Context,
 	codes []string,
@@ -189,7 +182,6 @@ func (r *MemoryRepository) RolePermissionsMany(
 	return result, nil
 }
 
-// ReplaceRolePermissions replaces a role's permission set.
 func (r *MemoryRepository) ReplaceRolePermissions(
 	_ context.Context,
 	code string,
@@ -232,7 +224,6 @@ func (r *MemoryRepository) UserOverrides(_ context.Context, publicID string) ([]
 	return overrides, nil
 }
 
-// UserOverridesMany returns overrides grouped by user in one pass.
 func (r *MemoryRepository) UserOverridesMany(
 	_ context.Context,
 	publicIDs []string,
@@ -255,7 +246,6 @@ func (r *MemoryRepository) UserOverridesMany(
 	return result, nil
 }
 
-// SetUserOverride upserts a user's override.
 func (r *MemoryRepository) SetUserOverride(
 	_ context.Context,
 	input SetOverrideInput,

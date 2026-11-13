@@ -11,8 +11,7 @@ const TOAST: Record<NotifyKind, { icon: string; color: "success" | "error" | "in
 };
 
 /**
- * Pairs a chime with a toast so every reported outcome uses one path. Call it
- * from `<script setup>`; the returned function may be used later.
+ * Pairs a chime with a toast so every reported outcome uses one path.
  */
 export function useNotify() {
   const toast = useToast();

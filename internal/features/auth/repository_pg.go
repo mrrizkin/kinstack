@@ -114,8 +114,6 @@ WHERE public_id = $1
   AND deleted_at IS NULL`
 )
 
-// SQLRepository is the PostgreSQL credential repository. Prepared statements
-// are owned for the repository lifetime.
 type SQLRepository struct {
 	owner              *platformdatabase.StatementOwner
 	findStmt           *sqlx.Stmt
@@ -180,7 +178,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// FindUserByUsername resolves an active account by its login name.
 func (r *SQLRepository) FindUserByUsername(
 	ctx context.Context,
 	username string,
@@ -196,7 +193,6 @@ func (r *SQLRepository) FindUserByUsername(
 	return result, nil
 }
 
-// FindUserByPublicID resolves an active account by its public identifier.
 func (r *SQLRepository) FindUserByPublicID(
 	ctx context.Context,
 	publicID string,
@@ -212,7 +208,6 @@ func (r *SQLRepository) FindUserByPublicID(
 	return result, nil
 }
 
-// FindUserByEmail resolves an active account by its email address.
 func (r *SQLRepository) FindUserByEmail(
 	ctx context.Context,
 	email string,
@@ -228,7 +223,6 @@ func (r *SQLRepository) FindUserByEmail(
 	return result, nil
 }
 
-// FindIdentityUser resolves an account by its external provider subject.
 func (r *SQLRepository) FindIdentityUser(
 	ctx context.Context,
 	provider string,
@@ -270,7 +264,6 @@ func (r *SQLRepository) UpsertIdentity(
 	return nil
 }
 
-// TouchLastLogin records a successful sign-in for one account.
 func (r *SQLRepository) TouchLastLogin(ctx context.Context, publicID string) error {
 	if _, err := r.touchStmt.ExecContext(ctx, publicID); err != nil {
 		return fmt.Errorf("touch last login: %w", err)
@@ -278,8 +271,6 @@ func (r *SQLRepository) TouchLastLogin(ctx context.Context, publicID string) err
 	return nil
 }
 
-// CreatePasswordResetToken stores one single-use password reset or invitation
-// token.
 func (r *SQLRepository) CreatePasswordResetToken(
 	ctx context.Context,
 	token PasswordResetToken,
@@ -295,8 +286,6 @@ func (r *SQLRepository) CreatePasswordResetToken(
 	return nil
 }
 
-// ConsumePasswordResetToken atomically marks a valid reset token as used and
-// returns the account it belongs to.
 func (r *SQLRepository) ConsumePasswordResetToken(
 	ctx context.Context,
 	tokenHash string,

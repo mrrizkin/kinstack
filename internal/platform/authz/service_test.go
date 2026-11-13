@@ -29,7 +29,6 @@ func newTestService(t *testing.T) (*Service, *MemoryRepository) {
 	return New(ServiceDependency{Repository: repository}), repository
 }
 
-// adminContext asserts the seeded administrator as the acting principal.
 func adminContext() context.Context {
 	return WithPrincipal(
 		context.Background(),

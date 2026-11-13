@@ -3,23 +3,16 @@ import { computed, shallowRef, type ComputedRef, type ShallowRef, type WritableC
 import { errorMap } from "./errors";
 
 /**
- * Dialog lifecycle shared by every modal and slideover.
+ * Dialog lifecycle. `closed` is terminal: open, busy, and errors are one state.
  *
- * | from    | event     | to      |
- * | closed  | open      | editing |
- * | editing | change    | editing |
- * | editing | invalid   | editing |
- * | editing | save      | saving  |
- * | editing | close     | closed  |
- * | saving  | change    | saving  |
- * | saving  | invalid   | saving  |
- * | saving  | save      | saving  |
- * | saving  | close     | saving  |
- * | saving  | saved     | editing |
- * | saving  | committed | closed  |
- * | saving  | failed    | editing |
- *
- * `closed` is terminal: open, busy, and errors are one state, not three refs.
+ * | from     | event      | to      |
+ * | closed   | open       | editing |
+ * | editing  | save       | saving  |
+ * | editing  | close      | closed  |
+ * | editing  | change/invalid | editing |
+ * | saving   | saved/committed/failed | editing/closed |
+ * | saving   | close      | saving  |
+ * | saving   | change/invalid/save | saving  |
  */
 export type DialogErrors = Record<string, string>;
 
@@ -168,7 +161,8 @@ export function useDialog<S, V extends object>(options: DialogOptions<S, V>): Di
 }
 
 /**
- * Confirmation lifecycle for actions that run from the row menu.
+ * Confirmation lifecycle. `start` runs immediately (activating a user);
+ * `open` + `confirm` asks first (deleting). `closed` is terminal.
  *
  * | from       | event   | to         |
  * | closed     | open    | confirming |
@@ -176,11 +170,7 @@ export function useDialog<S, V extends object>(options: DialogOptions<S, V>): Di
  * | confirming | confirm | running    |
  * | confirming | close   | closed     |
  * | running    | done    | closed     |
- * | running    | close   | running    |
- * | running    | confirm | running    |
- *
- * `start` exists for actions that do not need a question (activating a user);
- * `open` + `confirm` is the guarded path (deleting). `closed` is terminal.
+ * | running    | close/confirm | running    |
  */
 type ConfirmationState<S> =
   | { status: "closed" }
@@ -265,14 +255,8 @@ export function useConfirmation<S>(options: ConfirmationOptions<S>): Confirmatio
 }
 
 /**
- * One-shot action lifecycle for work that has no dialog.
- *
- * | from    | event   | to      |
- * | idle    | start   | running |
- * | running | settled | idle    |
- *
- * `start` returns false while running, so a double click fires once. A failure
- * is reported through the server error map, not a state.
+ * One-shot action lifecycle for work with no dialog: `start` returns false while
+ * running so a double click fires once.
  */
 export interface Action {
   isRunning: ComputedRef<boolean>;
@@ -303,10 +287,7 @@ interface Openable<S> {
   close(): void;
 }
 
-/**
- * `v-model` over a dialog's subject. Repeated assignments are ignored so a
- * child re-emitting the same model cannot trip the illegal-open guard.
- */
+/** `v-model` over a dialog's subject; repeated assignments are ignored. */
 export function subjectModel<S>(dialog: Openable<S>): WritableComputedRef<S | null> {
   return computed({
     get: () => dialog.subject.value,
@@ -348,10 +329,6 @@ export function openModel(dialog: OpenableVoid): WritableComputedRef<boolean> {
 
 export type FormView<V> = V & { errors: DialogErrors; processing: boolean };
 
-/**
- * The flat {values, errors, processing} shape the dialog components take. It is
- * a view over the machine, not a second store.
- */
 export function formView<S, V extends object>(dialog: Dialog<S, V>): FormView<V> {
   const view: V = dialog.values;
   Object.defineProperty(view, "errors", { enumerable: true, get: () => dialog.errors.value });
@@ -366,10 +343,7 @@ export interface VisitHooks {
   onFinish: () => void;
 }
 
-/**
- * `onFinish` is the safety net: it returns a cancelled visit from `saving` to
- * `editing`, and does nothing to one that already committed.
- */
+/** `onFinish` is the safety net for a cancelled visit. */
 export function dialogHooks<S, V extends object>(
   dialog: Dialog<S, V>,
   options: { keepOpen?: boolean } = {},

@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// FindPasskeyUserResult contains the account fields needed by a passkey flow.
 type FindPasskeyUserResult struct {
 	PublicID    string     `db:"public_id"`
 	Email       string     `db:"email"`

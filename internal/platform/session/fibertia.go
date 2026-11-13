@@ -43,7 +43,6 @@ func saveExternalSession(sess *fibersession.Session, managed bool) error {
 	return sess.Save()
 }
 
-// GetFlash returns flash data and clears it from the current session.
 func (i *InertiaSessionStore) GetFlash(c fiber.Ctx) (map[string]any, error) {
 	sess, managed, err := i.sess(c)
 	if err != nil {
@@ -67,7 +66,6 @@ func (i *InertiaSessionStore) GetFlash(c fiber.Ctx) (map[string]any, error) {
 	return value, nil
 }
 
-// SetFlash stores flash data for the next request.
 func (i *InertiaSessionStore) SetFlash(c fiber.Ctx, data map[string]any) error {
 	sess, managed, err := i.sess(c)
 	if err != nil {
@@ -84,7 +82,6 @@ func (i *InertiaSessionStore) SetFlash(c fiber.Ctx, data map[string]any) error {
 	return saveExternalSession(sess, managed)
 }
 
-// GetErrors returns validation errors and clears them from the current session.
 func (i *InertiaSessionStore) GetErrors(c fiber.Ctx, bag string) (map[string][]string, error) {
 	sess, managed, err := i.sess(c)
 	if err != nil {
@@ -109,7 +106,6 @@ func (i *InertiaSessionStore) GetErrors(c fiber.Ctx, bag string) (map[string][]s
 	return value, nil
 }
 
-// SetErrors stores validation errors for the next request.
 func (i *InertiaSessionStore) SetErrors(
 	c fiber.Ctx,
 	bag string,

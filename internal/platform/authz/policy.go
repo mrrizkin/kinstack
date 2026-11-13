@@ -6,7 +6,6 @@ import (
 	"kinstack/internal/platform/i18n"
 )
 
-// Principal is the authenticated subject of an authorization decision.
 type Principal struct {
 	PublicID    string `json:"public_id"`
 	Role        string `json:"role"`
@@ -20,11 +19,9 @@ type Principal struct {
 	Scopes []string `json:"scopes,omitempty"`
 }
 
-// Resource carries the attributes an ABAC policy may inspect. Values use stable
-// keys (see ResourceOwner, ResourceAmount, ResourceShiftOpen).
+// Resource values use stable keys (see ResourceOwner, ResourceAmount, ResourceShiftOpen).
 type Resource map[string]any
 
-// Well-known resource attribute keys.
 const (
 	ResourceOwner     = "owner_id"
 	ResourceAmount    = "amount"
@@ -80,14 +77,13 @@ func Deny(source, reason string) Decision {
 	return Decision{Allowed: false, Source: source, Reason: reason}
 }
 
-// Policy is an ABAC guardrail. Evaluate returns nil to abstain.
 type Policy interface {
 	Name() string
 	Evaluate(Request) *Decision
 }
 
-// OwnershipPolicy allows an action only when the principal owns the resource or
-// holds the exempt role. It abstains when the resource has no owner attribute.
+// OwnershipPolicy allows the owner or the exempt role, and abstains when the resource has
+// no owner attribute.
 type OwnershipPolicy struct {
 	PolicyName string
 	Permission Permission
@@ -115,8 +111,8 @@ func (p OwnershipPolicy) Evaluate(req Request) *Decision {
 	return decisionPtr(Deny(p.PolicyName, message))
 }
 
-// AmountLimitPolicy denies actions whose resource amount exceeds Limit unless
-// the principal holds the exempt role. It abstains when the amount is absent.
+// AmountLimitPolicy denies over Limit unless the principal holds the exempt role, and
+// abstains when the amount is absent.
 type AmountLimitPolicy struct {
 	PolicyName string
 	Permission Permission
@@ -148,8 +144,6 @@ func (p AmountLimitPolicy) Evaluate(req Request) *Decision {
 	return decisionPtr(Deny(p.PolicyName, message))
 }
 
-// TimeWindowPolicy allows a permission only between FromHour and ToHour on the
-// permitted weekdays. It abstains when the request has no clock.
 type TimeWindowPolicy struct {
 	PolicyName string
 	Permission Permission
@@ -173,8 +167,8 @@ func (p TimeWindowPolicy) Evaluate(req Request) *Decision {
 	return nil
 }
 
-// weekdayAllowed abstains when the policy names no weekdays, so a time-only
-// window does not silently deny on an unset field.
+// weekdayAllowed abstains when no weekdays are named, so a time-only window does not deny
+// on an unset field.
 func (p TimeWindowPolicy) weekdayAllowed(now time.Time) bool {
 	if len(p.Weekdays) == 0 {
 		return true
@@ -187,8 +181,8 @@ func (p TimeWindowPolicy) weekdayAllowed(now time.Time) bool {
 	return false
 }
 
-// hourAllowed reads a window that may wrap midnight: to >= from is a same-day
-// window, otherwise the window spans the day boundary.
+// hourAllowed treats to >= from as a same-day window and anything else as wrapping
+// midnight.
 func (p TimeWindowPolicy) hourAllowed(now time.Time) bool {
 	hour := now.Hour()
 	if p.ToHour >= p.FromHour {
@@ -204,8 +198,6 @@ func (p TimeWindowPolicy) reason() string {
 	return "aksi hanya tersedia pada jam operasional"
 }
 
-// ShiftPolicy requires an open shift attribute for the permission. It abstains
-// when the resource does not carry shift state.
 type ShiftPolicy struct {
 	PolicyName string
 	Permission Permission

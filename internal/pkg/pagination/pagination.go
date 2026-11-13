@@ -38,7 +38,6 @@ type PageSizeReader interface {
 	PageSize(ctx context.Context, publicID string) (int, error)
 }
 
-// ResolvePageSize falls back to the default so a list still renders.
 func ResolvePageSize(ctx context.Context, reader PageSizeReader, publicID string) int {
 	if reader == nil || publicID == "" {
 		return DefaultPerPage
@@ -125,7 +124,6 @@ func PageQuery(raw string) string {
 	return ""
 }
 
-// Window is for rows cheap to fetch whole (roles, sessions, passkeys).
 func Window(query Query, total int) (int, int) {
 	if total <= 0 {
 		return 0, 0

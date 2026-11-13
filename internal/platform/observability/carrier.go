@@ -5,7 +5,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
-// headerCarrier adapts Fiber request headers to the OpenTelemetry propagator.
 type headerCarrier struct {
 	c fiber.Ctx
 }

@@ -23,7 +23,6 @@ type Dependency struct {
 	Inertia       *platforminertia.Adapter
 }
 
-// Feature owns the user account service and HTTP entry points.
 type Feature struct {
 	service *Service
 	handler *Handler

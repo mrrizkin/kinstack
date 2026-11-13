@@ -1,11 +1,8 @@
 import { z } from "zod";
 
 /**
- * Shared Inertia page props.
- *
- * These schemas describe values produced by the Go boundary. Parse them once at
- * the boundary (see `usePageProps`) instead of casting `page.props` per page.
- * Unknown keys are kept so the server can evolve without breaking the client.
+ * Shared Inertia page props produced by the Go boundary. Parse them once at the
+ * boundary instead of casting `page.props` per page.
  */
 export const actorSchema = z.looseObject({
   public_id: z.string().optional(),

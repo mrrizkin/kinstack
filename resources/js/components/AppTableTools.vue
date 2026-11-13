@@ -1,8 +1,6 @@
 <script setup lang="ts">
 /**
- * Per-page table controls: column visibility and rows per page.
- *
- * Rendered by AppTableCard when it receives a `view` from useTableView().
+ * Column visibility and rows-per-page controls for a `view`.
  */
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";

@@ -22,7 +22,6 @@ type Entry struct {
 	Metadata   map[string]string
 }
 
-// Query filters the audit projection and windows the result.
 type Query struct {
 	pagination.Query
 	ActorKey string
@@ -33,7 +32,6 @@ type Query struct {
 	To       *time.Time
 }
 
-// Page is one page of audit entries plus the total number of matches.
 type Page struct {
 	Entries []Entry
 	Total   int

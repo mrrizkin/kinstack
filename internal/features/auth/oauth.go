@@ -65,9 +65,8 @@ func (s *Service) bindIdentity(
 	return result, nil
 }
 
-// OAuthSignIn resolves a provider identity to an existing account session. The
-// base never auto-provisions accounts from an external provider: only a
-// verified email that already belongs to an active account is accepted.
+// OAuthSignIn resolves an identity only to an existing account: the base never
+// provisions accounts from an external provider.
 func (s *Service) OAuthSignIn(
 	ctx context.Context,
 	identity platformoauth.Identity,

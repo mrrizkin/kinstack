@@ -29,7 +29,6 @@ func normalizeEmail(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
-// Inviter delivers an invitation email to a newly created account.
 type Inviter interface {
 	SendInvitation(ctx context.Context, address string) error
 }

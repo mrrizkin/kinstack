@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Kind identifies the client-actionable class of an HTTP failure.
 type Kind string
 
 const (
@@ -61,8 +60,6 @@ func (e *Error) Unwrap() error {
 	return e.cause
 }
 
-// StatusCode lets outer middleware record the correct outcome before Fiber's
-// final error handler writes the response.
 func (e *Error) StatusCode() int {
 	if e == nil {
 		return 0
@@ -70,8 +67,8 @@ func (e *Error) StatusCode() int {
 	return e.problem.Status
 }
 
-// New creates a typed HTTP error. Status is constrained to the standard
-// contract so callers cannot accidentally expose an unsupported category.
+// New constrains Status to the contract so callers cannot expose an unsupported
+// category.
 func New(kind Kind, code, message string, cause error) error {
 	if !isKnownKind(kind) {
 		kind = KindInternal
@@ -123,9 +120,8 @@ func Unavailable(code, message string, cause error) error {
 	return New(KindUnavailable, code, message, cause)
 }
 
-// Describe normalizes both typed contract errors and legacy Fiber errors. This
-// lets existing feature handlers adopt the contract incrementally without
-// changing their domain error types.
+// Describe normalizes typed contract errors and legacy Fiber errors, so handlers can
+// adopt the contract incrementally.
 func Describe(err error) Problem {
 	if err == nil {
 		return Problem{}

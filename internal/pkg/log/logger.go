@@ -25,7 +25,6 @@ type LoggerDependency struct {
 	ExtraWriters []io.Writer
 }
 
-// NewWriterLogger writes to w; tests use it to assert log output.
 func NewWriterLogger(w io.Writer) *Logger {
 	assert.Assert(w != nil, "log writer is required")
 	return &Logger{core: zerolog.New(w).With().Timestamp().Logger()}
@@ -74,7 +73,6 @@ func NewLogger(d LoggerDependency) *Logger {
 	}
 }
 
-// Scope tags every line with a subsystem name.
 func (l *Logger) Scope(name string) *Logger {
 	return &Logger{
 		core: l.core.With().Str("scope", name).Logger(),
@@ -148,7 +146,6 @@ func (l *Logger) SetOutput(w io.Writer) {
 	l.core = l.core.Output(w)
 }
 
-// WithContext attaches the context for correlated logging.
 func (l *Logger) WithContext(value any) fiberlog.CommonLogger {
 	ctx, ok := value.(context.Context)
 	if !ok {
@@ -159,7 +156,6 @@ func (l *Logger) WithContext(value any) fiberlog.CommonLogger {
 	}
 }
 
-// RequestIDKey is the field every request-scoped log line carries.
 const RequestIDKey = "request_id"
 
 // ForRequest binds the request ID so no call site passes it by hand.
@@ -171,7 +167,6 @@ func ForRequest(logger Log, requestID string) Log {
 	return &Logger{core: concrete.core.With().Str(RequestIDKey, requestID).Logger()}
 }
 
-// log asserts pairs of string keys and values; errors are logged as strings.
 func (l *Logger) log(event *zerolog.Event, msg string, keysAndValues ...any) {
 	for i := 0; i < len(keysAndValues); i += 2 {
 		assert.Assert(i+1 < len(keysAndValues), "keysAndValues must be in pairs")
@@ -207,12 +202,10 @@ func (l *Logger) Errorw(msg string, keysAndValues ...any) {
 	l.log(l.core.Error(), msg, keysAndValues...)
 }
 
-// Fatalw logs and exits.
 func (l *Logger) Fatalw(msg string, keysAndValues ...any) {
 	l.log(l.core.Fatal(), msg, keysAndValues...)
 }
 
-// Panicw logs and panics.
 func (l *Logger) Panicw(msg string, keysAndValues ...any) {
 	l.log(l.core.Panic(), msg, keysAndValues...)
 }
@@ -233,7 +226,6 @@ func (l *Logger) Warnf(format string, v ...any) {
 	l.core.Warn().Msg(fmt.Sprintf(format, v...))
 }
 
-// Errorf logs at Error level using printf-style formatting.
 func (l *Logger) Errorf(format string, v ...any) {
 	l.core.Error().Msg(fmt.Sprintf(format, v...))
 }
@@ -246,7 +238,6 @@ func (l *Logger) Panicf(format string, v ...any) {
 	l.core.Panic().Msg(fmt.Sprintf(format, v...))
 }
 
-// A leading string argument is the message; the rest are key-value pairs.
 func (l *Logger) Trace(v ...any) {
 	if len(v) == 0 {
 		return
@@ -302,7 +293,6 @@ func (l *Logger) Error(v ...any) {
 	}
 }
 
-// Fatal logs and calls os.Exit(1).
 func (l *Logger) Fatal(v ...any) {
 	if len(v) == 0 {
 		return
@@ -314,7 +304,6 @@ func (l *Logger) Fatal(v ...any) {
 	}
 }
 
-// Panic logs and panics.
 func (l *Logger) Panic(v ...any) {
 	if len(v) == 0 {
 		return

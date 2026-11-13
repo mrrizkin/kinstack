@@ -11,7 +11,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// NonceLocal is the Fiber locals key holding the per-request CSP nonce.
 const NonceLocal = "csp_nonce"
 
 // CSPConfig describes the policy sources. Origins are added verbatim, so
@@ -48,7 +47,6 @@ func CSP(cfg CSPConfig) fiber.Handler {
 	}
 }
 
-// Nonce returns the nonce generated for the current request, if any.
 func Nonce(c fiber.Ctx) string {
 	nonce, _ := c.Locals(NonceLocal).(string)
 	return nonce

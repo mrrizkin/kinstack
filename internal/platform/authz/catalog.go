@@ -1,11 +1,5 @@
-// Package authz owns hybrid RBAC + ABAC authorization.
-//
-// RBAC is the baseline: a role grants permission codes, and a user may carry
-// allow/deny overrides. ABAC adds policies over principal and resource
-// attributes, which may deny or narrowly grant.
-//
-// Permission codes are defined here; the database stores codes only. Slices
-// register their codes as they are built.
+// Package authz owns hybrid RBAC + ABAC authorization. Permission codes are
+// defined here; the database stores codes only.
 package authz
 
 import (
@@ -14,7 +8,6 @@ import (
 	"kinstack/internal/platform/i18n"
 )
 
-// Permission is a fine-grained capability code, e.g. "users.manage".
 type Permission string
 
 // Authenticated is a sentinel meaning "any authenticated actor". It is used for
@@ -22,13 +15,10 @@ type Permission string
 const Authenticated Permission = "authenticated"
 
 // BrowserSession is a sentinel for "signed in through the browser session".
-// API tokens are authenticated but their scope allowlist only restricts
-// permission checks, so the Authenticated sentinel would let a stolen token
-// reach credential management (profile, 2FA, passkeys, tokens, session
-// revocation). Guard those routes with BrowserSession.
+// Guard credential-management routes with it: a stolen API token is
+// authenticated, so Authenticated would let it mint or rotate credentials.
 const BrowserSession Permission = "browser_session"
 
-// Permission codes recognised by the application.
 const (
 	PermissionUsersView   Permission = "users.view"
 	PermissionUsersManage Permission = "users.manage"
@@ -41,12 +31,10 @@ const (
 	PermissionMediaManage Permission = "media.manage"
 )
 
-// Categories group permissions in the access management UI.
 const (
 	CategorySystem = "System"
 )
 
-// Definition describes one permission exposed by the catalog.
 type Definition struct {
 	Code        Permission
 	Category    string
@@ -54,7 +42,6 @@ type Definition struct {
 	Description string
 }
 
-// catalog is the ordered, authoritative permission catalog.
 var catalog = []Definition{
 	{
 		PermissionUsersView,
@@ -117,7 +104,6 @@ func Lookup(code Permission) (Definition, bool) {
 	return Definition{}, false
 }
 
-// IsKnown ignores the Authenticated sentinel.
 func IsKnown(code Permission) bool {
 	_, ok := Lookup(code)
 	return ok

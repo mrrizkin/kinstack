@@ -7,16 +7,16 @@ import { requestJson, type RequestJsonOptions } from "./http";
 /**
  * Notification feed lifecycle, shared by the page and the dashboard slide-over.
  *
- * | from                                  | event   | to          |
- * | idle                                  | refresh | loading     |
- * | idle                                  | loadMore| loadingMore |
- * | idle                                  | mark    | marking     |
- * | idle                                  | markAll | markingAll  |
- * | loading / loadingMore / marking /…    | settled | idle        |
- * | any                                   | failed  | idle        |
+ * | from | event | to |
+ * | --- | --- | --- |
+ * | idle | refresh | loading |
+ * | idle | loadMore | loadingMore |
+ * | idle | mark | marking |
+ * | idle | markAll | markingAll |
+ * | loading / loadingMore / marking / markingAll | settled | idle |
+ * | any | failed | idle |
  *
- * `idle` is the only state that accepts work; a second click while busy is
- * ignored. `busy` is derived from the stage instead of a separate boolean.
+ * `idle` is the only state that accepts work; `busy` is derived from the stage.
  */
 type FeedStage =
   | { status: "idle" }

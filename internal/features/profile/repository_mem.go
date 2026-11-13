@@ -29,7 +29,6 @@ func NewMemoryRepository(now func() time.Time) *MemoryRepository {
 	return &MemoryRepository{records: map[string]memoryRecord{}, now: now}
 }
 
-// Seed inserts one account into the memory store.
 func (r *MemoryRepository) Seed(result ProfileResult, passwordHash string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -127,7 +126,6 @@ func (r *MemoryRepository) MarkPasswordSet(
 	return nil
 }
 
-// SeedDefault inserts a ready-to-use account.
 func SeedDefault(repository *MemoryRepository, publicID, displayName, hash string) {
 	assert.Assert(repository != nil, "memory repository is required")
 

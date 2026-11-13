@@ -25,7 +25,6 @@ func NewMemoryRepository(now func() time.Time) *MemoryRepository {
 	return &MemoryRepository{users: make(map[string]UserResult), now: now}
 }
 
-// Seed inserts an account projection directly for tests.
 func (r *MemoryRepository) Seed(user UserResult) {
 	assert.Assert(r != nil, "memory repository is required")
 	r.mu.Lock()

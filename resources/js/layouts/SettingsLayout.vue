@@ -1,8 +1,6 @@
 <script setup lang="ts">
 /**
- * Settings section shell. Owns the settings `UDashboardPanel` so nested pages
- * stay content-only and the section navigation never duplicates the main
- * sidebar.
+ * Settings shell: owns the dashboard panel so nested pages stay content-only.
  */
 import { usePage } from "@inertiajs/vue3";
 import type { NavigationMenuItem } from "@nuxt/ui/runtime/types/index.d.ts";

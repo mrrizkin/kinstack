@@ -112,7 +112,6 @@ func newAppDependencies(d AppDependency, inertiaAdapter *inertia.Adapter) *appDe
 	return deps
 }
 
-// appRepositories groups the SQL repositories owned by the composition root.
 type appRepositories struct {
 	auth     *auth.SQLRepository
 	users    *users.SQLRepository
@@ -229,7 +228,6 @@ func newTwoFactor(deps *appDependencies, d AppDependency) *twofactor.Service {
 	})
 }
 
-// newSAMLProvider builds the SAML service provider when the feature is enabled.
 func newSAMLProvider(d AppDependency) *platformsaml.Provider {
 	if !d.Config.Auth.SAML.Enabled {
 		return nil
@@ -316,8 +314,6 @@ func newProfileFeature(
 	})
 }
 
-// bearerAuthenticator validates a bearer token and projects the resolved account
-// into a request-scoped actor. Disabled API tokens resolve to unauthorized.
 func bearerAuthenticator(
 	cfg config.Config,
 	tokens *apitoken.Feature,

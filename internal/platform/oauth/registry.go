@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// ErrUnknownProvider identifies a provider slug that is not registered.
 var ErrUnknownProvider = errors.New("oauth provider is not registered")
 
 // Registry holds the enabled providers in a deterministic order.
@@ -35,7 +34,6 @@ func (r *Registry) Register(provider Provider) {
 	r.order = append(r.order, name)
 }
 
-// Get returns the provider registered under a slug.
 func (r *Registry) Get(name string) (Provider, bool) {
 	if r == nil {
 		return nil, false
@@ -44,7 +42,6 @@ func (r *Registry) Get(name string) (Provider, bool) {
 	return provider, ok
 }
 
-// Providers returns the registered providers in registration order.
 func (r *Registry) Providers() []Provider {
 	if r == nil {
 		return nil
@@ -56,7 +53,6 @@ func (r *Registry) Providers() []Provider {
 	return list
 }
 
-// Empty reports whether no provider is registered.
 func (r *Registry) Empty() bool {
 	return r == nil || len(r.providers) == 0
 }

@@ -181,7 +181,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// FindStatus returns the two-factor state of one account.
 func (r *SQLRepository) FindStatus(ctx context.Context, userPublicID string) (StatusResult, error) {
 	var result StatusResult
 	if err := r.findStatus.GetContext(ctx, &result, userPublicID); err != nil {
@@ -193,7 +192,6 @@ func (r *SQLRepository) FindStatus(ctx context.Context, userPublicID string) (St
 	return result, nil
 }
 
-// SetSecret stores a pending secret without enabling two-factor auth.
 func (r *SQLRepository) SetSecret(ctx context.Context, userPublicID string, secret Secret) error {
 	sealed := secret.Sealed
 	if sealed == nil {
@@ -210,7 +208,6 @@ func (r *SQLRepository) SetSecret(ctx context.Context, userPublicID string, secr
 	)
 }
 
-// SealSecret writes the encrypted secret and clears the plaintext copy.
 func (r *SQLRepository) SealSecret(
 	ctx context.Context,
 	userPublicID string,
@@ -230,12 +227,10 @@ func (r *SQLRepository) SealSecret(
 	)
 }
 
-// Enable activates two-factor auth for one account.
 func (r *SQLRepository) Enable(ctx context.Context, userPublicID string, lastStep int64) error {
 	return r.execAffectingOne(ctx, r.enable, "enable two-factor", userPublicID, lastStep)
 }
 
-// Disable clears the secret and deactivates two-factor auth.
 func (r *SQLRepository) Disable(ctx context.Context, userPublicID string) error {
 	return r.execAffectingOne(ctx, r.disable, "disable two-factor", userPublicID)
 }
@@ -246,7 +241,6 @@ func (r *SQLRepository) ConsumeStep(ctx context.Context, userPublicID string, st
 	return r.execAffectingOne(ctx, r.consumeStep, "consume two-factor step", userPublicID, step)
 }
 
-// ReplaceRecoveryCodes deletes the existing codes and stores the new hashes.
 func (r *SQLRepository) ReplaceRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
@@ -264,7 +258,6 @@ func (r *SQLRepository) ReplaceRecoveryCodes(
 	return nil
 }
 
-// UnusedRecoveryCodes lists the still usable hashes for one account.
 func (r *SQLRepository) UnusedRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
@@ -276,17 +269,14 @@ func (r *SQLRepository) UnusedRecoveryCodes(
 	return codes, nil
 }
 
-// MarkRecoveryCodeUsed consumes a recovery code so it cannot be replayed.
 func (r *SQLRepository) MarkRecoveryCodeUsed(ctx context.Context, id int64) error {
 	return r.execAffectingOne(ctx, r.useCode, "mark recovery code used", id)
 }
 
-// ReplaceRecoveryCodeHash upgrades the stored hash of one unused code.
 func (r *SQLRepository) ReplaceRecoveryCodeHash(ctx context.Context, id int64, hash string) error {
 	return r.execAffectingOne(ctx, r.replaceCode, "replace recovery code hash", id, hash)
 }
 
-// LegacySecrets lists plaintext secrets that still need sealing.
 func (r *SQLRepository) LegacySecrets(ctx context.Context, limit int) ([]LegacySecret, error) {
 	if limit <= 0 {
 		limit = 100

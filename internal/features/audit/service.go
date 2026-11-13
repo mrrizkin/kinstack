@@ -40,7 +40,6 @@ func NewService(dependency ServiceDependency) *Service {
 	return &Service{repository: dependency.Repository}
 }
 
-// List returns one page of audit entries for the supplied filter.
 func (s *Service) List(ctx context.Context, request FilterRequest) (PageProps, error) {
 	filter, err := normalizeFilter(request)
 	if err != nil {

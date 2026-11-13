@@ -1,8 +1,5 @@
-// Package pdf renders HTML documents into PDF through a Gotenberg service.
-//
-// The renderer is optional: when no service URL is configured the client stays
-// disabled and callers degrade gracefully. Browser printing stays outside this
-// package; only server-side documents go through Gotenberg.
+// Package pdf renders HTML through Gotenberg. The renderer is optional; when it
+// is not configured callers degrade instead of failing.
 package pdf
 
 import (
@@ -36,13 +33,12 @@ var (
 	ErrConversion = errors.New(i18n.T("pdf.conversion_failed"))
 )
 
-// Config contains the renderer service location and request timeout.
 type Config struct {
 	URL     string
 	Timeout time.Duration
 }
 
-// Options describes the page geometry sent to the renderer. Lengths are inches.
+// Options is the page geometry: lengths are inches.
 type Options struct {
 	PaperWidth   float64
 	PaperHeight  float64
@@ -53,7 +49,6 @@ type Options struct {
 	Landscape    bool
 }
 
-// Client posts HTML documents to a Gotenberg Chromium route.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
@@ -70,13 +65,11 @@ func New(cfg Config) *Client {
 	}
 }
 
-// Enabled reports whether the renderer is configured.
 func (c *Client) Enabled() bool {
 	return c != nil && c.baseURL != ""
 }
 
-// pageFields builds the renderer's option map. A zero value is omitted rather
-// than sent as zero, so the renderer's own default applies.
+// pageFields omits a zero value so the renderer's own default applies.
 func pageFields(options Options) map[string]string {
 	fields := map[string]string{"printBackground": "true"}
 	if options.Landscape {
@@ -98,7 +91,6 @@ func pageFields(options Options) map[string]string {
 	return fields
 }
 
-// ConvertHTML renders one HTML document into PDF bytes.
 func (c *Client) ConvertHTML(
 	ctx context.Context,
 	document []byte,

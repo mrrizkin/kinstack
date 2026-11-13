@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// forgotPasswordPage renders the self-service reset request form.
 func (h *Handler) forgotPasswordPage(c fiber.Ctx) error {
 	if !h.passwordReset {
 		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
@@ -49,7 +48,6 @@ func (h *Handler) requestPasswordReset(c fiber.Ctx) error {
 	})
 }
 
-// resetPasswordPage renders the new-password form for one reset token.
 func (h *Handler) resetPasswordPage(c fiber.Ctx) error {
 	err := c.Render("auth/ResetPasswordView", fiber.Map{"token": c.Params("token")})
 	if err != nil {
@@ -58,7 +56,6 @@ func (h *Handler) resetPasswordPage(c fiber.Ctx) error {
 	return err
 }
 
-// resetPassword burns a reset token and stores the new password.
 func (h *Handler) resetPassword(c fiber.Ctx) error {
 	token := c.Params("token")
 	var request ResetPasswordRequest

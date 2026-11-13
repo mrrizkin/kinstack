@@ -24,12 +24,10 @@ type LogWriter struct {
 	logger otellog.Logger
 }
 
-// NewLogWriter creates a writer that emits records to logger.
 func NewLogWriter(logger otellog.Logger) *LogWriter {
 	return &LogWriter{logger: logger}
 }
 
-// Write implements io.Writer.
 func (w *LogWriter) Write(p []byte) (int, error) {
 	if w == nil || w.logger == nil {
 		return len(p), nil

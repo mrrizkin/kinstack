@@ -39,7 +39,6 @@ func Open(dsn string) (*DB, error) {
 	return OpenWithOptions(dsn, Options{})
 }
 
-// OpenWithOptions connects with pool and per-connection runtime parameters.
 func OpenWithOptions(dsn string, opts Options) (*DB, error) {
 	if dsn == "" {
 		return nil, fmt.Errorf("database DSN is required")

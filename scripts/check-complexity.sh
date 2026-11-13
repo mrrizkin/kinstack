@@ -10,9 +10,9 @@ threshold=15
 nesting_ceiling=8
 baseline="scripts/complexity-baseline.tsv"
 
-# Generated templ output is machine-written and excluded; tests measure
+# Generated templ and sqlc output is machine-written and excluded; tests measure
 # fixtures, not the code under review.
-mapfile -t files < <(git ls-files -- '*.go' | grep -v '_templ.go$' | grep -v '_test.go$')
+mapfile -t files < <(git ls-files -- '*.go' | grep -v '_templ.go$' | grep -v '/sqlc/' | grep -v '_test.go$')
 if [[ ${#files[@]} -eq 0 ]]; then
   printf 'check-complexity: no Go files found\n' >&2
   exit 1

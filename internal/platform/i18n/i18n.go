@@ -1,8 +1,5 @@
-// Package i18n provides the response-message catalog used by HTTP handlers,
-// domain errors, flash messages, and email delivery.
-//
-// KinStack currently ships one locale (English). The catalog is keyed so more
-// locales can be added without changing call sites.
+// Package i18n is the response-message catalog. It is keyed, so more locales can
+// be added without changing call sites.
 package i18n
 
 import (
@@ -10,7 +7,6 @@ import (
 	"strings"
 )
 
-// Locale identifies one response language.
 type Locale string
 
 const (
@@ -34,7 +30,6 @@ func Resolve(raw string) Locale {
 	return Default()
 }
 
-// T translates a catalog key using the default locale.
 func T(key string, args ...any) string {
 	return TLocale(Default(), key, args...)
 }

@@ -33,7 +33,6 @@ func NewService(dependency ServiceDependency) *Service {
 	return &Service{repository: dependency.Repository}
 }
 
-// Show returns the profile contract for the signed-in user.
 func (s *Service) Show(ctx context.Context, publicID string) (ProfilePageProps, error) {
 	result, err := s.repository.FindProfile(ctx, publicID)
 	if err != nil {
@@ -58,7 +57,6 @@ func (s *Service) PageSize(ctx context.Context, publicID string) (int, error) {
 	return pagination.SizeOrDefault(size), nil
 }
 
-// UpdateDisplayName stores a new display name for the signed-in user.
 func (s *Service) UpdateDisplayName(
 	ctx context.Context,
 	publicID string,
@@ -80,7 +78,6 @@ func (s *Service) UpdateDisplayName(
 	return toProfileDTO(result), nil
 }
 
-// UpdatePreferences stores personalization settings for the signed-in user.
 func (s *Service) UpdatePreferences(
 	ctx context.Context,
 	publicID string,
@@ -120,7 +117,6 @@ func (s *Service) UpdateTheme(ctx context.Context, publicID, theme string) (Pref
 	})
 }
 
-// VerifyCurrentPassword confirms the supplied password for sensitive changes.
 func (s *Service) VerifyCurrentPassword(
 	ctx context.Context,
 	publicID string,
@@ -212,7 +208,6 @@ func toProfileDTO(result ProfileResult) ProfileDTO {
 	}
 }
 
-// IsNotFound reports whether the error is a missing profile.
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)
 }

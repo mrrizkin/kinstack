@@ -15,7 +15,6 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
-// User is the account data needed by the WebAuthn user boundary.
 type User struct {
 	PublicID    string
 	Email       string
@@ -23,7 +22,6 @@ type User struct {
 	DisplayName string
 }
 
-// PasskeyRecord is the credential data used by the WebAuthn business flow.
 type PasskeyRecord struct {
 	ID         []byte
 	Name       string
@@ -46,7 +44,6 @@ func NewService(dependency ServiceDependency) *Service {
 	return &Service{repository: dependency.Repository}
 }
 
-// FindByPublicID resolves an active account for a protected passkey flow.
 func (s *Service) FindByPublicID(ctx context.Context, id string) (User, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
@@ -59,13 +56,11 @@ func (s *Service) FindByPublicID(ctx context.Context, id string) (User, error) {
 	return userFromResult(result), nil
 }
 
-// ValidatePublicID validates an active account identifier.
 func (s *Service) ValidatePublicID(ctx context.Context, id string) error {
 	_, err := s.FindByPublicID(ctx, id)
 	return err
 }
 
-// ListPasskeys returns the safe public representation for the management page.
 func (s *Service) ListPasskeys(ctx context.Context, id string) ([]PasskeySummary, error) {
 	records, err := s.passkeyRecords(ctx, id)
 	if err != nil {
@@ -78,7 +73,6 @@ func (s *Service) ListPasskeys(ctx context.Context, id string) ([]PasskeySummary
 	return items, nil
 }
 
-// PasskeyRecords returns credentials needed to construct a WebAuthn user.
 func (s *Service) PasskeyRecords(ctx context.Context, id string) ([]PasskeyRecord, error) {
 	return s.passkeyRecords(ctx, id)
 }
@@ -99,7 +93,6 @@ func (s *Service) passkeyRecords(ctx context.Context, id string) ([]PasskeyRecor
 	return records, nil
 }
 
-// SavePasskey validates and persists a newly registered credential.
 func (s *Service) SavePasskey(ctx context.Context, id string, record PasskeyRecord) error {
 	record.Name = strings.TrimSpace(record.Name)
 	if len(record.ID) == 0 || !bytes.Equal(record.ID, record.Credential.ID) ||
@@ -109,12 +102,10 @@ func (s *Service) SavePasskey(ctx context.Context, id string, record PasskeyReco
 	return s.repository.SavePasskey(ctx, strings.TrimSpace(id), record)
 }
 
-// UpdatePasskey persists authenticator state after a successful assertion.
 func (s *Service) UpdatePasskey(ctx context.Context, id string, record PasskeyRecord) error {
 	return s.repository.UpdatePasskey(ctx, strings.TrimSpace(id), record)
 }
 
-// DeletePasskey revokes one credential belonging to the active account.
 func (s *Service) DeletePasskey(ctx context.Context, id string, credentialID []byte) error {
 	if len(credentialID) == 0 {
 		return ErrPasskeyInvalid
@@ -122,7 +113,6 @@ func (s *Service) DeletePasskey(ctx context.Context, id string, credentialID []b
 	return s.repository.DeletePasskey(ctx, strings.TrimSpace(id), credentialID)
 }
 
-// FindPasskeyUser resolves the account and credentials selected by discoverable login.
 func (s *Service) FindPasskeyUser(
 	ctx context.Context,
 	credentialID, userHandle []byte,

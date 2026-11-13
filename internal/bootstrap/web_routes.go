@@ -24,7 +24,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// DependencyCheck is a bounded readiness probe for one runtime dependency.
 type DependencyCheck func(context.Context) error
 
 // ReadinessChecks contains infrastructure probes. Nil checks are reported as
@@ -52,7 +51,6 @@ type WebRoutesDependency struct {
 	Readiness     ReadinessChecks
 }
 
-// RegisterWebRoutes wires the HTTP route table.
 func RegisterWebRoutes(d WebRoutesDependency) {
 	assert.Assert(d.App != nil, "app is required")
 	assert.Assert(d.Config.App.Name != "", "app name is required")
@@ -110,9 +108,8 @@ func RegisterWebRoutes(d WebRoutesDependency) {
 	d.Notifications.Mount(guard)
 }
 
-// dashboardMetrics builds the small workspace summary shown on the dashboard.
-// Counts are best-effort: a failed query renders a zero rather than failing the
-// whole page, because the dashboard remains useful without its cards.
+// dashboardMetrics counts are best-effort: a failed query renders zero rather than
+// failing the page.
 func dashboardMetrics(c fiber.Ctx, d WebRoutesDependency) fiber.Map {
 	metrics := fiber.Map{
 		"users_total": 0, "users_active": 0, "roles_total": 0,

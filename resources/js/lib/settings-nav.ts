@@ -5,8 +5,7 @@ import { icons } from "@/lib/icons";
 import { usePageProps } from "@/lib/page-props";
 
 /**
- * Section labels and copy live under `shell.settings` so every string is
- * translatable. Pages reuse the section title for their document `Head`.
+ * Labels live under `shell.settings`. Pages reuse the section title for `Head`.
  */
 export interface SettingsSection {
   label: string;

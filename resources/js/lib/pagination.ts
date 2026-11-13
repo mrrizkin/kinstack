@@ -1,5 +1,5 @@
 /**
- * Adding a size is a three-way change: here, `internal/pkg/pagination`, and the
+ * A new size is a three-way change: here, `internal/pkg/pagination`, and the
  * `user_preferences.page_size` check constraint.
  */
 export const PAGE_SIZES = [5, 10, 25, 50, 100] as const;
@@ -13,8 +13,7 @@ export function isPageSize(value: number): value is PageSize {
 }
 
 /**
- * A size outside the list still appears, so a link from an older release keeps a
- * selected row instead of blanking the control.
+ * A size outside the list still appears, so an older link keeps its selection.
  */
 export function pageSizeOptions(current: number): { label: string; value: string }[] {
   const sizes = isPageSize(current) ? [...PAGE_SIZES] : [...PAGE_SIZES, current].sort((a, b) => a - b);

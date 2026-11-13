@@ -5,7 +5,6 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-// SessionResponse is the authenticated actor returned to the client.
 type SessionResponse struct {
 	PublicID    string `json:"public_id"`
 	Username    string `json:"username"`

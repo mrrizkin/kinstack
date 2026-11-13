@@ -57,7 +57,6 @@ type RoleDTO struct {
 	Permissions []string `json:"permissions"`
 }
 
-// PermissionDTO is one catalog permission shown in the access matrix.
 type PermissionDTO struct {
 	Code        string `json:"code"`
 	Category    string `json:"category"`
@@ -74,7 +73,6 @@ type OverrideDTO struct {
 	Expired    bool   `json:"expired"`
 }
 
-// UserAccessDTO is a user account with its authorization state.
 type UserAccessDTO struct {
 	PublicID    string        `json:"public_id"`
 	Username    string        `json:"username"`
@@ -107,17 +105,14 @@ type UpdateRoleRequest struct {
 	Rank        int    `json:"rank"`
 }
 
-// SetRolePermissionsRequest replaces a role's permission set.
 type SetRolePermissionsRequest struct {
 	Permissions []string `json:"permissions"`
 }
 
-// AssignRoleRequest changes a user's role.
 type AssignRoleRequest struct {
 	Role string `json:"role"`
 }
 
-// SetOverrideRequest upserts a per-user permission override.
 type SetOverrideRequest struct {
 	Permission string `json:"permission"`
 	Effect     string `json:"effect"`

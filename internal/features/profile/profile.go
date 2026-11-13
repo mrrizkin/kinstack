@@ -21,7 +21,6 @@ type Dependency struct {
 	TwoFactor  *twofactor.Service
 }
 
-// Feature owns the profile service and HTTP entry points.
 type Feature struct {
 	service *Service
 	handler *Handler

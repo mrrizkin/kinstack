@@ -29,7 +29,6 @@ func (c *SecurityConfig) Load() {
 	c.ExtraImageSources = envList("CSP_EXTRA_IMG_SRC")
 }
 
-// Validate rejects values that would break the policy or inject headers.
 func (c SecurityConfig) Validate() error {
 	if c.CSPReportURI != "" && !strings.HasPrefix(c.CSPReportURI, "/") {
 		if parsed, err := url.Parse(

@@ -103,7 +103,6 @@ func (r *MemoryRepository) Revoke(_ context.Context, userPublicID, publicID stri
 	return nil
 }
 
-// RevokeAll revokes every active token of one user.
 func (r *MemoryRepository) RevokeAll(_ context.Context, userPublicID string) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

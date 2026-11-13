@@ -23,7 +23,6 @@ import (
 	fiberlog "github.com/gofiber/fiber/v3/log"
 )
 
-// Run loads configuration, wires dependencies, and starts the HTTP server.
 func Run() error {
 	cfg := config.Load()
 

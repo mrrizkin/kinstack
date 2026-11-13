@@ -20,7 +20,6 @@ import (
 	"kinstack/config"
 )
 
-// ErrUnavailable identifies email delivery that is not configured.
 var ErrUnavailable = errors.New("email delivery is unavailable")
 
 // Message is the complete outbound email contract. IdempotencyKey is stable
@@ -35,7 +34,6 @@ type Message struct {
 	IdempotencyKey string
 }
 
-// Sender is the only dependency application services need for email delivery.
 type Sender interface {
 	Send(context.Context, Message) error
 	Render(name string, data any) (string, error)
@@ -45,11 +43,9 @@ type Sender interface {
 // dropping security-sensitive messages.
 type UnavailableSender struct{ renderer }
 
-// Send always fails with ErrUnavailable.
 func (UnavailableSender) Send(context.Context, Message) error { return ErrUnavailable }
 
-// MemorySender is a deterministic fake for unit and HTTP tests. Successful
-// messages are deduplicated by idempotency key, while failed sends are not.
+// MemorySender deduplicates by idempotency key; failed sends are not recorded.
 type MemorySender struct {
 	renderer
 	mu       sync.Mutex
@@ -59,7 +55,6 @@ type MemorySender struct {
 
 func NewMemorySender() *MemorySender { return &MemorySender{} }
 
-// Send records a message after validating it, deduplicating by idempotency key.
 func (s *MemorySender) Send(_ context.Context, message Message) error {
 	if err := validateMessage(message); err != nil {
 		return err
@@ -78,30 +73,26 @@ func (s *MemorySender) Send(_ context.Context, message Message) error {
 	return nil
 }
 
-// Messages returns a copy of the recorded messages.
 func (s *MemorySender) Messages() []Message {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]Message(nil), s.messages...)
 }
 
-// SetFailure makes subsequent sends fail with err.
 func (s *MemorySender) SetFailure(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.failure = err
 }
 
-// SMTPSender is the production adapter for an SMTP relay. The application can
-// keep its provider-specific credentials at the composition boundary.
+// SMTPSender keeps provider credentials at the composition boundary.
 type SMTPSender struct {
 	renderer
 	config config.EmailConfig
 }
 
-// New returns an SMTP sender when configured. Development environments may
-// intentionally omit SMTP and receive an explicit unavailable error on email
-// mutations; production configuration rejects that state.
+// New returns an unavailable sender when SMTP is unset in development; production
+// configuration rejects that state at startup.
 func New(cfg config.EmailConfig) (Sender, error) {
 	if strings.TrimSpace(cfg.Host) == "" {
 		return UnavailableSender{}, nil
@@ -112,7 +103,6 @@ func New(cfg config.EmailConfig) (Sender, error) {
 	return &SMTPSender{config: cfg}, nil
 }
 
-// Send delivers one message through the configured SMTP relay.
 func (s *SMTPSender) Send(ctx context.Context, message Message) error {
 	if s == nil {
 		return ErrUnavailable
@@ -134,8 +124,8 @@ func (s *SMTPSender) Send(ctx context.Context, message Message) error {
 	return deliverMessage(client, message, addressOnly(s.config.From), addressOnly(message.To))
 }
 
-// dial opens the TCP session and gives the client the caller's deadline, so a
-// stalled relay cannot hold the request open past its context.
+// dial gives the client the caller's deadline, so a stalled relay cannot hold the
+// request open past its context.
 func (s *SMTPSender) dial(ctx context.Context) (*smtp.Client, error) {
 	conn, err := (&net.Dialer{}).DialContext(
 		ctx,
@@ -156,7 +146,6 @@ func (s *SMTPSender) dial(ctx context.Context) (*smtp.Client, error) {
 	return client, nil
 }
 
-// secure upgrades the session when the relay requires TLS, then authenticates.
 func (s *SMTPSender) secure(client *smtp.Client) error {
 	if s.config.StartTLS {
 		if err := client.StartTLS(
@@ -176,7 +165,6 @@ func (s *SMTPSender) secure(client *smtp.Client) error {
 	return nil
 }
 
-// deliverMessage runs the envelope and body exchange for one message.
 func deliverMessage(client *smtp.Client, message Message, from, to string) error {
 	if err := client.Mail(from); err != nil {
 		return fmt.Errorf("set email sender: %w", err)

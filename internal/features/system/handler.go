@@ -47,8 +47,7 @@ const (
 	cspLogValueMax = 200
 )
 
-// cspReportPayload is the subset of the CSP report contract that is safe to
-// log. Unknown fields are ignored.
+// cspReportPayload is the subset of the CSP report contract that is safe to log.
 type cspReportPayload struct {
 	Report struct {
 		Directive   string `json:"effective-directive"`
@@ -59,9 +58,8 @@ type cspReportPayload struct {
 	} `json:"csp-report"`
 }
 
-// cspReport records a browser violation report. Browsers post these without
-// authentication, so the handler reads a bounded body, extracts a few fields,
-// and logs them as escaped structured values instead of the raw payload.
+// cspReport is bounded and logged as escaped structured values, because browsers
+// post these without authentication.
 func (h *Handler) cspReport(c fiber.Ctx) error {
 	reader := io.Reader(bytes.NewReader(c.Body()))
 	if stream := c.Request().BodyStream(); stream != nil {
@@ -101,8 +99,8 @@ func (h *Handler) cspReport(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// sanitizeCSPValue removes control characters (including newlines) and caps the
-// length so attacker-controlled text cannot forge or bloat log entries.
+// sanitizeCSPValue strips control characters and caps the length, so attacker text
+// cannot forge or bloat log entries.
 func sanitizeCSPValue(value string) string {
 	cleaned := strings.Map(func(r rune) rune {
 		if r < 0x20 || r == 0x7f {

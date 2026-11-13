@@ -21,7 +21,6 @@ func (s *Service) NotFound() NotFoundPageProps {
 	return NotFoundPageProps(result)
 }
 
-// Page returns the public system page payload for the requested surface.
 func (s *Service) Page(surface string) PageProps {
 	result := s.repository.Page(surface)
 	shortcuts := make([]Shortcut, 0, len(result.Shortcuts))

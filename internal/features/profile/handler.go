@@ -68,7 +68,6 @@ func (h *Handler) profilePathFor(c fiber.Ctx) string {
 	}
 }
 
-// profileSection maps a dedicated settings route to the panel the page renders.
 func profileSection(path string) string {
 	switch path {
 	case "/profile/security":
@@ -145,8 +144,6 @@ func (h *Handler) show(c fiber.Ctx) error {
 	}
 }
 
-// twoFactorState builds the security-tab contract, including the one-time
-// recovery codes that were just issued during enrollment or rotation.
 func (h *Handler) twoFactorState(c fiber.Ctx, props ProfilePageProps) TwoFactorDTO {
 	state := TwoFactorDTO{RecoveryCodes: []string{}}
 	if h.twoFactor == nil {
@@ -230,7 +227,6 @@ func preferencesField(err error) string {
 	return "theme"
 }
 
-// passwordField maps a validation error onto the password form field.
 func passwordField(err error) string {
 	if errors.Is(err, ErrWrongPassword) {
 		return "current_password"
@@ -241,7 +237,6 @@ func passwordField(err error) string {
 	return "new_password"
 }
 
-// validationError flashes the message both for the field and the page banner.
 func (h *Handler) validationError(c fiber.Ctx, message string, field string) error {
 	message = strings.TrimSpace(message)
 	fields := map[string]string{"form": message}

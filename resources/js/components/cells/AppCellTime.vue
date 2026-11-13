@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * Timestamp cell. Keeps the machine-readable `<time datetime>` attribute and
- * the shared date format in one place.
+ * Timestamp cell: keeps `<time datetime>` and the shared date format.
  */
 import { formatDateTime } from "@/lib/formatters";
 

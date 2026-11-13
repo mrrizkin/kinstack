@@ -8,16 +8,12 @@ import (
 	"kinstack/internal/platform/i18n"
 )
 
-// superuserRank is the rank projected for the break-glass account, above every
-// seeded or custom role.
 const superuserRank = 1000
 
-// principalContextKey stores the acting principal for authorization mutations.
 type principalContextKey struct{}
 
-// WithPrincipal attaches the acting principal to a request context. Handlers do
-// this once so services can enforce delegation rules without threading an actor
-// through every call.
+// WithPrincipal attaches the acting principal so services can enforce delegation rules
+// without threading an actor through every call.
 func WithPrincipal(ctx context.Context, principal Principal) context.Context {
 	return context.WithValue(ctx, principalContextKey{}, principal)
 }
@@ -27,8 +23,8 @@ func PrincipalFromContext(ctx context.Context) (Principal, bool) {
 	return principal, ok && principal.PublicID != ""
 }
 
-// AuthorityError marks a delegation rule violation: the actor is allowed to
-// manage access in general but not this particular role, user, or permission.
+// AuthorityError marks a delegation rule violation: the actor may manage access in
+// general but not this particular role, user, or permission.
 var (
 	// ErrPrivilegeEscalation identifies a change that would grant access the
 	// actor does not hold themselves.
@@ -39,9 +35,8 @@ var (
 	ErrManagementSession = errors.New(i18n.T("authz.reason.browser_session_required"))
 )
 
-// AuthorizeRoleGrant reports whether the actor may assign roleCode to someone
-// else: they must hold access.manage, the role must not outrank them, and every
-// permission of that role must already be effective for them.
+// AuthorizeRoleGrant requires access.manage, a role that does not outrank the actor, and
+// every permission of that role already effective for them.
 func (s *Service) AuthorizeRoleGrant(ctx context.Context, roleCode string) error {
 	actor, err := s.actingPrincipal(ctx)
 	if err != nil {
@@ -51,8 +46,7 @@ func (s *Service) AuthorizeRoleGrant(ctx context.Context, roleCode string) error
 	return err
 }
 
-// AuthorizeRoleEdit reports whether the actor may rename, re-rank, re-permission
-// or delete a role. Built-in roles stay immutable.
+// AuthorizeRoleEdit keeps built-in roles immutable.
 func (s *Service) AuthorizeRoleEdit(ctx context.Context, roleCode string, newRank int) error {
 	actor, err := s.actingPrincipal(ctx)
 	if err != nil {
@@ -78,7 +72,6 @@ func (s *Service) AuthorizeRoleEdit(ctx context.Context, roleCode string, newRan
 	return ensureSubset(ctx, s, permissions, role.Code)
 }
 
-// AuthorizeNewRole reports whether the actor may create a role at this rank.
 func (s *Service) AuthorizeNewRole(ctx context.Context, rank int) error {
 	actor, err := s.actingPrincipal(ctx)
 	if err != nil {
@@ -94,8 +87,7 @@ func (s *Service) AuthorizeNewRole(ctx context.Context, rank int) error {
 	return nil
 }
 
-// AuthorizePermissions reports whether the actor holds every listed permission,
-// so they cannot hand out access they do not have.
+// AuthorizePermissions prevents handing out access the actor does not hold.
 func (s *Service) AuthorizePermissions(ctx context.Context, codes []Permission) error {
 	actor, err := s.actingPrincipal(ctx)
 	if err != nil {
@@ -113,9 +105,6 @@ func (s *Service) AuthorizePermissions(ctx context.Context, codes []Permission) 
 	return nil
 }
 
-// AuthorizeUserChange reports whether the actor may change another account's
-// role or overrides. Actors cannot change their own authority, and they cannot
-// modify an account whose role outranks them.
 func (s *Service) AuthorizeUserChange(ctx context.Context, targetPublicID string) error {
 	actor, err := s.actingPrincipal(ctx)
 	if err != nil {
@@ -136,8 +125,8 @@ func (s *Service) AuthorizeUserChange(ctx context.Context, targetPublicID string
 		return err
 	}
 	if roleCode == "" {
-		// Accounts that were just created have no role row yet; the repository
-		// still validates that the account exists.
+		// Accounts created moments ago have no role row yet; the repository still validates
+		// that the account exists.
 		return nil
 	}
 	target, err := s.repository.FindRole(ctx, roleCode)
@@ -150,9 +139,8 @@ func (s *Service) AuthorizeUserChange(ctx context.Context, targetPublicID string
 	return nil
 }
 
-// actingPrincipal returns the principal attached by a handler and requires an
-// interactive session: authority changes are never allowed from an API token,
-// even one holding access.manage.
+// actingPrincipal requires an interactive session: authority changes are never allowed
+// from an API token, even one holding access.manage.
 func (s *Service) actingPrincipal(ctx context.Context) (Principal, error) {
 	actor, ok := PrincipalFromContext(ctx)
 	if !ok {

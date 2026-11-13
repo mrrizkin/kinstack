@@ -1,9 +1,6 @@
 <script setup lang="ts">
 /**
- * Identity cell: a display name, optional handle and email, and optional badges.
- *
- * Shared by the users and access slices. It takes flat props rather than a `User`
- * type so `resources/js/components` never depends on `resources/js/pages`.
+ * Identity cell. Takes flat props so `components` never imports from `pages`.
  */
 import AppCellBadge from "@/components/cells/AppCellBadge.vue";
 import type { CellBadgeSpec } from "@/components/cells/types";

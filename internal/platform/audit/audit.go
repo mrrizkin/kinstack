@@ -10,12 +10,10 @@ import (
 	"kinstack/internal/platform/clock"
 )
 
-// Audit validates events and delegates persistence to a Repository.
 type Audit struct {
 	repository Repository
 }
 
-// New creates an Audit service backed by repository.
 func New(repository Repository) *Audit {
 	assert.Assert(repository != nil, "audit: repository is required")
 
@@ -27,7 +25,6 @@ var (
 	_ Reader   = (*Audit)(nil)
 )
 
-// Record validates and appends an event.
 func (a *Audit) Record(ctx context.Context, event Event) error {
 	if err := ctx.Err(); err != nil {
 		return err

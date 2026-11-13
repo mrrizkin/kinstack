@@ -14,8 +14,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// login validates username/password credentials, applies the second-factor
-// challenge when required, and establishes the browser session.
 func (h *Handler) login(c fiber.Ctx) error {
 	var request LoginRequest
 	if err := c.Bind().Body(&request); err != nil {
@@ -68,8 +66,6 @@ func (h *Handler) login(c fiber.Ctx) error {
 	return h.completeLogin(c, session)
 }
 
-// twoFactorPage renders the second-factor challenge for a valid password that
-// still needs a TOTP or recovery code.
 func (h *Handler) twoFactorPage(c fiber.Ctx) error {
 	if _, ok := platformsession.PendingTwoFactorActor(c); !ok {
 		return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
@@ -84,7 +80,6 @@ func (h *Handler) twoFactorPage(c fiber.Ctx) error {
 	return err
 }
 
-// verifyTwoFactor completes a pending challenge and establishes the session.
 func (h *Handler) verifyTwoFactor(c fiber.Ctx) error {
 	publicID, ok := platformsession.PendingTwoFactorActor(c)
 	if !ok {
@@ -126,8 +121,6 @@ func (h *Handler) verifyTwoFactor(c fiber.Ctx) error {
 	return h.establishSession(c, session)
 }
 
-// completeLogin applies the shared second-factor challenge and then establishes
-// the authenticated session.
 func (h *Handler) completeLogin(c fiber.Ctx, session SessionResponse) error {
 	if !session.Superuser && h.twoFactor != nil {
 		enabled, err := h.twoFactor.IsEnabled(c.Context(), session.PublicID)
@@ -150,8 +143,6 @@ func (h *Handler) completeLogin(c fiber.Ctx, session SessionResponse) error {
 	return h.establishSession(c, session)
 }
 
-// establishSession stores the authenticated actor, tracks the browser session,
-// and redirects to the signed-in landing page.
 func (h *Handler) establishSession(c fiber.Ctx, session SessionResponse) error {
 	if err := h.setSession(c, session); err != nil {
 		return err
@@ -159,8 +150,6 @@ func (h *Handler) establishSession(c fiber.Ctx, session SessionResponse) error {
 	return c.Redirect().Status(fiber.StatusSeeOther).To(h.homePath(session.Superuser))
 }
 
-// setSession stores the authenticated actor and tracks the browser session
-// without redirecting. Non-password authenticators use it to finish sign-in.
 func (h *Handler) setSession(c fiber.Ctx, session SessionResponse) error {
 	if err := h.actor.SetActor(c, actor.SessionActor{
 		PublicID:    session.PublicID,
@@ -176,15 +165,13 @@ func (h *Handler) setSession(c fiber.Ctx, session SessionResponse) error {
 	return nil
 }
 
-// cancelTwoFactor abandons a pending challenge and returns to the login page.
 func (h *Handler) cancelTwoFactor(c fiber.Ctx) error {
 	platformsession.ClearTwoFactorChallenge(c)
 	return c.Redirect().Status(fiber.StatusSeeOther).To(h.loginPath())
 }
 
-// registerSession records the freshly authenticated browser session so it can
-// be listed and revoked from the profile security page. The ephemeral
-// break-glass super admin has no account and therefore no tracked session.
+// registerSession records the session so it can be listed and revoked; the break-glass
+// super admin has no account and therefore no tracked session.
 func (h *Handler) registerSession(c fiber.Ctx, session SessionResponse) {
 	if h.sessions == nil || session.Superuser {
 		return
@@ -199,7 +186,6 @@ func (h *Handler) registerSession(c fiber.Ctx, session SessionResponse) {
 	}
 }
 
-// logout clears the actor and revokes the tracked browser session.
 func (h *Handler) logout(c fiber.Ctx) error {
 	sessionID := platformsession.CurrentID(c)
 	if err := h.actor.ClearActor(c); err != nil {
@@ -211,6 +197,5 @@ func (h *Handler) logout(c fiber.Ctx) error {
 			log.ForRequest(h.logger, c.RequestID()).Errorw("revoke browser session", "error", err)
 		}
 	}
-	// Root resolves to the auth path for signed-out visitors.
 	return c.Redirect().Status(fiber.StatusSeeOther).To("/")
 }

@@ -90,13 +90,11 @@ func newFiberApp(d FiberAppDependency) *fiber.App {
 	return app
 }
 
-// registerStaticAssets serves the Vite build output and the public root files.
-// Inertia switches to dev-server URLs while public/hot exists, so the same
-// binary keeps working with and without the Vite dev server.
-// trustProxyConfig binds forwarded headers to the deployment's own proxies.
-// Private and loopback peers cover a reverse proxy on the same host or network;
-// TRUSTED_PROXIES adds a load balancer that answers from a public address,
-// which would otherwise make every client share one rate-limit bucket.
+// registerStaticAssets serves the Vite build output; Inertia switches to dev-server
+// URLs while public/hot exists.
+// trustProxyConfig binds forwarded headers to the deployment's own proxies: a load
+// balancer answering from a public address would otherwise share one rate-limit
+// bucket across every client.
 func trustProxyConfig(app config.AppConfig) *fiber.TrustProxyConfig {
 	if app.Env != "production" && len(app.TrustedProxies) == 0 {
 		return nil

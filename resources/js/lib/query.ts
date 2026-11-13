@@ -1,8 +1,7 @@
 export type QueryValue = string | number | boolean | null | undefined;
 
 /**
- * Builds a query string for a URL. Empty values are omitted so callers can pass
- * optional filters without assembling `?key=value` by hand.
+ * Empty values are omitted, so callers can pass optional filters directly.
  */
 export function queryString(values: Record<string, QueryValue>): string {
   const params = new URLSearchParams();

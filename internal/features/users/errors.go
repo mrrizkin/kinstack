@@ -7,25 +7,16 @@ import (
 )
 
 var (
-	// ErrNotFound identifies a missing user account.
-	ErrNotFound = errors.New(i18n.T("users.not_found"))
-	// ErrUsernameTaken identifies a duplicate username.
+	ErrNotFound      = errors.New(i18n.T("users.not_found"))
 	ErrUsernameTaken = errors.New(i18n.T("users.username_taken"))
-	// ErrEmailTaken identifies a duplicate email address.
-	ErrEmailTaken = errors.New(i18n.T("users.email_taken"))
-	// ErrInvalidInput identifies malformed user input.
-	ErrInvalidInput = errors.New(i18n.T("users.invalid_input"))
-	// ErrInvalidRole identifies an unknown role.
-	ErrInvalidRole = errors.New(i18n.T("users.invalid_role"))
+	ErrEmailTaken    = errors.New(i18n.T("users.email_taken"))
+	ErrInvalidInput  = errors.New(i18n.T("users.invalid_input"))
+	ErrInvalidRole   = errors.New(i18n.T("users.invalid_role"))
 	// ErrLastAdministrator prevents disabling the last account that can manage access.
-	ErrLastAdministrator = errors.New(i18n.T("users.last_administrator"))
-	// ErrAuthorizationUnavailable identifies missing authorization wiring.
+	ErrLastAdministrator        = errors.New(i18n.T("users.last_administrator"))
 	ErrAuthorizationUnavailable = errors.New(i18n.T("users.authorization_unavail"))
-	// ErrForbidden identifies a role or account change the actor may not make
-	// because it would exceed their own authority.
-	ErrForbidden = errors.New(i18n.T("authz.reason.privilege_escalation"))
-	// ErrSelfChange identifies an attempt to change the actor's own authority.
+	// ErrForbidden is a change that would exceed the actor's own authority.
+	ErrForbidden  = errors.New(i18n.T("authz.reason.privilege_escalation"))
 	ErrSelfChange = errors.New(i18n.T("authz.reason.self_change"))
-	// ErrSystemRole identifies a protected built-in role.
 	ErrSystemRole = errors.New(i18n.T("authz.reason.system_role"))
 )

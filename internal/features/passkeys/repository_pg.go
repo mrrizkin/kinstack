@@ -33,7 +33,6 @@ type RepositoryDependency struct {
 	DB *sqlx.DB
 }
 
-// NewSQLRepository prepares regular passkey queries once for the repository lifetime.
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "passkey database is required")
 

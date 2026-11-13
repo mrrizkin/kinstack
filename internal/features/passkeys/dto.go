@@ -12,7 +12,6 @@ type PasskeySummary struct {
 	LastUsedAt string `json:"last_used_at,omitempty"`
 }
 
-// PasskeysPageProps contains the credentials rendered by the management page.
 type PasskeysPageProps struct {
 	Passkeys []PasskeySummary `json:"passkeys"`
 }

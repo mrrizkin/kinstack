@@ -2,13 +2,10 @@ package system
 
 import "kinstack/internal/platform/i18n"
 
-// This feature intentionally has no PostgreSQL adapter. System state and help
-// pages are application-owned static content, so production uses this
-// explicit no-database repository instead of treating the test memory
-// repository as a runtime fallback.
-//
-// The file retains the canonical repository_pg.go slot so the feature shape is
-// uniform while the exception remains visible at the production boundary.
+// This feature intentionally has no PostgreSQL adapter: system pages are
+// application-owned static content, so production uses this explicit
+// no-database repository rather than treating the test repository as a runtime
+// fallback.
 type StaticRepository struct{}
 
 var _ Repository = (*StaticRepository)(nil)

@@ -196,7 +196,21 @@ Validate fully at the edge, trust types inside.
 - Runtime parsing at every trust boundary: HTTP input, storage reads, route
   params, webhook payloads. A TypeScript type is not a parser; zod is.
 - **Schemas are versioned.** Migrations are explicit, tested, and never edited
-  after they are applied.
+  after they are applied. `just migrations-seal` only appends rows to
+  `db/migrations/checksums.tsv`: a sealed migration that changed fails the
+  build, and resealing is not a fix.
+- **Read queries are generated; writes are written.** `sqlc` owns the read
+  models: list/count/find statements live in `<slice>/queries.sql`, are checked
+  against `db/schema.sql` when they are generated, and their rows are mapped to
+  domain types inside `repository_pg.go`. Writes stay hand-written in sqlx
+  because they carry advisory locks, `RETURNING` projections, and `23505`
+  constraint classification that a generator cannot express. The dynamic audit
+  filter stays hand-written for the same reason: a generator has no answer for
+  six optional predicates.
+- **Generated SQL is committed.** `go build` works without running a generator,
+  and the SQL reviewed in a pull request is the SQL that ships.
+  `db/schema.sql` is rendered from the migrations, because one goose file holds
+  both directions and sqlc would let every Down section undo its Up section.
 - **No secrets in code.** Least privilege everywhere; authorization rules live in
   the platform layer, never in a handler.
 - **Contracts are written**: shape, limits, and the errors a component may
@@ -209,7 +223,8 @@ Validate fully at the edge, trust types inside.
   a decision §11 says belongs to the service. `c.Params("publicID")` travelling
   as a string to the service is correct for that reason, not by omission.
 
-`[GATE]` `just verify` (types, tests, lint), `just check-secrets` (CI), and the
+`[GATE]` `just verify` (types, tests, lint), `just check-sqlc` (regenerates and
+fails when the committed output is stale), `just check-secrets` (CI), and the
 CI migration job, which applies every migration up before the suite runs.
 
 `[RITUS]` *What is the untrusted edge here, and where exactly is it parsed?*

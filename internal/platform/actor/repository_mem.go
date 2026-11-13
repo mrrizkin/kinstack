@@ -6,7 +6,6 @@ import (
 	"sync"
 )
 
-// MemoryRepository is an in-memory actor repository for tests and local runs.
 type MemoryRepository struct {
 	mu     sync.RWMutex
 	active map[string]struct{}
@@ -14,7 +13,6 @@ type MemoryRepository struct {
 
 var _ Repository = (*MemoryRepository)(nil)
 
-// NewMemoryRepository creates a repository with the supplied active actors.
 func NewMemoryRepository(publicIDs ...string) *MemoryRepository {
 	repository := &MemoryRepository{active: make(map[string]struct{}, len(publicIDs))}
 	for _, publicID := range publicIDs {

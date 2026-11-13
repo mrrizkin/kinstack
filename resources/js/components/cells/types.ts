@@ -1,8 +1,5 @@
 /**
- * Structural types shared by table cell components.
- *
- * Cells never import feature types from `resources/js/pages`; callers map a row
- * onto these shapes at the column boundary.
+ * Cell prop types, so cells never import feature types from `pages`.
  */
 export type CellBadgeColor = "primary" | "secondary" | "success" | "info" | "warning" | "error" | "neutral";
 

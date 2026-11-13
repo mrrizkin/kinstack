@@ -1,6 +1,5 @@
 package log
 
-// Log is the application logging contract used by features.
 type Log interface {
 	Tracew(msg string, keysAndValues ...any)
 	Debugw(msg string, keysAndValues ...any)

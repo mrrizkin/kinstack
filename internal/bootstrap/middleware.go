@@ -35,10 +35,9 @@ type GlobalMiddlewareDependency struct {
 	Telemetry     *observability.Telemetry
 }
 
-// RegisterGlobalMiddleware wires session/rate-limit/CSRF middleware plus the
-// request context and Inertia shared props, in that order. Transport middleware
-// (headers, request ids, logging) is registered separately so static assets can
-// sit between the two layers.
+// RegisterGlobalMiddleware wires session/rate-limit/CSRF, the request context, and
+// Inertia props. Transport middleware is separate so static assets can sit
+// between the two layers.
 func RegisterGlobalMiddleware(d GlobalMiddlewareDependency) {
 	assert.Assert(d.App != nil, "app is required")
 	assert.Assert(d.Inertia != nil, "inertia is required")

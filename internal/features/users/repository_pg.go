@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
+	usersqlc "kinstack/internal/features/users/sqlc"
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/pagination"
 	platformdatabase "kinstack/internal/platform/database"
@@ -33,27 +35,6 @@ u.last_login_at,
 u.created_at`
 
 const (
-	listUsersQuery = `
-SELECT ` + userProjection + `
-FROM users u
-WHERE u.deleted_at IS NULL
-ORDER BY u.created_at ASC, u.id ASC
-LIMIT $1 OFFSET $2`
-
-	countUsersQuery = `
-SELECT
-    COUNT(*) AS total,
-    COUNT(*) FILTER (WHERE u.is_active) AS active
-FROM users u
-WHERE u.deleted_at IS NULL`
-
-	findUserByPublicIDQuery = `
-SELECT ` + userProjection + `
-FROM users u
-WHERE u.public_id = $1
-  AND u.deleted_at IS NULL
-LIMIT 1`
-
 	createUserQuery = `
 WITH inserted AS (
     INSERT INTO users (public_id, username, email, display_name, password_hash, invited_at)
@@ -130,11 +111,11 @@ FROM updated u`
 )
 
 type SQLRepository struct {
-	db           *sqlx.DB
-	owner        *platformdatabase.StatementOwner
-	listStmt     *sqlx.Stmt
-	countStmt    *sqlx.Stmt
-	findStmt     *sqlx.Stmt
+	db    *sqlx.DB
+	owner *platformdatabase.StatementOwner
+	// reads are generated from queries.sql; writes stay prepared here because
+	// they carry error classification and RETURNING projections.
+	reads        *usersqlc.Queries
 	createStmt   *sqlx.Stmt
 	updateStmt   *sqlx.Stmt
 	passwordStmt *sqlx.Stmt
@@ -150,16 +131,18 @@ type RepositoryDependency struct {
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "users database is required")
 
+	reads, err := usersqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare users reads: %w", err)
+	}
+
 	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &SQLRepository{db: dependency.DB, owner: owner}
+	repository := &SQLRepository{db: dependency.DB, owner: owner, reads: reads}
 	statements := []struct {
 		target **sqlx.Stmt
 		name   string
 		query  string
 	}{
-		{&repository.listStmt, "users_list", listUsersQuery},
-		{&repository.countStmt, "users_count", countUsersQuery},
-		{&repository.findStmt, "users_find_by_public_id", findUserByPublicIDQuery},
 		{&repository.createStmt, "users_create", createUserQuery},
 		{&repository.updateStmt, "users_update", updateUserQuery},
 		{&repository.passwordStmt, "users_update_password", updatePasswordQuery},
@@ -168,7 +151,7 @@ func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	for _, statement := range statements {
 		stmt, err := owner.Prepare(statement.name, statement.query)
 		if err != nil {
-			return nil, err
+			return nil, errors.Join(err, reads.Close())
 		}
 		*statement.target = stmt
 	}
@@ -179,47 +162,76 @@ func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return errors.Join(r.reads.Close(), r.owner.Close())
 }
 
-// ListUsers returns one page of non-deleted accounts.
 func (r *SQLRepository) ListUsers(
 	ctx context.Context,
 	query pagination.Query,
 ) ([]UserResult, error) {
-	rows := make([]UserResult, 0)
-	if err := r.listStmt.SelectContext(ctx, &rows, query.Limit(), query.Offset()); err != nil {
+	rows, err := r.reads.ListUsers(ctx, usersqlc.ListUsersParams{
+		Limit:  int32(query.Limit()),
+		Offset: int32(query.Offset()),
+	})
+	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
-	return rows, nil
+	results := make([]UserResult, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, UserResult{
+			PublicID:    row.PublicID,
+			Username:    row.Username,
+			Email:       row.Email,
+			DisplayName: row.DisplayName,
+			Role:        row.Role,
+			IsActive:    row.IsActive,
+			Invited:     row.Invited,
+			LastLoginAt: nullableTime(row.LastLoginAt),
+			CreatedAt:   row.CreatedAt,
+		})
+	}
+	return results, nil
 }
 
-// CountUsers returns the total and active account counts in one query.
 func (r *SQLRepository) CountUsers(ctx context.Context) (UserCounts, error) {
-	var counts UserCounts
-	if err := r.countStmt.GetContext(ctx, &counts); err != nil {
+	counts, err := r.reads.CountUsers(ctx)
+	if err != nil {
 		return UserCounts{}, fmt.Errorf("count users: %w", err)
 	}
-	return counts, nil
+	return UserCounts{Total: int(counts.Total), Active: int(counts.Active)}, nil
 }
 
-// FindUserByPublicID resolves a single account.
 func (r *SQLRepository) FindUserByPublicID(
 	ctx context.Context,
 	publicID string,
 ) (UserResult, error) {
-	var result UserResult
-	err := r.findStmt.GetContext(ctx, &result, publicID)
+	row, err := r.reads.FindUserByPublicID(ctx, publicID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return UserResult{}, ErrNotFound
 	}
 	if err != nil {
 		return UserResult{}, fmt.Errorf("find user: %w", err)
 	}
-	return result, nil
+	return UserResult{
+		PublicID:    row.PublicID,
+		Username:    row.Username,
+		Email:       row.Email,
+		DisplayName: row.DisplayName,
+		Role:        row.Role,
+		IsActive:    row.IsActive,
+		Invited:     row.Invited,
+		LastLoginAt: nullableTime(row.LastLoginAt),
+		CreatedAt:   row.CreatedAt,
+	}, nil
 }
 
-// CreateUser inserts a new account and maps duplicate usernames to ErrUsernameTaken.
+func nullableTime(value sql.NullTime) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Time
+}
+
 func (r *SQLRepository) CreateUser(ctx context.Context, input CreateUserInput) (UserResult, error) {
 	var result UserResult
 	err := r.createStmt.GetContext(
@@ -244,7 +256,6 @@ func (r *SQLRepository) CreateUser(ctx context.Context, input CreateUserInput) (
 	return result, nil
 }
 
-// UpdateUser edits an account display name.
 func (r *SQLRepository) UpdateUser(ctx context.Context, input UpdateUserInput) (UserResult, error) {
 	var result UserResult
 	err := r.updateStmt.GetContext(
@@ -269,7 +280,6 @@ func (r *SQLRepository) UpdateUser(ctx context.Context, input UpdateUserInput) (
 	return result, nil
 }
 
-// UpdatePassword replaces an account password hash.
 func (r *SQLRepository) UpdatePassword(ctx context.Context, publicID, hash string) error {
 	result, err := r.passwordStmt.ExecContext(ctx, publicID, hash)
 	if err != nil {
@@ -285,10 +295,8 @@ func (r *SQLRepository) UpdatePassword(ctx context.Context, publicID, hash strin
 	return nil
 }
 
-// DeactivateGuarded disables an account and refuses when it is the last active
-// account that can manage access. The check and the update share one
-// transaction under an advisory lock, so two concurrent deactivations cannot
-// both observe a surviving administrator.
+// DeactivateGuarded checks and updates in one transaction under an advisory lock, so two
+// concurrent deactivations cannot both observe a surviving administrator.
 func (r *SQLRepository) DeactivateGuarded(
 	ctx context.Context,
 	publicID string,
@@ -325,7 +333,6 @@ func (r *SQLRepository) DeactivateGuarded(
 	return result, nil
 }
 
-// SetActive enables or disables an account.
 func (r *SQLRepository) SetActive(
 	ctx context.Context,
 	publicID string,

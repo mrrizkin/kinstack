@@ -26,7 +26,6 @@ func NewMemoryRepository(now func() time.Time) *MemoryRepository {
 	return &MemoryRepository{items: map[string]Notification{}, now: now}
 }
 
-// Seed inserts one notification into the memory store.
 func (r *MemoryRepository) Seed(notification Notification) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -45,7 +44,6 @@ func (r *MemoryRepository) Seed(notification Notification) {
 	r.order = append(r.order, notification.PublicID)
 }
 
-// List returns one keyset window of the recipient's notifications, newest first.
 func (r *MemoryRepository) List(
 	_ context.Context,
 	recipientPublicID string,
@@ -157,7 +155,6 @@ func (r *MemoryRepository) MarkAllRead(_ context.Context, recipientPublicID stri
 	return affected, nil
 }
 
-// SeedDefault inserts an unread notification owned by the given recipient.
 func SeedDefault(repository *MemoryRepository, recipientPublicID, publicID, title string) {
 	assert.Assert(repository != nil, "memory repository is required")
 

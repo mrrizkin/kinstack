@@ -52,7 +52,6 @@ func NewService(d ServiceDependency) *Service {
 	return &Service{repository: d.Repository, now: now}
 }
 
-// CreatedToken carries the one-time plaintext token returned at creation.
 type CreatedToken struct {
 	Token    string
 	APIToken APITokenDTO
@@ -68,7 +67,6 @@ func requireUser(userPublicID string) (string, error) {
 	return trimmed, nil
 }
 
-// Create issues a new personal API token and returns its plaintext value once.
 func (s *Service) Create(
 	ctx context.Context,
 	userPublicID string,
@@ -129,7 +127,6 @@ func (s *Service) Create(
 	}, nil
 }
 
-// List returns every active token of one user, newest first.
 func (s *Service) List(
 	ctx context.Context,
 	userPublicID string,
@@ -155,7 +152,6 @@ func (s *Service) List(
 	return TokenPage{Tokens: tokens, Page: pagination.NewPage(query, total)}, nil
 }
 
-// Revoke marks one token owned by the user as revoked.
 func (s *Service) Revoke(ctx context.Context, userPublicID, tokenPublicID string) error {
 	userPublicID, err := requireUser(userPublicID)
 	if err != nil {
@@ -168,8 +164,7 @@ func (s *Service) Revoke(ctx context.Context, userPublicID, tokenPublicID string
 	return s.repository.Revoke(ctx, userPublicID, tokenPublicID)
 }
 
-// RevokeAll revokes every personal API token of one user. Used after a
-// password reset so a leaked token cannot keep acting on the account.
+// RevokeAll runs after a password reset so a leaked token cannot keep acting.
 func (s *Service) RevokeAll(ctx context.Context, userPublicID string) error {
 	userPublicID, err := requireUser(userPublicID)
 	if err != nil {
@@ -179,9 +174,8 @@ func (s *Service) RevokeAll(ctx context.Context, userPublicID string) error {
 	return err
 }
 
-// Authenticate resolves a raw bearer token to its owning user public ID and
-// scope allowlist. The token must exist, be unrevoked, unexpired, and match its
-// stored hash. An empty scope list means the token grants nothing.
+// Authenticate requires an existing, unrevoked, unexpired token whose hash matches;
+// an empty scope list grants nothing.
 func (s *Service) Authenticate(ctx context.Context, raw string) (string, []string, error) {
 	tokenPublicID, secret, ok := splitToken(raw)
 	if !ok {

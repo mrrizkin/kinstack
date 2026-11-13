@@ -1,6 +1,6 @@
 /**
- * Shared visibility rules for sidebar and dashboard entries. Feature flags come
- * from the server so the UI never links to a route that was not mounted.
+ * Sidebar and dashboard visibility rules. Flags come from the server, so a link
+ * never points at an unmounted route.
  */
 export interface NavigationGate {
   permission?: string;

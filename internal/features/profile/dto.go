@@ -16,7 +16,6 @@ type PreferencesDTO struct {
 	PageSize     int    `json:"page_size"`
 }
 
-// ActiveSessionDTO describes one signed-in browser session of the account.
 type ActiveSessionDTO struct {
 	PublicID   string `json:"public_id"`
 	IP         string `json:"ip"`
@@ -64,7 +63,6 @@ type ConfirmTwoFactorRequest struct {
 	Code string `json:"code"`
 }
 
-// PasswordProtectedRequest carries the password required for two-factor changes.
 type PasswordProtectedRequest struct {
 	Password string `json:"password"`
 }

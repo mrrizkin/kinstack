@@ -1,8 +1,6 @@
 /**
- * Icon registry: the only place an icon name is written.
- *
- * One collection, so migrating is an edit to this file. Values stay literal
- * because the Nuxt UI Vite plugin bundles icons by scanning source.
+ * The only place an icon name is written. Values stay literal because the Nuxt
+ * UI plugin bundles icons by scanning source.
  */
 export const icons = {
   // Shell navigation

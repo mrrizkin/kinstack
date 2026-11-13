@@ -4,8 +4,7 @@ import { z } from "zod";
 import { errorResponseSchema, type Problem } from "./contracts/page-props";
 
 /**
- * Consistent request failure raised at the JSON boundary. Carries the HTTP
- * status and, when the server sent one, the stable `httperror.Problem` payload.
+ * A failed request: status plus, when present, the `httperror.Problem` payload.
  */
 export class RequestError extends Error {
   readonly status: number;
@@ -45,12 +44,8 @@ function failure(status: number, payload: unknown): RequestError {
 }
 
 /**
- * Sends a same-origin JSON request through Inertia's HTTP client, validates the
- * payload and turns any non-2xx response into a `RequestError`.
- *
- * Endpoints that answer with a redirect (and therefore HTML) should pass
- * `z.unknown()`, which accepts the empty payload after the browser follows the
- * redirect.
+ * Same-origin JSON request: validates the payload and turns a non-2xx response
+ * into `RequestError`. Redirect endpoints should pass `z.unknown()`.
  */
 export async function requestJson<T>(path: string, schema: z.ZodType<T>, options: RequestJsonOptions = {}): Promise<T> {
   const verbs = { GET: "get", POST: "post", PUT: "put", PATCH: "patch", DELETE: "delete" } as const;

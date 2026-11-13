@@ -18,8 +18,10 @@ report() {
   fi
 }
 
+# templ and sqlc own the formatting of their output; reformatting it would make
+# the generator's next diff unstable.
 go_files() {
-  git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go'
+  git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go' ':!*/sqlc/*.go'
 }
 
 report goimports "$(go_files | xargs -0 -r go tool goimports -l)"

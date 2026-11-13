@@ -89,7 +89,6 @@ func TestPropertyPageIsSelfConsistent(t *testing.T) {
 	}
 }
 
-// quickCheck runs the standard library property runner with a fixed budget.
 func quickCheck(property any) error {
 	return quick.Check(property, &quick.Config{MaxCount: 2000})
 }

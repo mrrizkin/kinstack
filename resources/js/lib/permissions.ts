@@ -1,9 +1,6 @@
 /**
- * Permission helpers mirroring the server-side authz catalog.
- *
- * The server shares the effective permission codes for the current actor as the
- * `permissions` Inertia prop. UI gating is a convenience only: every route is
- * still guarded on the server, so hiding a menu item never grants access.
+ * UI gating mirrors the server catalog. It is convenience only: hiding a menu
+ * item never grants access.
  */
 import type { ComputedRef } from "vue";
 

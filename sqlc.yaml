@@ -1,0 +1,19 @@
+version: "2"
+
+# Read models only. Writes, transactions, and the dynamic audit filter stay in
+# sqlx (see PILLARS.md §5): a generated write helper would replace code that
+# already needs hand-written error classification and locks.
+#
+# `just sqlc-generate` rebuilds db/schema.sql from the migrations first; sqlc
+# parses that file instead of the goose migrations, which contain both
+# directions in each file.
+sql:
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/users/queries.sql
+    gen:
+      go:
+        package: usersqlc
+        out: internal/features/users/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true

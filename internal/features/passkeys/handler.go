@@ -24,7 +24,6 @@ import (
 
 const passkeysPath = "/passkeys"
 
-// ceremonySessionKey names the session entry holding one pending WebAuthn ceremony.
 const ceremonySessionKey = "auth.passkey.ceremony"
 
 // SessionStarter signs an account in after a verified credential assertion. The
@@ -80,13 +79,11 @@ func NewHandler(d HandlerDependency) *Handler {
 	}
 }
 
-// MountPublic registers the unauthenticated passkey sign-in routes.
 func (h *Handler) MountPublic(router fiber.Router) {
 	router.Post("/login/passkey/options", h.beginPasskeyLogin)
 	router.Post("/login/passkey", h.finishPasskeyLogin)
 }
 
-// MountWorkspace registers the authenticated credential-management routes.
 func (h *Handler) MountWorkspace(router fiber.Router) {
 	router.Get("/passkeys", h.passkeys)
 	router.Post("/passkeys/register/options", h.beginPasskeyRegistration)

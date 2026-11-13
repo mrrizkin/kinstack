@@ -157,8 +157,7 @@ function applyFilters() {
 }
 
 /**
- * A quick filter composes with the applied values, so a chip click can never
- * submit an unvalidated draft from the form. Unapplied edits are replaced.
+ * A chip click can never submit the unvalidated draft from the form.
  */
 function selectQuickFilter(key: string) {
   if (key === RESET_FILTER_KEY) {

@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -12,10 +13,10 @@ import (
 	"time"
 )
 
-// checksumFile pins every migration to the bytes that were reviewed. A
+// ChecksumFile pins every migration to the bytes that were reviewed. A
 // migration that already ran must never change; a correction is a new
 // migration. `just migrations-seal` writes the file when one is added.
-const checksumFile = "checksums.tsv"
+const ChecksumFile = "checksums.tsv"
 
 var migrationNamePattern = regexp.MustCompile(`^(\d{8})(\d{4})_([a-z0-9]+(?:_[a-z0-9]+)*)\.sql$`)
 
@@ -74,7 +75,7 @@ func validateChecksums(contents map[string][]byte) error {
 		if !ok {
 			return fmt.Errorf("migration %q is not sealed; run just migrations-seal", name)
 		}
-		if expected != fmt.Sprintf("%x", sha256.Sum256(contents[name])) {
+		if expected != checksum(contents[name]) {
 			return fmt.Errorf(
 				"migration %q changed after it was sealed; add a new migration instead",
 				name,
@@ -89,23 +90,62 @@ func validateChecksums(contents map[string][]byte) error {
 	return nil
 }
 
-func readSealedChecksums() (map[string]string, error) {
-	raw, err := fs.ReadFile(Files, checksumFile)
-	if err != nil {
-		return nil, fmt.Errorf("read migration checksums: %w", err)
-	}
-	sealed := make(map[string]string)
-	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+type checksumEntry struct {
+	sum  string
+	name string
+}
+
+// parseChecksums requires sorted, unique rows so a hand-edited file is visible
+// rather than silently collapsed into a map.
+func parseChecksums(raw []byte) ([]checksumEntry, error) {
+	entries := make([]checksumEntry, 0, 32)
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) != 2 {
+		if len(fields) != 2 || len(fields[0]) != sha256.Size*2 {
 			return nil, fmt.Errorf("migration checksum line %q must be <sha256> <name>", line)
 		}
-		sealed[fields[1]] = fields[0]
+		entry := checksumEntry{sum: fields[0], name: fields[1]}
+		if previous := len(entries) - 1; previous >= 0 && entries[previous].name >= entry.name {
+			return nil, fmt.Errorf(
+				"migration checksum rows must be unique and sorted by name: %q after %q",
+				entry.name,
+				entries[previous].name,
+			)
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
+func readChecksums(fsys fs.FS) ([]checksumEntry, error) {
+	raw, err := fs.ReadFile(fsys, ChecksumFile)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read migration checksums: %w", err)
+	}
+	return parseChecksums(raw)
+}
+
+func readSealedChecksums() (map[string]string, error) {
+	entries, err := readChecksums(Files)
+	if err != nil {
+		return nil, err
+	}
+	sealed := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		sealed[entry.name] = entry.sum
 	}
 	return sealed, nil
+}
+
+func checksum(body []byte) string {
+	return fmt.Sprintf("%x", sha256.Sum256(body))
 }
 
 func parseMigrationName(name string) (int64, string, error) {

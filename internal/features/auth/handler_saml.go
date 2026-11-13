@@ -15,7 +15,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// samlMetadata serves the service-provider metadata for IdP registration.
 func (h *Handler) samlMetadata(c fiber.Ctx) error {
 	if h.samlProvider == nil {
 		return fiber.ErrServiceUnavailable
@@ -29,10 +28,8 @@ func (h *Handler) samlMetadata(c fiber.Ctx) error {
 	return c.Send(metadata)
 }
 
-// samlStart redirects the browser to the IdP with an AuthnRequest. The
-// request ID is kept in shared storage keyed by a random RelayState instead of
-// the session: an HTTP-POST ACS callback is cross-site and carries no
-// SameSite=Lax cookie.
+// samlStart keeps the request ID in shared storage under a random RelayState: an
+// HTTP-POST ACS callback is cross-site and carries no SameSite=Lax cookie.
 func (h *Handler) samlStart(c fiber.Ctx) error {
 	if h.samlProvider == nil || h.ssoStorage == nil {
 		return fiber.ErrServiceUnavailable
@@ -51,12 +48,10 @@ func (h *Handler) samlStart(c fiber.Ctx) error {
 	return c.Redirect().Status(fiber.StatusSeeOther).To(redirectURL)
 }
 
-// samlRequestIDStore holds the AuthnRequest ID of one SAML transaction.
 func (h *Handler) samlRequestIDStore() ssoStore {
 	return newSSOStore(h.ssoStorage, ssoSAMLRequestID)
 }
 
-// samlACS validates the IdP response and continues the normal sign-in flow.
 func (h *Handler) samlACS(c fiber.Ctx) error {
 	if h.samlProvider == nil || h.ssoStorage == nil {
 		return fiber.ErrServiceUnavailable
@@ -112,8 +107,6 @@ func (h *Handler) samlACS(c fiber.Ctx) error {
 	return h.completeLogin(c, session)
 }
 
-// samlHTTPRequest rebuilds the callback as a standard library request so the
-// SAML library can validate the posted assertion.
 func (h *Handler) samlHTTPRequest(c fiber.Ctx) (*http.Request, error) {
 	request, err := http.NewRequestWithContext(
 		c.Context(),

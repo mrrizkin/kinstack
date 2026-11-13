@@ -20,10 +20,8 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 )
 
-// registerTransportMiddleware installs response headers, panic recovery,
-// request ids, access logging, and telemetry. It runs before static assets so
-// asset responses carry the same header and request-id contract without paying
-// for a session load.
+// registerTransportMiddleware runs before static assets, so asset responses carry
+// the same headers and request id without paying for a session load.
 func registerTransportMiddleware(d GlobalMiddlewareDependency) {
 	d.App.Use(helmet.New(helmet.Config{
 		ContentTypeNosniff:        "nosniff",
@@ -70,8 +68,6 @@ func registerTransportMiddleware(d GlobalMiddlewareDependency) {
 	d.App.Use("/csp-report", cspLimiter)
 }
 
-// registerAccessMiddleware installs the session, rate limiting, bearer
-// authentication, and CSRF protection that only application routes need.
 func registerAccessMiddleware(d GlobalMiddlewareDependency) {
 	d.App.Use(d.Session)
 
@@ -138,10 +134,8 @@ func hstsMaxAge(cfg config.Config) int {
 	return 0
 }
 
-// cspReportRateLimitMax caps unauthenticated CSP reports per IP per minute.
 const cspReportRateLimitMax = 60
 
-// cspSources derives origins from absolute URLs and appends explicit extras.
 func cspSources(extra []string, urls ...string) []string {
 	sources := make([]string, 0, len(extra)+len(urls))
 	for _, raw := range urls {
@@ -167,11 +161,9 @@ func registerCSRFMiddleware(d GlobalMiddlewareDependency) {
 			if strings.HasPrefix(c.Get(fiber.HeaderAuthorization), "Bearer ") {
 				return true
 			}
-			// OAuth providers such as Apple post the authorization response back
-			// as a form, and SAML uses HTTP-POST, so neither callback carries a
-			// CSRF token. Both are protected by a single-use transaction record in
-			// shared storage (sealed state for OAuth, random RelayState for SAML)
-			// plus the provider's own response validation.
+			// Apple's form_post and SAML HTTP-POST arrive without a CSRF token: they are
+			// protected by a single-use transaction record in shared storage plus the
+			// provider's own response validation.
 			return c.Path() == "/login/oauth/callback" || c.Path() == "/login/saml/acs" ||
 				c.Path() == "/csp-report"
 		},

@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// environmentProduction is the one environment that turns on the extra checks.
 const environmentProduction = "production"
 
 func isProduction() bool {
@@ -30,10 +29,8 @@ func validateURL(name, raw string, requireHTTPS bool) error {
 	return nil
 }
 
-// exampleSecrets are the literal credential values shipped in .env.example and
-// deploy/compose.yml. They are fine for local development but must never reach
-// production: a deployment that copies the example environment file would
-// otherwise run with published credentials.
+// exampleSecrets are the literal values shipped in .env.example and
+// deploy/compose.yml: fine locally, never in production.
 var exampleSecrets = map[string]struct{}{
 	"kinstack":                {},
 	"kinstack-secret":         {},
@@ -68,9 +65,8 @@ var placeholderMarkers = []string{
 	"123456",
 }
 
-// placeholderSecret reports whether value is an empty, example, template, or
-// trivially weak secret. Callers gate this behind production checks so local
-// development can keep using the documented defaults.
+// placeholderSecret catches an empty, example, template, or trivially weak secret.
+// Callers gate this behind production checks.
 func placeholderSecret(value string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	if normalized == "" {
@@ -105,8 +101,7 @@ func lowEntropySecret(value string) bool {
 	return repeatedBlock(value)
 }
 
-// secretShape reports how many distinct bytes the value uses and whether it is
-// nothing but digits — a code, not a passphrase.
+// secretShape counts distinct bytes and reports whether the value is only digits.
 func secretShape(value string) (distinct int, digitsOnly bool) {
 	seen := make(map[byte]struct{}, len(value))
 	digitsOnly = true
@@ -119,7 +114,6 @@ func secretShape(value string) (distinct int, digitsOnly bool) {
 	return len(seen), digitsOnly
 }
 
-// repeatedBlock reports whether the value is one block repeated to length.
 func repeatedBlock(value string) bool {
 	for size := 1; size <= len(value)/2 && size <= 8; size++ {
 		if len(value)%size != 0 {

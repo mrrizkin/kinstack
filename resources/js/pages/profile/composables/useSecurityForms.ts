@@ -29,7 +29,6 @@ export function useSecurityForms(props: SecurityFormsProps) {
   const pageQuery = () =>
     queryString({ page: (props.sessions_page?.page ?? 1) > 1 ? props.sessions_page?.page : undefined });
 
-  // ---- Change password ----
   const password = useDialog<null, PasswordValues>({
     label: "password change",
     initialValues: () => ({ current_password: "", new_password: "", confirm_password: "" }),
@@ -151,7 +150,6 @@ export function useSecurityForms(props: SecurityFormsProps) {
     router.post("/profile/two-factor/confirm", { code }, { preserveScroll: true, ...dialogHooks(enroll) });
   }
 
-  // ---- Two-factor actions that need the password ----
   const action = useDialog<TwoFactorAction, { password: string }>({
     label: "two-factor action",
     initialValues: () => ({ password: "" }),

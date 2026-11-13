@@ -36,8 +36,8 @@ format:
     just format-go
 
 format-go:
-    git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go' | xargs -0 -r go tool goimports -w
-    git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go' | xargs -0 -r go tool gofumpt -w
+    git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go' ':!*/sqlc/*.go' | xargs -0 -r go tool goimports -w
+    git ls-files -z --cached --others --exclude-standard -- '*.go' ':!*_templ.go' ':!*/sqlc/*.go' | xargs -0 -r go tool gofumpt -w
     go tool golines -w --ignore-generated .
 
 # vite build generates auto-imports.d.ts + components.d.ts (gitignored) which
@@ -48,12 +48,21 @@ generate-types:
 type-check: generate-types
     bun x vue-tsc --build
 
+# sqlc parses db/schema.sql, rendered from the goose migrations: a migration
+# file holds both directions, so sqlc cannot read db/migrations directly.
+sqlc-generate:
+    go run ./cmd/schema
+    go tool sqlc generate
+
 lint-check:
     bun x oxlint resources
 
 lint-go:
     go vet ./...
     go tool staticcheck ./...
+
+check-sqlc:
+    ./scripts/check-sqlc.sh
 
 check-feature-slices:
     ./scripts/check-feature-slices.sh
@@ -112,7 +121,7 @@ coverage:
     @go tool cover -func=/tmp/kinstack-cover.out | tail -n 1
 
 # Full gate before committing: types, tests, lint, format, feature slices.
-verify: type-check format-go-check test-go test-frontend lint-go lint-check format-check check-feature-slices check-icons check-complexity check-determinism check-observability check-modules
+verify: type-check format-go-check test-go test-frontend lint-go lint-check format-check check-sqlc check-feature-slices check-icons check-complexity check-determinism check-observability check-modules
 
 # Structural drift report. Informational only; never fails.
 shape:
@@ -140,10 +149,10 @@ migrate:
 migrate-down:
     go run ./cmd/migrate down
 
-# Re-seal the migration checksums after adding a migration. Editing an already
-# sealed migration is caught by the runner; this command is for new files only.
+# Append checksums for migrations that are not sealed yet. Existing rows are
+# never rewritten, so editing an applied migration still fails the gate.
 migrations-seal:
-    cd db/migrations && sha256sum *.sql | sort -k2 > checksums.tsv
+    go run ./cmd/seal
 
 migrate-status:
     go run ./cmd/migrate status

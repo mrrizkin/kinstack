@@ -10,10 +10,8 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// secretKeyLengthMin is the minimum accepted super admin secret length.
 const secretKeyLengthMin = 32
 
-// AppConfig contains HTTP application settings.
 type AppConfig struct {
 	Name                string
 	Env                 string
@@ -57,7 +55,6 @@ func (c *AppConfig) Load() {
 	c.TrustedProxies = envList("TRUSTED_PROXIES")
 }
 
-// Validate checks application settings that do not depend on another section.
 func (c AppConfig) Validate() error {
 	if err := c.validateIdentity(); err != nil {
 		return err
@@ -77,7 +74,6 @@ func (c AppConfig) Validate() error {
 	return c.validateProduction()
 }
 
-// validateIdentity covers the three values every other decision depends on.
 func (c AppConfig) validateIdentity() error {
 	if c.Name == "" {
 		return fmt.Errorf("APP_NAME is required")
@@ -148,7 +144,6 @@ func (c AppConfig) validateAccessKey() error {
 	return nil
 }
 
-// validateProduction states what the environment may not omit.
 func (c AppConfig) validateProduction() error {
 	if err := validateURL("APP_URL", c.URL, true); err != nil {
 		return err

@@ -17,7 +17,6 @@ type GothProvider struct {
 	DisplayLabel string
 }
 
-// NewGothProvider wraps a goth provider with a human-readable label.
 func NewGothProvider(provider goth.Provider, label string) *GothProvider {
 	return &GothProvider{Provider: provider, DisplayLabel: label}
 }
@@ -36,7 +35,6 @@ func (g *GothProvider) Label() string {
 	return g.DisplayLabel
 }
 
-// Start begins the goth auth transaction and persists its session blob.
 func (g *GothProvider) Start(
 	_ context.Context,
 	request AuthorizationRequest,
@@ -62,7 +60,6 @@ func (g *GothProvider) Start(
 	return authorizationURL, nil
 }
 
-// Complete validates the callback and loads the verified provider identity.
 func (g *GothProvider) Complete(
 	_ context.Context,
 	exchange ExchangeRequest,

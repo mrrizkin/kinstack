@@ -25,7 +25,6 @@ type RecoveryCode struct {
 	Hash string `db:"code_hash"`
 }
 
-// LegacySecret is a plaintext TOTP secret that still needs sealing.
 type LegacySecret struct {
 	PublicID string `db:"public_id"`
 	Secret   string `db:"two_factor_secret"`

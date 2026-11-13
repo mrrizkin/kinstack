@@ -11,14 +11,11 @@ import (
 	"kinstack/internal/platform/twofactor"
 )
 
-// twoFactorKeyVersion identifies the envelope key generation written today.
 const twoFactorKeyVersion = 1
 
-// twoFactorBox builds the envelope box for TOTP secrets. AUTH_2FA_KEY is the
-// dedicated key material; without it the application secret (required in
-// production) is reused under a separate HKDF info label so the derived keys
-// never collide. Local wiring without any 32-byte material keeps secrets in
-// plaintext, which production validation rules out.
+// twoFactorBox reuses the application secret under a separate HKDF info label when
+// AUTH_2FA_KEY is unset, so the derived keys never collide. Local wiring without
+// 32-byte material keeps secrets in plaintext, which production rejects.
 func twoFactorBox(cfg config.Config) *envelope.Box {
 	material := cfg.Auth.TwoFactorKey
 	if material == "" {

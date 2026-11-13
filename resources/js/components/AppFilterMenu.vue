@@ -1,9 +1,7 @@
 <script setup lang="ts">
 /**
- * Filter trigger with a responsive panel: popover from `md` up, bottom drawer
- * below it. The page owns field state, validation, and navigation through
- * `apply`/`reset`, and calls `close()` after validation passes so errors stay
- * visible while the user fixes them.
+ * Filter trigger: popover from `md` up, bottom drawer below. The page owns
+ * field state and validation; `close()` is called only after it passes.
  */
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";

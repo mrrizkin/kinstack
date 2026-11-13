@@ -73,8 +73,8 @@ func (s *Service) IsEnabled(ctx context.Context, userPublicID string) (bool, err
 	return status.Enabled, nil
 }
 
-// Status decrypts the secret for the enrollment screen; an enabled account
-// never renders it.
+// Status decrypts the secret for the enrollment screen; an enabled account never
+// renders it.
 func (s *Service) Status(ctx context.Context, userPublicID string) (StatusResult, error) {
 	status, err := s.repository.FindStatus(ctx, userPublicID)
 	if err != nil {
@@ -91,7 +91,6 @@ func (s *Service) ProvisioningURI(secret, account string) string {
 	return totp.ProvisioningURI(secret, account, s.issuer)
 }
 
-// BeginEnrollment stores a pending secret; it is inactive until one code confirms.
 func (s *Service) BeginEnrollment(
 	ctx context.Context,
 	userPublicID string,
@@ -304,7 +303,6 @@ func (s *Service) sealLegacy(ctx context.Context, userPublicID string, status St
 	_ = s.repository.SealSecret(ctx, userPublicID, sealed, s.box.Version())
 }
 
-// GenerateRecoveryCodes returns "XXXX-XXXX" codes from an unambiguous alphabet.
 func GenerateRecoveryCodes(n int) ([]string, error) {
 	if n <= 0 {
 		return []string{}, nil

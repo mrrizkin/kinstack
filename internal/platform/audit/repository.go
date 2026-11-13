@@ -14,7 +14,6 @@ type Repository interface {
 	DeleteBefore(context.Context, time.Time) (int64, error)
 }
 
-// AuditRecord is the repository representation of an audit event.
 type AuditRecord struct {
 	ID         int64
 	OccurredAt time.Time
@@ -28,7 +27,6 @@ type AuditRecord struct {
 	Metadata   map[string]string
 }
 
-// RepositoryQuery contains repository-level filters.
 type RepositoryQuery struct {
 	ActorKey string
 	Action   Action

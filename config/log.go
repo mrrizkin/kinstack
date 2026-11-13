@@ -6,7 +6,6 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// LogConfig controls structured logger output and rolling-file retention.
 type LogConfig struct {
 	Level     string
 	Console   bool

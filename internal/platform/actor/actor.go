@@ -9,7 +9,6 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// Actor validates authenticated actor identifiers through its own repository.
 type Actor struct {
 	repository Repository
 }
@@ -24,7 +23,6 @@ func New(d Dependency) *Actor {
 	return &Actor{repository: d.Repository}
 }
 
-// Validate validates that an active account exists for publicID.
 func (a *Actor) Validate(ctx context.Context, publicID string) error {
 	publicID = strings.TrimSpace(publicID)
 	if publicID == "" {

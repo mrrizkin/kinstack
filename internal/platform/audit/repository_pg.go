@@ -12,9 +12,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// -----------------------------------------------------------------------------
-// PostgreSQL repository
-
 type sqlRepository struct {
 	owner *platformdatabase.StatementOwner
 
@@ -77,7 +74,6 @@ const (
 		LIMIT $3`
 )
 
-// NewSQLRepository prepares the audit queries for the repository lifetime.
 type RepositoryDependency struct {
 	DB *sqlx.DB
 }
@@ -124,7 +120,6 @@ func (r *sqlRepository) Close() error {
 // locks for the whole operation.
 const pruneAuditBatchSize = 5_000
 
-// DeleteBefore removes audit rows older than the cutoff in bounded batches.
 func (r *sqlRepository) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	var total int64
 	for {
@@ -146,7 +141,6 @@ func (r *sqlRepository) DeleteBefore(ctx context.Context, cutoff time.Time) (int
 	}
 }
 
-// Insert appends a record to audit_events.
 func (r *sqlRepository) Insert(ctx context.Context, record AuditRecord) (AuditRecord, error) {
 	if err := ctx.Err(); err != nil {
 		return AuditRecord{}, err
@@ -161,7 +155,6 @@ func (r *sqlRepository) Insert(ctx context.Context, record AuditRecord) (AuditRe
 	return recordWithClonedMetadata(record), nil
 }
 
-// List returns matching records ordered from newest to oldest.
 func (r *sqlRepository) List(ctx context.Context, query RepositoryQuery) ([]AuditRecord, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -227,9 +220,6 @@ func (r *sqlRepository) List(ctx context.Context, query RepositoryQuery) ([]Audi
 	}
 	return records, nil
 }
-
-// -----------------------------------------------------------------------------
-// Metadata
 
 func encodeMetadata(metadata map[string]string) string {
 	encoded, err := json.Marshal(cloneMetadata(metadata))

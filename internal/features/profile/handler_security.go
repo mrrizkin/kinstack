@@ -13,7 +13,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// revokeSession signs out one other device.
 func (h *Handler) revokeSession(c fiber.Ctx) error {
 	if h.sessions == nil {
 		return fiber.ErrServiceUnavailable
@@ -31,7 +30,6 @@ func (h *Handler) revokeSession(c fiber.Ctx) error {
 	)
 }
 
-// revokeOtherSessions signs out every device except the current one.
 func (h *Handler) revokeOtherSessions(c fiber.Ctx) error {
 	if h.sessions == nil {
 		return fiber.ErrServiceUnavailable
@@ -50,7 +48,6 @@ func (h *Handler) revokeOtherSessions(c fiber.Ctx) error {
 	)
 }
 
-// beginTwoFactor stores a pending TOTP secret for the account.
 func (h *Handler) beginTwoFactor(c fiber.Ctx) error {
 	if h.twoFactor == nil {
 		return fiber.ErrServiceUnavailable
@@ -117,7 +114,6 @@ func (h *Handler) disableTwoFactor(c fiber.Ctx) error {
 	)
 }
 
-// regenerateRecoveryCodes issues a fresh set of one-time recovery codes.
 func (h *Handler) regenerateRecoveryCodes(c fiber.Ctx) error {
 	if h.twoFactor == nil {
 		return fiber.ErrServiceUnavailable
@@ -146,7 +142,6 @@ func (h *Handler) regenerateRecoveryCodes(c fiber.Ctx) error {
 	)
 }
 
-// writeTwoFactorError maps two-factor sentinel errors onto form fields.
 func (h *Handler) writeTwoFactorError(c fiber.Ctx, err error, field string) error {
 	switch {
 	case errors.Is(err, twofactor.ErrInvalidCode):

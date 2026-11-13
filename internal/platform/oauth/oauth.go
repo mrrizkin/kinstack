@@ -28,7 +28,6 @@ var (
 	ErrInvalidConfig = errors.New("oauth provider configuration is invalid")
 )
 
-// Identity is the verified external subject returned by a provider.
 type Identity struct {
 	// Provider and Subject form the local identity binding.
 	Provider      string
@@ -65,7 +64,6 @@ type ContinuationStore interface {
 	Delete(key string)
 }
 
-// Provider is the provider-neutral sign-in boundary consumed by auth.
 type Provider interface {
 	// Name is the URL-safe slug used in routes and the signed state.
 	Name() string
@@ -75,7 +73,6 @@ type Provider interface {
 	Complete(context.Context, ExchangeRequest, ContinuationStore) (Identity, error)
 }
 
-// UnavailableProvider is the fail-closed placeholder used when SSO is disabled.
 type UnavailableProvider struct{}
 
 func (UnavailableProvider) Name() string { return "unavailable" }
@@ -183,7 +180,6 @@ func (p *HTTPProvider) Complete(
 	return p.loadIdentity(ctx, token)
 }
 
-// validateExchange fails before any network call.
 func validateExchange(exchange ExchangeRequest) error {
 	if strings.TrimSpace(exchange.Code) == "" || strings.TrimSpace(exchange.Verifier) == "" ||
 		strings.TrimSpace(exchange.Nonce) == "" || strings.TrimSpace(exchange.RedirectURI) == "" {
@@ -309,22 +305,20 @@ func CodeChallenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(digest[:])
 }
 
-// StateSigner seals short-lived SSO state: AES-256-GCM so it survives the
-// redirect without a session cookie.
+// StateSigner seals short-lived SSO state with AES-256-GCM, so it survives the redirect
+// without a session cookie.
 type StateSigner struct {
 	aead cipher.AEAD
 	ttl  time.Duration
 }
 
-// SSO state purposes. They keep an OAuth state from being replayed as a SAML
-// relay state and vice versa.
+// SSO state purposes keep an OAuth state from being replayed as a SAML relay state.
 const (
 	PurposeOAuth = "oauth"
 	PurposeSAML  = "saml"
 )
 
-// StatePayload is the data carried inside a sealed state value. Keep it small:
-// it travels in a URL or in a form field.
+// StatePayload travels in a URL or a form field, so keep it small.
 type StatePayload struct {
 	Purpose  string `json:"purpose"`
 	State    string `json:"state"`
@@ -339,8 +333,8 @@ func NewStateSigner(secret string, ttl time.Duration) (*StateSigner, error) {
 	if len([]byte(secret)) < 32 || ttl <= 0 {
 		return nil, ErrInvalidConfig
 	}
-	// Derive the AES key from the configured secret with HKDF-style separation
-	// so the state key can never be confused with another use of the secret.
+	// Derive the AES key with HKDF-style separation so the state key cannot be confused
+	// with another use of the secret.
 	derive := hmac.New(sha256.New, []byte(secret))
 	_, _ = derive.Write([]byte("kinstack/sso-state-seal/v1"))
 	block, err := aes.NewCipher(derive.Sum(nil))
@@ -375,8 +369,6 @@ func (s *StateSigner) Seal(payload StatePayload, now time.Time) (string, error) 
 	return stateSealedVersion + "." + base64.RawURLEncoding.EncodeToString(sealed), nil
 }
 
-// Open authenticates and decrypts a sealed state value. It rejects values with
-// the wrong version, a broken tag, an unknown shape, or an expired payload.
 func (s *StateSigner) Open(value string, now time.Time) (StatePayload, error) {
 	version, encoded, ok := strings.Cut(strings.TrimSpace(value), ".")
 	if s == nil || s.aead == nil || !ok || version != stateSealedVersion {

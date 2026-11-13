@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import AppTableTools from "@/components/AppTableTools.vue";
 /**
- * Shared wrapper for data tables.
- *
- * Keeps every table visually identical: the same border, radius, background,
- * and horizontal scroll. Pass a `#header` slot for an optional card title and
- * a `view` (from useTableView()) to offer column and page-size controls.
+ * Shared table wrapper, so every table keeps the same chrome and scroll.
  */
 import type { TableView } from "@/lib/table-view";
 

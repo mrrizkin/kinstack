@@ -7,8 +7,7 @@ import (
 	"kinstack/internal/platform/i18n"
 )
 
-// Engine evaluates code-defined ABAC policies. It is deliberately free of I/O so
-// it can be unit tested in isolation.
+// Engine is deliberately free of I/O so it can be unit tested in isolation.
 type Engine struct {
 	policies map[Permission][]Policy
 }
@@ -26,15 +25,10 @@ func NewEngine(policies ...Policy) *Engine {
 	return &Engine{policies: indexed}
 }
 
-// DefaultEngine returns the production policy set. The base ships no ABAC
-// policies; feature slices register their own when they introduce a permission
-// that needs attribute guardrails.
 func DefaultEngine() *Engine {
 	return NewEngine()
 }
 
-// Evaluate applies policies for the permission on top of a base (RBAC) decision.
-// A deny from any policy wins; an allow may lift a base denial.
 func (e *Engine) Evaluate(req Request, base Decision) Decision {
 	if req.Now.IsZero() {
 		req.Now = clock.System()
@@ -58,7 +52,6 @@ func (e *Engine) Evaluate(req Request, base Decision) Decision {
 	return decision
 }
 
-// Policies returns the policy names registered for a permission.
 func (e *Engine) Policies(permission Permission) []string {
 	registered := e.policies[permission]
 	names := make([]string, 0, len(registered))
@@ -80,7 +73,6 @@ func appendPolicy(index map[Permission][]Policy, policy Policy) error {
 	return nil
 }
 
-// baseDecision builds the RBAC baseline decision for a resolved permission set.
 func baseDecision(
 	principal Principal,
 	granted map[Permission]struct{},
@@ -110,9 +102,8 @@ func policyPermission(policy Policy) Permission {
 	}
 }
 
-// Evaluate combines the RBAC baseline and ABAC policies for one request. It does
-// not resolve role or override data; callers supply those via a Principal and
-// the resolved effective permission set.
+// Evaluate does not resolve roles or overrides; the caller supplies the principal
+// and the effective permission set.
 func (e *Engine) Decide(
 	principal Principal,
 	granted map[Permission]struct{},

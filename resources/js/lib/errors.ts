@@ -12,18 +12,14 @@ function firstMessage(value: ErrorValue): string | undefined {
 }
 
 /**
- * Normalises an Inertia field error to the single string UFormField expects.
- * Inertia may deliver an array, and an empty string is unsafe because Vue casts
- * it to `true` for props typed `[Boolean, String]`.
+ * Inertia may deliver an array, and Vue casts an empty string to `true` for props
+ * typed `[Boolean, String]`.
  */
 export function fieldMessage(value: unknown): string | undefined {
   return firstMessage(value as ErrorValue);
 }
 
-/**
- * Normalises a whole Inertia error bag into one string per field, dropping empty
- * entries. Used by the dialog state machines, which hold the errors as state.
- */
+/** Normalises an Inertia error bag for the dialog state machines. */
 export function errorMap(value: Record<string, unknown> | undefined): Record<string, string> {
   const normalised: Record<string, string> = {};
   for (const [field, item] of Object.entries(value ?? {})) {
@@ -35,17 +31,12 @@ export function errorMap(value: Record<string, unknown> | undefined): Record<str
   return normalised;
 }
 
-/**
- * Reads server-side (flashed) validation errors. Inertia delivers them as arrays,
- * so everything is normalised to a single string before rendering.
- */
 export function useServerErrors() {
   const { errors } = usePageProps();
 
   // Local form state can hold arrays too, so normalise both sources.
   // Returning undefined instead of "" matters: UFormField declares error as
-  // [Boolean, String], and Vue casts an empty string to true, which paints the
-  // input red with no message.
+  // [Boolean, String], and Vue paints an empty string as an error with no message.
   const message = (field: string, local?: Record<string, unknown>): string | undefined =>
     firstMessage(errors.value[field]) || firstMessage(local?.[field] as ErrorValue | undefined);
 

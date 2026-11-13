@@ -37,8 +37,6 @@ type StoreDependency struct {
 	Log          *log.Logger
 }
 
-// NewValkeyStorage creates the shared Valkey boundary used by sessions and
-// distributed request protection.
 func NewValkeyStorage(cfg config.ValkeyConfig) fiber.Storage {
 	assert.Assert(cfg.Host != "", "valkey host is required")
 	assert.Assert(cfg.Port > 0, "valkey port is required")
@@ -50,7 +48,6 @@ func NewValkeyStorage(cfg config.ValkeyConfig) fiber.Storage {
 	})
 }
 
-// NewStore creates the production session store backed by Valkey.
 func NewStore(d StoreDependency) *fibersession.Store {
 	assert.Assert(d.Config.Host != "", "valkey host is required")
 	assert.Assert(d.Config.Port > 0, "valkey port is required")
@@ -72,13 +69,10 @@ func NewStore(d StoreDependency) *fibersession.Store {
 	return store
 }
 
-// NewMemoryStore is used by HTTP tests and local wiring that does not need Valkey.
 func NewMemoryStore(idleTimeout time.Duration) *fibersession.Store {
 	return NewMemoryStoreWithCookieSecurity(idleTimeout, false)
 }
 
-// NewMemoryStoreWithCookieSecurity mirrors the production cookie settings for
-// tests without requiring a Valkey process.
 func NewMemoryStoreWithCookieSecurity(
 	idleTimeout time.Duration,
 	cookieSecure bool,
@@ -92,7 +86,6 @@ func NewMemoryStoreWithCookieSecurity(
 	})
 }
 
-// NewMiddleware loads and saves one Fiber session for each request.
 func NewMiddleware(store *fibersession.Store, idleTimeout time.Duration) fiber.Handler {
 	assert.Assert(store != nil, "session store is required")
 
@@ -107,9 +100,8 @@ func mustSessionMiddleware(store *fibersession.Store, idleTimeout time.Duration)
 	return handler
 }
 
-// SetTwoFactorChallenge replaces the current session with a short-lived,
-// pre-authentication challenge. No authenticated actor is exposed until the
-// challenge is completed successfully.
+// SetTwoFactorChallenge replaces the session with a short-lived pre-authentication
+// challenge; no actor is exposed until it is completed.
 func SetTwoFactorChallenge(c fiber.Ctx, publicID string) error {
 	publicID = strings.TrimSpace(publicID)
 	middleware := fibersession.FromContext(c)
@@ -127,8 +119,6 @@ func SetTwoFactorChallenge(c fiber.Ctx, publicID string) error {
 	return nil
 }
 
-// PendingTwoFactorActor returns the actor bound to a live pre-authentication
-// challenge without consuming it. Expired challenges are removed immediately.
 func PendingTwoFactorActor(c fiber.Ctx) (string, bool) {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {
@@ -147,16 +137,14 @@ func PendingTwoFactorActor(c fiber.Ctx) (string, bool) {
 	return challenge.PublicID, true
 }
 
-// ClearTwoFactorChallenge removes a pre-authentication challenge after a
-// successful verification or an explicit cancellation.
 func ClearTwoFactorChallenge(c fiber.Ctx) {
 	if middleware := fibersession.FromContext(c); middleware != nil {
 		middleware.Delete(twoFactorSessionKey)
 	}
 }
 
-// SetRecoveryCodes stores one-time plaintext recovery codes in the server-side
-// session. They are only available immediately after setup or rotation.
+// SetRecoveryCodes holds one-time plaintext codes that are only available right after
+// setup or rotation.
 func SetRecoveryCodes(c fiber.Ctx, codes []string) error {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {
@@ -170,7 +158,6 @@ func SetRecoveryCodes(c fiber.Ctx, codes []string) error {
 	return nil
 }
 
-// ConsumeRecoveryCodes returns and removes one-time recovery codes.
 func ConsumeRecoveryCodes(c fiber.Ctx) ([]string, bool) {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {
@@ -185,8 +172,7 @@ func ConsumeRecoveryCodes(c fiber.Ctx) ([]string, bool) {
 	return codes, true
 }
 
-// CurrentID returns the opaque transport ID for the current server-side session.
-// Callers must treat it as a credential and never persist or expose it directly.
+// CurrentID is a credential: never persist or expose it directly.
 func CurrentID(c fiber.Ctx) string {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {
@@ -195,11 +181,9 @@ func CurrentID(c fiber.Ctx) string {
 	return middleware.ID()
 }
 
-// flashSessionPrefix namespaces one-time values that must survive exactly one
-// redirect without being exposed in the URL.
+// flashSessionPrefix namespaces one-time values that must survive exactly one redirect.
 const flashSessionPrefix = "flash:"
 
-// SetFlash stores a one-time value in the server-side session.
 func SetFlash(c fiber.Ctx, key, value string) error {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {
@@ -209,7 +193,6 @@ func SetFlash(c fiber.Ctx, key, value string) error {
 	return nil
 }
 
-// ConsumeFlash returns and removes a one-time value stored with SetFlash.
 func ConsumeFlash(c fiber.Ctx, key string) (string, bool) {
 	middleware := fibersession.FromContext(c)
 	if middleware == nil {

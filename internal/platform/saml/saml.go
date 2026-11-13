@@ -30,7 +30,7 @@ var (
 	ErrUnstableSubject = errors.New("saml subject identifier is not persistent")
 )
 
-// Config is complete whenever SAML is enabled; validation runs before startup.
+// Config is validated before startup whenever SAML is enabled.
 type Config struct {
 	EntityID       string
 	RootURL        string
@@ -87,8 +87,7 @@ func (p *Provider) Metadata() ([]byte, error) {
 	return xml.MarshalIndent(p.serviceProvider.Metadata(), "", "  ")
 }
 
-// Start builds the AuthnRequest redirect URL and returns its request ID so the
-// callback can validate InResponseTo.
+// Start returns the request ID so the callback can validate InResponseTo.
 func (p *Provider) Start(relayState string) (string, string, error) {
 	if p == nil || p.serviceProvider == nil {
 		return "", "", ErrUnavailable
@@ -158,8 +157,8 @@ func identityFromAssertion(assertion *saml.Assertion) (platformoauth.Identity, e
 	return identity, nil
 }
 
-// stableSubject rejects a missing or transient NameID: it would bind a new
-// identity row on every login.
+// stableSubject rejects a missing or transient NameID: it would bind a new identity
+// row on every login.
 func stableSubject(subject *saml.Subject) (string, error) {
 	if subject == nil || subject.NameID == nil {
 		return "", ErrUnstableSubject
@@ -174,7 +173,6 @@ func stableSubject(subject *saml.Subject) (string, error) {
 	return value, nil
 }
 
-// fillFromAttributes keeps the first email and display name offered.
 func fillFromAttributes(
 	identity *platformoauth.Identity,
 	statements []saml.AttributeStatement,

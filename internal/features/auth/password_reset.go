@@ -24,8 +24,7 @@ const (
 	passwordLengthMax = 72
 )
 
-// RequestPasswordReset emails a single-use reset link to the account owning the
-// address. It never reveals whether the address belongs to an account.
+// RequestPasswordReset never reveals whether the address has an account.
 func (s *Service) RequestPasswordReset(ctx context.Context, address string) error {
 	address = strings.ToLower(strings.TrimSpace(address))
 	if address == "" || !strings.Contains(address, "@") {
@@ -77,8 +76,6 @@ func (s *Service) RequestPasswordReset(ctx context.Context, address string) erro
 	})
 }
 
-// ResetPassword burns a reset token and stores a new password for its account.
-// It returns ErrInvalidToken for unknown, used, or expired tokens.
 func (s *Service) ResetPassword(ctx context.Context, rawToken string, newPassword string) error {
 	rawToken = strings.TrimSpace(rawToken)
 	if rawToken == "" {
@@ -123,8 +120,7 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken string, newPasswor
 	return s.repository.UpdatePasswordHash(ctx, publicID, hash)
 }
 
-// newOpaqueToken mints a 256-bit single-use token and returns the raw value
-// that travels in the emailed link together with the hash that is stored.
+// newOpaqueToken returns the raw 256-bit token and the hash that is stored.
 func newOpaqueToken() (string, string, error) {
 	buffer := make([]byte, 32)
 	if _, err := rand.Read(buffer); err != nil {
@@ -134,8 +130,8 @@ func newOpaqueToken() (string, string, error) {
 	return raw, hashOpaqueToken(raw), nil
 }
 
-// hashOpaqueToken is the one-way transform applied before storage, so a leaked
-// token table cannot be replayed.
+// hashOpaqueToken is the one-way transform applied before storage, so a leaked table
+// cannot be replayed.
 func hashOpaqueToken(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])

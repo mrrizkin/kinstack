@@ -26,7 +26,6 @@ const (
 
 var encoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
-// GenerateSecret returns a new random base32 secret suitable for storage.
 func GenerateSecret() (string, error) {
 	buffer := make([]byte, secretBytes)
 	if _, err := rand.Read(buffer); err != nil {
@@ -35,8 +34,6 @@ func GenerateSecret() (string, error) {
 	return encoding.EncodeToString(buffer), nil
 }
 
-// ProvisioningURI builds the otpauth:// URI an authenticator app can scan. The
-// issuer is prefixed to the label as recommended by the Key URI format.
 func ProvisioningURI(secret, account, issuer string) string {
 	account = strings.TrimSpace(account)
 	issuer = strings.TrimSpace(issuer)
@@ -55,7 +52,6 @@ func ProvisioningURI(secret, account, issuer string) string {
 	return "otpauth://totp/" + url.PathEscape(label) + "?" + query.Encode()
 }
 
-// GenerateCode returns the code valid for the step containing at.
 func GenerateCode(secret string, at time.Time) (string, error) {
 	key, err := decodeSecret(secret)
 	if err != nil {
@@ -72,8 +68,7 @@ func Validate(secret, code string, at time.Time) bool {
 	return ok
 }
 
-// ValidateStep returns the time step a code matched, so callers can reject a
-// code that was already used for that step.
+// ValidateStep returns the matched step so callers can reject a replayed code.
 func ValidateStep(secret, code string, at time.Time) (int64, bool) {
 	code = strings.TrimSpace(code)
 	if len(code) != Digits {

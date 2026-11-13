@@ -147,7 +147,6 @@ func (r *SQLRepository) Close() error {
 	return r.owner.Close()
 }
 
-// Register records or refreshes one authenticated browser session.
 func (r *SQLRepository) Register(
 	ctx context.Context,
 	sessionPublicID string,
@@ -171,7 +170,6 @@ func (r *SQLRepository) Register(
 	return result, nil
 }
 
-// Touch refreshes last_seen_at for a session that has been idle for a while.
 func (r *SQLRepository) Touch(ctx context.Context, sessionID string) error {
 	if _, err := r.touch.ExecContext(ctx, sessionID); err != nil {
 		return fmt.Errorf("touch session: %w", err)
@@ -216,7 +214,6 @@ func (r *SQLRepository) Revoke(ctx context.Context, sessionPublicID string) erro
 	return nil
 }
 
-// RevokeBySessionID marks the transport session as revoked on logout.
 func (r *SQLRepository) RevokeBySessionID(ctx context.Context, sessionID string) error {
 	if _, err := r.revokeByID.ExecContext(ctx, sessionID); err != nil {
 		return fmt.Errorf("revoke session by id: %w", err)

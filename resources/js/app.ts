@@ -1,8 +1,5 @@
 /**
- * Client-side entry point for the Inertia + Vue 3 application.
- *
- * The Laravel Vite plugin owns the module graph and HMR boundary. The resolver
- * below keeps the page directory and naming convention for KinStack.
+ * Client entry point. The Laravel Vite plugin owns the module graph and HMR.
  */
 import { createInertiaApp, router } from "@inertiajs/vue3";
 import nuxtUiPlugin from "@nuxt/ui/vue-plugin";

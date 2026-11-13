@@ -9,7 +9,6 @@ import (
 	"kinstack/internal/pkg/assert"
 )
 
-// defaultDocumentTimeout bounds one PDF rendering request.
 const defaultDocumentTimeout = 30 * time.Second
 
 // DocumentConfig contains the report document rendering settings. Rendering is
@@ -37,7 +36,6 @@ func (c DocumentConfig) Validate() error {
 	return validateURL("GOTENBERG_URL", c.GotenbergURL, false)
 }
 
-// PDFEnabled reports whether report PDF rendering is configured.
 func (c DocumentConfig) PDFEnabled() bool {
 	return c.GotenbergURL != ""
 }

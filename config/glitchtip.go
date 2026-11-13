@@ -27,7 +27,6 @@ func (c *GlitchTipConfig) Load() {
 	c.Debug = assert.OK(envBool("GLITCHTIP_DEBUG", false))
 }
 
-// Validate checks error tracking settings. An empty DSN disables the feature.
 func (c GlitchTipConfig) Validate() error {
 	if !c.Enabled {
 		return nil

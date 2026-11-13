@@ -25,7 +25,6 @@ func NewMemoryRepository(now func() time.Time) *MemoryRepository {
 	return &MemoryRepository{assets: map[string]Asset{}, now: now}
 }
 
-// Seed inserts one asset into the memory store.
 func (r *MemoryRepository) Seed(asset Asset) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -108,7 +107,6 @@ func (r *MemoryRepository) Delete(
 	return asset, nil
 }
 
-// SeedDefault inserts an asset owned by the given actor.
 func SeedDefault(repository *MemoryRepository, ownerPublicID, publicID, filename string) {
 	assert.Assert(repository != nil, "memory repository is required")
 

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 /**
- * Local, browser-owned preferences. These never come from the server, but they
- * are still parsed because `localStorage` is an untyped external boundary.
+ * Browser-owned preferences. They are parsed anyway because `localStorage` is an
+ * untyped boundary.
  */
 export const themePreferenceSchema = z.enum(["light", "dark", "system"]);
 export type ThemePreference = z.infer<typeof themePreferenceSchema>;

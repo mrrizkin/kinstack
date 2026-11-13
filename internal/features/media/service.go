@@ -37,7 +37,6 @@ func requireOwner(ownerPublicID string) (string, error) {
 	return trimmed, nil
 }
 
-// requireOwnedAsset validates the pair a by-id operation needs.
 func requireOwnedAsset(ownerPublicID, publicID string) (string, string, error) {
 	owner, err := requireOwner(ownerPublicID)
 	if err != nil {
@@ -62,7 +61,6 @@ var allowedContentTypes = map[string]string{
 	"text/csv":        ".csv",
 }
 
-// MediaStorage owns immutable object bytes and their delivery URLs.
 type MediaStorage interface {
 	Put(context.Context, string, io.Reader, int64, string) error
 	Get(context.Context, string) (io.ReadCloser, error)
@@ -150,8 +148,6 @@ func validateUpload(
 	}, nil
 }
 
-// readHead reads the magic bytes the type check needs. A short body ends the
-// read without failing: the size and type checks decide what happens next.
 func readHead(body io.Reader) ([]byte, error) {
 	head := make([]byte, 512)
 	n, err := io.ReadFull(body, head)
@@ -161,10 +157,8 @@ func readHead(body io.Reader) ([]byte, error) {
 	return head[:n], nil
 }
 
-// prepareBody makes the body safe for the object store. Images are decoded for
-// their dimensions without decoding the pixel payload, which rejects
-// decompression bombs. The S3 SDK needs a seekable body for checksums, so the
-// reader is rewound when it can be and buffered when it cannot.
+// prepareBody decodes images without the pixel payload, which rejects decompression
+// bombs, and makes the body seekable because the S3 SDK needs checksums.
 func prepareBody(
 	body io.Reader,
 	head []byte,
@@ -242,7 +236,6 @@ func (s *Service) Count(ctx context.Context, ownerPublicID string) (int, error) 
 	return s.repository.Count(ctx, ownerPublicID)
 }
 
-// List is newest first.
 func (s *Service) List(
 	ctx context.Context,
 	ownerPublicID string,
@@ -268,7 +261,6 @@ func (s *Service) List(
 	return MediaPage{Assets: items, Page: pagination.NewPage(query, total)}, nil
 }
 
-// Delete removes one owned asset from storage and marks it deleted.
 func (s *Service) Delete(ctx context.Context, ownerPublicID, publicID string) error {
 	ownerPublicID, publicID, err := requireOwnedAsset(ownerPublicID, publicID)
 	if err != nil {

@@ -32,7 +32,6 @@ func NewMemoryRepository(userPublicIDs ...string) *MemoryRepository {
 	return repository
 }
 
-// Register records one session.
 func (r *MemoryRepository) Register(
 	_ context.Context,
 	sessionPublicID string,
@@ -68,7 +67,6 @@ func (r *MemoryRepository) Register(
 	return record, nil
 }
 
-// Touch refreshes last_seen_at.
 func (r *MemoryRepository) Touch(ctx context.Context, sessionID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -134,7 +132,6 @@ func (r *MemoryRepository) Revoke(ctx context.Context, sessionPublicID string) e
 	return nil
 }
 
-// RevokeBySessionID marks the session with the given transport ID as revoked.
 func (r *MemoryRepository) RevokeBySessionID(ctx context.Context, sessionID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -151,7 +148,6 @@ func (r *MemoryRepository) RevokeBySessionID(ctx context.Context, sessionID stri
 	return nil
 }
 
-// RevokeAll revokes every active session of one user.
 func (r *MemoryRepository) RevokeAll(ctx context.Context, userPublicID string) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -171,7 +167,6 @@ func (r *MemoryRepository) RevokeAll(ctx context.Context, userPublicID string) (
 	return sessionIDs, nil
 }
 
-// RevokeAllExcept revokes every session except the kept transport ID.
 func (r *MemoryRepository) RevokeAllExcept(
 	ctx context.Context,
 	userPublicID string,

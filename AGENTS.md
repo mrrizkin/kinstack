@@ -6,9 +6,11 @@
 just setup
 just dev
 just verify
+just sqlc-generate   # after editing <slice>/queries.sql
 just test
 just audit
 just migrate
+just migrations-seal
 just fuzz            # coverage-guided, on demand
 just check-secrets   # needs gitleaks on PATH; CI runs it
 ```
