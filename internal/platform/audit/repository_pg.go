@@ -2,118 +2,40 @@ package audit
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"kinstack/internal/pkg/assert"
-	platformdatabase "kinstack/internal/platform/database"
-
-	"github.com/jmoiron/sqlx"
+	platformauditsqlc "kinstack/internal/platform/audit/sqlc"
 )
 
 type sqlRepository struct {
-	owner *platformdatabase.StatementOwner
-
-	insertStmt            *sqlx.Stmt
-	deleteBeforeStmt      *sqlx.Stmt
-	listStmt              *sqlx.Stmt
-	listByActorStmt       *sqlx.Stmt
-	listByActionStmt      *sqlx.Stmt
-	listByActorActionStmt *sqlx.Stmt
+	queries *platformauditsqlc.Queries
 }
 
 var _ Repository = (*sqlRepository)(nil)
 
-const (
-	insertAuditQuery = `
-		INSERT INTO audit_events (
-			occurred_at, request_id, actor_key, action, resource, method,
-			status, outcome, metadata
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-		RETURNING id`
-
-	deleteBeforeQuery = `
-		DELETE FROM audit_events
-		WHERE id IN (
-			SELECT id FROM audit_events
-			WHERE occurred_at < $1
-			ORDER BY occurred_at ASC
-			LIMIT $2
-		)`
-
-	listAuditQuery = `
-		SELECT id, occurred_at, request_id, actor_key, action, resource,
-			method, status, outcome, metadata::text
-		FROM audit_events
-		ORDER BY occurred_at DESC, id DESC
-		LIMIT $1`
-
-	listAuditByActorQuery = `
-		SELECT id, occurred_at, request_id, actor_key, action, resource,
-			method, status, outcome, metadata::text
-		FROM audit_events
-		WHERE actor_key = $1
-		ORDER BY occurred_at DESC, id DESC
-		LIMIT $2`
-
-	listAuditByActionQuery = `
-		SELECT id, occurred_at, request_id, actor_key, action, resource,
-			method, status, outcome, metadata::text
-		FROM audit_events
-		WHERE action = $1
-		ORDER BY occurred_at DESC, id DESC
-		LIMIT $2`
-
-	listAuditByActorActionQuery = `
-		SELECT id, occurred_at, request_id, actor_key, action, resource,
-			method, status, outcome, metadata::text
-		FROM audit_events
-		WHERE actor_key = $1 AND action = $2
-		ORDER BY occurred_at DESC, id DESC
-		LIMIT $3`
-)
-
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*sqlRepository, error) {
 	assert.Assert(dependency.DB != nil, "audit database is required")
 
-	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &sqlRepository{owner: owner}
-	statements := []struct {
-		target **sqlx.Stmt
-		name   string
-		query  string
-	}{
-		{&repository.insertStmt, "audit_insert", insertAuditQuery},
-		{&repository.deleteBeforeStmt, "audit_delete_before", deleteBeforeQuery},
-		{&repository.listStmt, "audit_list", listAuditQuery},
-		{&repository.listByActorStmt, "audit_list_by_actor", listAuditByActorQuery},
-		{&repository.listByActionStmt, "audit_list_by_action", listAuditByActionQuery},
-		{
-			&repository.listByActorActionStmt,
-			"audit_list_by_actor_action",
-			listAuditByActorActionQuery,
-		},
+	queries, err := platformauditsqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare audit queries: %w", err)
 	}
-	for _, statement := range statements {
-		stmt, err := owner.Prepare(statement.name, statement.query)
-		if err != nil {
-			return nil, err
-		}
-		*statement.target = stmt
-	}
-	return repository, nil
+	return &sqlRepository{queries: queries}, nil
 }
 
 func (r *sqlRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return r.queries.Close()
 }
 
 // pruneAuditBatchSize bounds one DELETE so pruning a large table does not hold
@@ -126,13 +48,15 @@ func (r *sqlRepository) DeleteBefore(ctx context.Context, cutoff time.Time) (int
 		if err := ctx.Err(); err != nil {
 			return total, err
 		}
-		result, err := r.deleteBeforeStmt.ExecContext(ctx, cutoff, pruneAuditBatchSize)
+		deleted, err := r.queries.DeleteAuditBatchBefore(
+			ctx,
+			platformauditsqlc.DeleteAuditBatchBeforeParams{
+				OccurredAt: cutoff,
+				RowLimit:   pruneAuditBatchSize,
+			},
+		)
 		if err != nil {
 			return total, fmt.Errorf("prune audit events: %w", err)
-		}
-		deleted, err := result.RowsAffected()
-		if err != nil {
-			return total, fmt.Errorf("count pruned audit events: %w", err)
 		}
 		total += deleted
 		if deleted < pruneAuditBatchSize {
@@ -146,12 +70,21 @@ func (r *sqlRepository) Insert(ctx context.Context, record AuditRecord) (AuditRe
 		return AuditRecord{}, err
 	}
 	metadata := encodeMetadata(record.Metadata)
-	if err := r.insertStmt.GetContext(ctx, &record.ID,
-		record.OccurredAt, record.RequestID, record.ActorKey, string(record.Action),
-		record.Resource, record.Method, record.Status, string(record.Outcome), metadata,
-	); err != nil {
+	id, err := r.queries.InsertAuditEvent(ctx, platformauditsqlc.InsertAuditEventParams{
+		OccurredAt: record.OccurredAt,
+		RequestID:  record.RequestID,
+		ActorKey:   record.ActorKey,
+		Action:     string(record.Action),
+		Resource:   record.Resource,
+		Method:     record.Method,
+		Status:     int32(record.Status),
+		Outcome:    string(record.Outcome),
+		Metadata:   json.RawMessage(metadata),
+	})
+	if err != nil {
 		return AuditRecord{}, fmt.Errorf("record audit event: %w", err)
 	}
+	record.ID = id
 	return recordWithClonedMetadata(record), nil
 }
 
@@ -167,58 +100,49 @@ func (r *sqlRepository) List(ctx context.Context, query RepositoryQuery) ([]Audi
 		limit = 100
 	}
 
-	stmt := r.listStmt
-	args := []any{limit}
-	switch {
-	case query.ActorKey != "" && query.Action != "":
-		stmt = r.listByActorActionStmt
-		args = []any{query.ActorKey, string(query.Action), limit}
-	case query.ActorKey != "":
-		stmt = r.listByActorStmt
-		args = []any{query.ActorKey, limit}
-	case query.Action != "":
-		stmt = r.listByActionStmt
-		args = []any{string(query.Action), limit}
-	}
-
-	rows, err := stmt.QueryxContext(ctx, args...)
+	rows, err := r.queries.ListAuditEvents(ctx, platformauditsqlc.ListAuditEventsParams{
+		ActorKey: optionalString(query.ActorKey),
+		Action:   optionalAction(query.Action),
+		RowLimit: int32(limit),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
-	defer rows.Close()
 
-	records := make([]AuditRecord, 0)
-	for rows.Next() {
-		var record AuditRecord
-		var action string
-		var outcome string
-		var metadata string
-		if err := rows.Scan(
-			&record.ID,
-			&record.OccurredAt,
-			&record.RequestID,
-			&record.ActorKey,
-			&action,
-			&record.Resource,
-			&record.Method,
-			&record.Status,
-			&outcome,
-			&metadata,
-		); err != nil {
-			return nil, fmt.Errorf("scan audit event: %w", err)
-		}
-		record.Action = Action(action)
-		record.Outcome = Outcome(outcome)
-		record.Metadata, err = decodeMetadata(metadata)
+	records := make([]AuditRecord, 0, len(rows))
+	for _, row := range rows {
+		metadata, err := decodeMetadata(row.Metadata)
 		if err != nil {
 			return nil, fmt.Errorf("decode audit event metadata: %w", err)
 		}
-		records = append(records, record)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate audit events: %w", err)
+		records = append(records, AuditRecord{
+			ID:         row.ID,
+			OccurredAt: row.OccurredAt,
+			RequestID:  row.RequestID,
+			ActorKey:   row.ActorKey,
+			Action:     Action(row.Action),
+			Resource:   row.Resource,
+			Method:     row.Method,
+			Status:     int(row.Status),
+			Outcome:    Outcome(row.Outcome),
+			Metadata:   metadata,
+		})
 	}
 	return records, nil
+}
+
+func optionalString(value string) sql.NullString {
+	if value == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: value, Valid: true}
+}
+
+func optionalAction(value Action) sql.NullString {
+	if value == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: string(value), Valid: true}
 }
 
 func encodeMetadata(metadata map[string]string) string {

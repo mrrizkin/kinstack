@@ -7,59 +7,43 @@ import (
 	"fmt"
 
 	"kinstack/internal/pkg/assert"
-	platformdatabase "kinstack/internal/platform/database"
-
-	"github.com/jmoiron/sqlx"
+	actorsqlc "kinstack/internal/platform/actor/sqlc"
 )
 
-const findActiveActorQuery = `
-SELECT 1
-FROM users
-WHERE public_id = $1
-  AND deleted_at IS NULL
-  AND is_active
-LIMIT 1`
-
 type SQLRepository struct {
-	owner    *platformdatabase.StatementOwner
-	findStmt *sqlx.Stmt
+	queries *actorsqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
-// NewSQLRepository prepares the actor lookup for the repository lifetime.
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "actor database is required")
 
-	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	findStmt, err := owner.Prepare("actor_find_by_public_id", findActiveActorQuery)
+	queries, err := actorsqlc.Prepare(context.Background(), dependency.DB)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("prepare actor queries: %w", err)
 	}
-	return &SQLRepository{owner: owner, findStmt: findStmt}, nil
+	return &SQLRepository{queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return r.queries.Close()
 }
 
 func (r *SQLRepository) FindByPublicID(ctx context.Context, publicID string) error {
-	if r == nil || r.findStmt == nil {
+	if r == nil || r.queries == nil {
 		return ErrRepositoryUnavailable
 	}
-	var found int
-	err := r.findStmt.GetContext(ctx, &found, publicID)
-	if errors.Is(err, sql.ErrNoRows) {
+	if _, err := r.queries.FindActiveActor(ctx, publicID); errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
-	}
-	if err != nil {
+	} else if err != nil {
 		return fmt.Errorf("find actor by public ID: %w", err)
 	}
 	return nil

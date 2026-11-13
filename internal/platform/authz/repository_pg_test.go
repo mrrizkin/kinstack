@@ -2,29 +2,34 @@ package authz
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-func authzTestRepository(t *testing.T) (*SQLRepository, *sqlx.DB) {
+func authzTestRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	t.Helper()
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		t.Skip("DATABASE_URL is not set")
 	}
-	db, err := sqlx.Connect("postgres", dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Skipf("PostgreSQL is unavailable: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 	var table string
-	if err := db.GetContext(ctx, &table, `SELECT to_regclass('roles')`); err != nil || table == "" {
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('roles')`).
+		Scan(&table); err != nil ||
+		table == "" {
 		t.Skip("authorization migration is not applied")
 	}
 	repository, err := NewSQLRepository(RepositoryDependency{DB: db})

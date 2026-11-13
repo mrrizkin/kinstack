@@ -33,7 +33,6 @@ require (
 	github.com/gofiber/storage/s3 v1.4.5
 	github.com/gofiber/storage/valkey v0.4.2
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
 	github.com/markbates/goth v1.82.0

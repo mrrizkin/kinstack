@@ -2,133 +2,134 @@ package audit
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
+	"time"
 
+	auditsqlc "kinstack/internal/features/audit/sqlc"
 	"kinstack/internal/pkg/assert"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // SQLRepository reads audit_events directly. The projection is append-only and
 // written by platform/audit, so this repository is read-only.
 type SQLRepository struct {
-	db *sqlx.DB
+	queries *auditsqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "audit database is required")
-	return &SQLRepository{db: dependency.DB}, nil
+
+	queries, err := auditsqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare audit queries: %w", err)
+	}
+	return &SQLRepository{queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
-	return nil
+	if r == nil {
+		return nil
+	}
+	return r.queries.Close()
 }
 
-const auditEntryProjection = `
-id, occurred_at, request_id, actor_key, action, resource, method, status,
-outcome, metadata::text`
-
 func (r *SQLRepository) List(ctx context.Context, query Query) (Page, error) {
-	where, args := buildAuditFilter(query)
+	filter := auditFilter(query)
 
-	var total int
-	if err := r.db.GetContext(
-		ctx,
-		&total,
-		"SELECT count(*) FROM audit_events"+where,
-		args...); err != nil {
+	total, err := r.queries.CountAuditEvents(ctx, auditsqlc.CountAuditEventsParams{
+		ActorKey: filter.actorKey,
+		Action:   filter.action,
+		Outcome:  filter.outcome,
+		Search:   filter.search,
+		FromTime: filter.from,
+		ToTime:   filter.to,
+	})
+	if err != nil {
 		return Page{}, fmt.Errorf("count audit events: %w", err)
 	}
 
-	limitIndex := len(args) + 1
-	offsetIndex := len(args) + 2
-	listQuery := "SELECT " + auditEntryProjection + " FROM audit_events" + where +
-		" ORDER BY occurred_at DESC, id DESC LIMIT $" + strconv.Itoa(limitIndex) +
-		" OFFSET $" + strconv.Itoa(offsetIndex)
-	listArgs := append(append([]any{}, args...), query.Limit(), query.Offset())
-
-	rows, err := r.db.QueryxContext(ctx, listQuery, listArgs...)
+	rows, err := r.queries.ListAuditEvents(ctx, auditsqlc.ListAuditEventsParams{
+		ActorKey:  filter.actorKey,
+		Action:    filter.action,
+		Outcome:   filter.outcome,
+		Search:    filter.search,
+		FromTime:  filter.from,
+		ToTime:    filter.to,
+		RowLimit:  int32(query.Limit()),
+		RowOffset: int32(query.Offset()),
+	})
 	if err != nil {
 		return Page{}, fmt.Errorf("list audit events: %w", err)
 	}
-	defer rows.Close()
 
-	entries := make([]Entry, 0)
-	for rows.Next() {
-		var entry Entry
-		var metadata string
-		if err := rows.Scan(
-			&entry.ID,
-			&entry.OccurredAt,
-			&entry.RequestID,
-			&entry.ActorKey,
-			&entry.Action,
-			&entry.Resource,
-			&entry.Method,
-			&entry.Status,
-			&entry.Outcome,
-			&metadata,
-		); err != nil {
-			return Page{}, fmt.Errorf("scan audit event: %w", err)
-		}
-		entry.Metadata, err = decodeMetadata(metadata)
+	entries := make([]Entry, 0, len(rows))
+	for _, row := range rows {
+		metadata, err := decodeMetadata(row.Metadata)
 		if err != nil {
 			return Page{}, fmt.Errorf("decode audit metadata: %w", err)
 		}
-		entries = append(entries, entry)
+		entries = append(entries, Entry{
+			ID:         row.ID,
+			OccurredAt: row.OccurredAt,
+			RequestID:  row.RequestID,
+			ActorKey:   row.ActorKey,
+			Action:     row.Action,
+			Resource:   row.Resource,
+			Method:     row.Method,
+			Status:     int(row.Status),
+			Outcome:    row.Outcome,
+			Metadata:   metadata,
+		})
 	}
-	if err := rows.Err(); err != nil {
-		return Page{}, fmt.Errorf("iterate audit events: %w", err)
-	}
-	return Page{Entries: entries, Total: total}, nil
+	return Page{Entries: entries, Total: int(total)}, nil
 }
 
-func buildAuditFilter(query Query) (string, []any) {
-	conditions := make([]string, 0, 6)
-	args := make([]any, 0, 6)
+type auditFilterParams struct {
+	actorKey sql.NullString
+	action   sql.NullString
+	outcome  sql.NullString
+	search   sql.NullString
+	from     sql.NullTime
+	to       sql.NullTime
+}
 
-	add := func(condition string, value any) {
-		args = append(args, value)
-		conditions = append(
-			conditions,
-			strings.Replace(condition, "?", "$"+strconv.Itoa(len(args)), 1),
-		)
+func auditFilter(query Query) auditFilterParams {
+	return auditFilterParams{
+		actorKey: optionalString(query.ActorKey),
+		action:   optionalString(query.Action),
+		outcome:  optionalString(query.Outcome),
+		search:   optionalSearch(query.Search),
+		from:     optionalTime(query.From),
+		to:       optionalTime(query.To),
 	}
+}
 
-	if query.ActorKey != "" {
-		add("actor_key = ?", query.ActorKey)
+func optionalString(value string) sql.NullString {
+	if value == "" {
+		return sql.NullString{}
 	}
-	if query.Action != "" {
-		add("action = ?", query.Action)
+	return sql.NullString{String: value, Valid: true}
+}
+
+func optionalSearch(value string) sql.NullString {
+	if value == "" {
+		return sql.NullString{}
 	}
-	if query.Outcome != "" {
-		add("outcome = ?", query.Outcome)
+	return sql.NullString{String: "%" + value + "%", Valid: true}
+}
+
+func optionalTime(value *time.Time) sql.NullTime {
+	if value == nil {
+		return sql.NullTime{}
 	}
-	if query.Search != "" {
-		args = append(args, "%"+query.Search+"%")
-		index := "$" + strconv.Itoa(len(args))
-		conditions = append(conditions, "(resource ILIKE "+index+" OR request_id ILIKE "+index+
-			" OR actor_key ILIKE "+index+" OR action ILIKE "+index+")")
-	}
-	if query.From != nil {
-		add("occurred_at >= ?", *query.From)
-	}
-	if query.To != nil {
-		add("occurred_at < ?", *query.To)
-	}
-	if len(conditions) == 0 {
-		return "", args
-	}
-	return " WHERE " + strings.Join(conditions, " AND "), args
+	return sql.NullTime{Time: *value, Valid: true}
 }
 
 func decodeMetadata(value string) (map[string]string, error) {

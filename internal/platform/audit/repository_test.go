@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"kinstack/internal/platform/session"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
@@ -163,15 +163,19 @@ func TestSQLRecorderContract(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL is not set")
 	}
-	db, err := sqlx.Connect("postgres", dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Skipf("PostgreSQL is unavailable: %v", err)
 	}
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 	var table string
-	if err := db.GetContext(ctx, &table, `SELECT to_regclass('audit_events')`); err != nil ||
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('audit_events')`).
+		Scan(&table); err != nil ||
 		table == "" {
 		t.Skip("audit events migration is not applied")
 	}
@@ -260,19 +264,21 @@ func TestSQLRepositoryDeleteBeforePrunesOldRows(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL is not set")
 	}
-	db, err := sqlx.Connect("postgres", dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Skipf("PostgreSQL is unavailable: %v", err)
 	}
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 	var table string
-	if err := db.GetContext(
+	if err := db.QueryRowContext(
 		ctx,
-		&table,
 		`SELECT to_regclass('audit_events')`,
-	); err != nil ||
+	).Scan(&table); err != nil ||
 		table == "" {
 		t.Skip("audit events migration is not applied")
 	}
@@ -309,9 +315,9 @@ func TestSQLRepositoryDeleteBeforePrunesOldRows(t *testing.T) {
 		t.Fatalf("expected at least one pruned row, got %d", deleted)
 	}
 	var remaining int
-	if err := db.GetContext(ctx, &remaining,
+	if err := db.QueryRowContext(ctx,
 		`SELECT count(*) FROM audit_events WHERE request_id = $1`, requestID,
-	); err != nil {
+	).Scan(&remaining); err != nil {
 		t.Fatalf("count remaining: %v", err)
 	}
 	if remaining != 1 {

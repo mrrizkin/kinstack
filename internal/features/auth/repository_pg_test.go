@@ -2,30 +2,34 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-func identityTestRepository(t *testing.T) (*SQLRepository, *sqlx.DB) {
+func identityTestRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	t.Helper()
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		t.Skip("DATABASE_URL is not set")
 	}
-	db, err := sqlx.Connect("postgres", dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Skipf("PostgreSQL is unavailable: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 	var table string
-	if err := db.GetContext(ctx, &table, `SELECT to_regclass('user_identities')`); err != nil ||
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('user_identities')`).
+		Scan(&table); err != nil ||
 		table == "" {
 		t.Skip("user_identities migration is not applied")
 	}
@@ -44,6 +48,9 @@ func TestSQLIdentityBindingRoundTrip(t *testing.T) {
 	repository, db := identityTestRepository(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 
 	seed := fmt.Sprintf("identity-test-%d", time.Now().UnixNano())
 	first := seed + "-a"

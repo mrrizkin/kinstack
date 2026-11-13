@@ -6,7 +6,7 @@
 just setup
 just dev
 just verify
-just sqlc-generate   # after editing <slice>/queries.sql
+just sqlc-generate   # after editing any queries.sql
 just test
 just audit
 just migrate

@@ -199,14 +199,14 @@ Validate fully at the edge, trust types inside.
   after they are applied. `just migrations-seal` only appends rows to
   `db/migrations/checksums.tsv`: a sealed migration that changed fails the
   build, and resealing is not a fix.
-- **Read queries are generated; writes are written.** `sqlc` owns the read
-  models: list/count/find statements live in `<slice>/queries.sql`, are checked
-  against `db/schema.sql` when they are generated, and their rows are mapped to
-  domain types inside `repository_pg.go`. Writes stay hand-written in sqlx
-  because they carry advisory locks, `RETURNING` projections, and `23505`
-  constraint classification that a generator cannot express. The dynamic audit
-  filter stays hand-written for the same reason: a generator has no answer for
-  six optional predicates.
+- **Every SQL statement is generated.** `sqlc` owns the whole statement
+  surface: reads and writes live in `<slice>/queries.sql`, are checked against
+  `db/schema.sql` when they are generated, and their rows are mapped to domain
+  types inside `repository_pg.go`. What stays written is the Go around them:
+  transactions and advisory locking, `23505`/`23503` constraint classification,
+  multi-statement flows, and the choice of which query to run. An optional
+  filter is a nullable parameter in the generated query, never string-built
+  SQL.
 - **Generated SQL is committed.** `go build` works without running a generator,
   and the SQL reviewed in a pull request is the SQL that ships.
   `db/schema.sql` is rendered from the migrations, because one goose file holds

@@ -10,191 +10,58 @@ import (
 	usersqlc "kinstack/internal/features/users/sqlc"
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/pagination"
-	platformdatabase "kinstack/internal/platform/database"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
-const userProjection = `
-u.public_id,
-u.username,
-u.email,
-u.display_name,
-COALESCE((
-    SELECT ur.role_code
-    FROM user_roles ur
-    JOIN roles r ON r.code = ur.role_code
-    WHERE ur.user_public_id = u.public_id
-    ORDER BY r.rank DESC, ur.role_code ASC
-    LIMIT 1
-), '') AS role,
-u.is_active,
-(u.invited_at IS NOT NULL) AS invited,
-u.last_login_at,
-u.created_at`
-
-const (
-	createUserQuery = `
-WITH inserted AS (
-    INSERT INTO users (public_id, username, email, display_name, password_hash, invited_at)
-    VALUES ($1, $2, $3, $4, $5, CASE WHEN $6 THEN now() ELSE NULL END)
-    RETURNING *
-)
-SELECT ` + userProjection + `
-FROM inserted u`
-
-	updateUserQuery = `
-WITH updated AS (
-    UPDATE users
-    SET display_name = $2, email = $3, updated_at = now()
-    WHERE public_id = $1
-      AND deleted_at IS NULL
-    RETURNING *
-)
-SELECT ` + userProjection + `
-FROM updated u`
-
-	updatePasswordQuery = `
-UPDATE users
-SET password_hash = $2, updated_at = now()
-WHERE public_id = $1
-  AND deleted_at IS NULL`
-
-	// lockAccessManagers serializes every decision that could remove the last
-	// account able to manage access. The key is a constant, so all replicas
-	// contend on the same advisory lock.
-	lockAccessManagersQuery = `SELECT pg_advisory_xact_lock(hashtext('kinstack:access_managers'))`
-
-	countActiveAccessManagersQuery = `
-SELECT COUNT(*)
-FROM users u
-WHERE u.public_id <> $1
-  AND u.is_active
-  AND u.deleted_at IS NULL
-  AND (
-    EXISTS (
-        SELECT 1
-        FROM user_roles ur
-        JOIN role_permissions rp ON rp.role_code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
-          AND rp.permission_code = 'access.manage'
-      )
-    OR EXISTS (
-        SELECT 1
-        FROM user_permissions up
-        WHERE up.user_public_id = u.public_id
-          AND up.permission_code = 'access.manage'
-          AND up.effect = 'allow'
-          AND (up.expires_at IS NULL OR up.expires_at > now())
-      )
-  )
-  AND NOT EXISTS (
-    SELECT 1
-    FROM user_permissions up
-    WHERE up.user_public_id = u.public_id
-      AND up.permission_code = 'access.manage'
-      AND up.effect = 'deny'
-      AND (up.expires_at IS NULL OR up.expires_at > now())
-  )`
-
-	setActiveQuery = `
-WITH updated AS (
-    UPDATE users
-    SET is_active = $2, updated_at = now()
-    WHERE public_id = $1
-      AND deleted_at IS NULL
-    RETURNING *
-)
-SELECT ` + userProjection + `
-FROM updated u`
-)
-
 type SQLRepository struct {
-	db    *sqlx.DB
-	owner *platformdatabase.StatementOwner
-	// reads are generated from queries.sql; writes stay prepared here because
-	// they carry error classification and RETURNING projections.
-	reads        *usersqlc.Queries
-	createStmt   *sqlx.Stmt
-	updateStmt   *sqlx.Stmt
-	passwordStmt *sqlx.Stmt
-	activeStmt   *sqlx.Stmt
+	db      *sql.DB
+	queries *usersqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "users database is required")
 
-	reads, err := usersqlc.Prepare(context.Background(), dependency.DB)
+	queries, err := usersqlc.Prepare(context.Background(), dependency.DB)
 	if err != nil {
-		return nil, fmt.Errorf("prepare users reads: %w", err)
+		return nil, fmt.Errorf("prepare users queries: %w", err)
 	}
-
-	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &SQLRepository{db: dependency.DB, owner: owner, reads: reads}
-	statements := []struct {
-		target **sqlx.Stmt
-		name   string
-		query  string
-	}{
-		{&repository.createStmt, "users_create", createUserQuery},
-		{&repository.updateStmt, "users_update", updateUserQuery},
-		{&repository.passwordStmt, "users_update_password", updatePasswordQuery},
-		{&repository.activeStmt, "users_set_active", setActiveQuery},
-	}
-	for _, statement := range statements {
-		stmt, err := owner.Prepare(statement.name, statement.query)
-		if err != nil {
-			return nil, errors.Join(err, reads.Close())
-		}
-		*statement.target = stmt
-	}
-	return repository, nil
+	return &SQLRepository{db: dependency.DB, queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return errors.Join(r.reads.Close(), r.owner.Close())
+	return r.queries.Close()
 }
 
 func (r *SQLRepository) ListUsers(
 	ctx context.Context,
 	query pagination.Query,
 ) ([]UserResult, error) {
-	rows, err := r.reads.ListUsers(ctx, usersqlc.ListUsersParams{
-		Limit:  int32(query.Limit()),
-		Offset: int32(query.Offset()),
+	rows, err := r.queries.ListUsers(ctx, usersqlc.ListUsersParams{
+		RowLimit:  int32(query.Limit()),
+		RowOffset: int32(query.Offset()),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
 	results := make([]UserResult, 0, len(rows))
 	for _, row := range rows {
-		results = append(results, UserResult{
-			PublicID:    row.PublicID,
-			Username:    row.Username,
-			Email:       row.Email,
-			DisplayName: row.DisplayName,
-			Role:        row.Role,
-			IsActive:    row.IsActive,
-			Invited:     row.Invited,
-			LastLoginAt: nullableTime(row.LastLoginAt),
-			CreatedAt:   row.CreatedAt,
-		})
+		results = append(results, userFromListRow(row))
 	}
 	return results, nil
 }
 
 func (r *SQLRepository) CountUsers(ctx context.Context) (UserCounts, error) {
-	counts, err := r.reads.CountUsers(ctx)
+	counts, err := r.queries.CountUsers(ctx)
 	if err != nil {
 		return UserCounts{}, fmt.Errorf("count users: %w", err)
 	}
@@ -205,45 +72,25 @@ func (r *SQLRepository) FindUserByPublicID(
 	ctx context.Context,
 	publicID string,
 ) (UserResult, error) {
-	row, err := r.reads.FindUserByPublicID(ctx, publicID)
+	row, err := r.queries.FindUserByPublicID(ctx, publicID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return UserResult{}, ErrNotFound
 	}
 	if err != nil {
 		return UserResult{}, fmt.Errorf("find user: %w", err)
 	}
-	return UserResult{
-		PublicID:    row.PublicID,
-		Username:    row.Username,
-		Email:       row.Email,
-		DisplayName: row.DisplayName,
-		Role:        row.Role,
-		IsActive:    row.IsActive,
-		Invited:     row.Invited,
-		LastLoginAt: nullableTime(row.LastLoginAt),
-		CreatedAt:   row.CreatedAt,
-	}, nil
-}
-
-func nullableTime(value sql.NullTime) *time.Time {
-	if !value.Valid {
-		return nil
-	}
-	return &value.Time
+	return userFromFindRow(row), nil
 }
 
 func (r *SQLRepository) CreateUser(ctx context.Context, input CreateUserInput) (UserResult, error) {
-	var result UserResult
-	err := r.createStmt.GetContext(
-		ctx,
-		&result,
-		input.PublicID,
-		input.Username,
-		input.Email,
-		input.DisplayName,
-		input.PasswordHash,
-		input.Invited,
-	)
+	row, err := r.queries.CreateUser(ctx, usersqlc.CreateUserParams{
+		PublicID:     input.PublicID,
+		Username:     input.Username,
+		Email:        input.Email,
+		DisplayName:  input.DisplayName,
+		PasswordHash: input.PasswordHash,
+		Invited:      input.Invited,
+	})
 	if constraint, ok := uniqueViolationConstraint(err); ok {
 		if constraint == "users_email_active_idx" {
 			return UserResult{}, ErrEmailTaken
@@ -253,18 +100,15 @@ func (r *SQLRepository) CreateUser(ctx context.Context, input CreateUserInput) (
 	if err != nil {
 		return UserResult{}, fmt.Errorf("create user: %w", err)
 	}
-	return result, nil
+	return userFromCreateRow(row), nil
 }
 
 func (r *SQLRepository) UpdateUser(ctx context.Context, input UpdateUserInput) (UserResult, error) {
-	var result UserResult
-	err := r.updateStmt.GetContext(
-		ctx,
-		&result,
-		input.PublicID,
-		input.DisplayName,
-		input.Email,
-	)
+	row, err := r.queries.UpdateUser(ctx, usersqlc.UpdateUserParams{
+		PublicID:    input.PublicID,
+		DisplayName: input.DisplayName,
+		Email:       input.Email,
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return UserResult{}, ErrNotFound
 	}
@@ -277,17 +121,16 @@ func (r *SQLRepository) UpdateUser(ctx context.Context, input UpdateUserInput) (
 	if err != nil {
 		return UserResult{}, fmt.Errorf("update user: %w", err)
 	}
-	return result, nil
+	return userFromUpdateRow(row), nil
 }
 
 func (r *SQLRepository) UpdatePassword(ctx context.Context, publicID, hash string) error {
-	result, err := r.passwordStmt.ExecContext(ctx, publicID, hash)
+	affected, err := r.queries.UpdateUserPassword(ctx, usersqlc.UpdateUserPasswordParams{
+		PublicID:     publicID,
+		PasswordHash: hash,
+	})
 	if err != nil {
 		return fmt.Errorf("update password: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("update password rows affected: %w", err)
 	}
 	if affected == 0 {
 		return ErrNotFound
@@ -301,26 +144,29 @@ func (r *SQLRepository) DeactivateGuarded(
 	ctx context.Context,
 	publicID string,
 ) (UserResult, error) {
-	tx, err := r.db.BeginTxx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return UserResult{}, fmt.Errorf("begin deactivate transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if _, err := tx.ExecContext(ctx, lockAccessManagersQuery); err != nil {
+	queries := r.queries.WithTx(tx)
+	if err := queries.LockAccessManagers(ctx); err != nil {
 		return UserResult{}, fmt.Errorf("lock access managers: %w", err)
 	}
 
-	var others int
-	if err := tx.GetContext(ctx, &others, countActiveAccessManagersQuery, publicID); err != nil {
+	others, err := queries.CountActiveAccessManagers(ctx, publicID)
+	if err != nil {
 		return UserResult{}, fmt.Errorf("count access managers: %w", err)
 	}
 	if others == 0 {
 		return UserResult{}, ErrLastAdministrator
 	}
 
-	var result UserResult
-	err = tx.GetContext(ctx, &result, setActiveQuery, publicID, false)
+	row, err := queries.SetUserActive(ctx, usersqlc.SetUserActiveParams{
+		PublicID: publicID,
+		IsActive: false,
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return UserResult{}, ErrNotFound
 	}
@@ -330,7 +176,7 @@ func (r *SQLRepository) DeactivateGuarded(
 	if err := tx.Commit(); err != nil {
 		return UserResult{}, fmt.Errorf("commit deactivate: %w", err)
 	}
-	return result, nil
+	return userFromSetActiveRow(row), nil
 }
 
 func (r *SQLRepository) SetActive(
@@ -338,15 +184,94 @@ func (r *SQLRepository) SetActive(
 	publicID string,
 	active bool,
 ) (UserResult, error) {
-	var result UserResult
-	err := r.activeStmt.GetContext(ctx, &result, publicID, active)
+	row, err := r.queries.SetUserActive(ctx, usersqlc.SetUserActiveParams{
+		PublicID: publicID,
+		IsActive: active,
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return UserResult{}, ErrNotFound
 	}
 	if err != nil {
 		return UserResult{}, fmt.Errorf("set active: %w", err)
 	}
-	return result, nil
+	return userFromSetActiveRow(row), nil
+}
+
+func userFromListRow(row usersqlc.ListUsersRow) UserResult {
+	return UserResult{
+		PublicID:    row.PublicID,
+		Username:    row.Username,
+		Email:       row.Email,
+		DisplayName: row.DisplayName,
+		Role:        row.Role,
+		IsActive:    row.IsActive,
+		Invited:     row.Invited,
+		LastLoginAt: nullableTime(row.LastLoginAt),
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
+func userFromFindRow(row usersqlc.FindUserByPublicIDRow) UserResult {
+	return UserResult{
+		PublicID:    row.PublicID,
+		Username:    row.Username,
+		Email:       row.Email,
+		DisplayName: row.DisplayName,
+		Role:        row.Role,
+		IsActive:    row.IsActive,
+		Invited:     row.Invited,
+		LastLoginAt: nullableTime(row.LastLoginAt),
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
+func userFromCreateRow(row usersqlc.CreateUserRow) UserResult {
+	return UserResult{
+		PublicID:    row.PublicID,
+		Username:    row.Username,
+		Email:       row.Email,
+		DisplayName: row.DisplayName,
+		Role:        row.Role,
+		IsActive:    row.IsActive,
+		Invited:     row.Invited,
+		LastLoginAt: nullableTime(row.LastLoginAt),
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
+func userFromUpdateRow(row usersqlc.UpdateUserRow) UserResult {
+	return UserResult{
+		PublicID:    row.PublicID,
+		Username:    row.Username,
+		Email:       row.Email,
+		DisplayName: row.DisplayName,
+		Role:        row.Role,
+		IsActive:    row.IsActive,
+		Invited:     row.Invited,
+		LastLoginAt: nullableTime(row.LastLoginAt),
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
+func userFromSetActiveRow(row usersqlc.SetUserActiveRow) UserResult {
+	return UserResult{
+		PublicID:    row.PublicID,
+		Username:    row.Username,
+		Email:       row.Email,
+		DisplayName: row.DisplayName,
+		Role:        row.Role,
+		IsActive:    row.IsActive,
+		Invited:     row.Invited,
+		LastLoginAt: nullableTime(row.LastLoginAt),
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
+func nullableTime(value sql.NullTime) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Time
 }
 
 func uniqueViolationConstraint(err error) (string, bool) {

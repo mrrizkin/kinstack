@@ -1,13 +1,95 @@
 version: "2"
 
-# Read models only. Writes, transactions, and the dynamic audit filter stay in
-# sqlx (see PILLARS.md §5): a generated write helper would replace code that
-# already needs hand-written error classification and locks.
+# Every SQL statement in the repository is generated: reads and writes both
+# live in <slice>/queries.sql, are type-checked against db/schema.sql when they
+# are generated, and their rows are mapped to domain types inside
+# repository_pg.go. Error classification (23505/23503), transactions, and
+# multi-statement flows stay in Go: sqlc returns the driver error untouched.
+#
+# Parameters are named (`sqlc.arg` for required, `sqlc.narg` for NULL-able) so
+# the generated Params fields say what they bind; a bare `$n` is only used where
+# a name would add nothing. The emitted statement is still positional.
 #
 # `just sqlc-generate` rebuilds db/schema.sql from the migrations first; sqlc
 # parses that file instead of the goose migrations, which contain both
 # directions in each file.
 sql:
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/apitoken/queries.sql
+    gen:
+      go:
+        package: apitokensqlc
+        out: internal/features/apitoken/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/audit/queries.sql
+    gen:
+      go:
+        package: auditsqlc
+        out: internal/features/audit/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/auth/queries.sql
+    gen:
+      go:
+        package: authsqlc
+        out: internal/features/auth/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/media/queries.sql
+    gen:
+      go:
+        package: mediasqlc
+        out: internal/features/media/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/notifications/queries.sql
+    gen:
+      go:
+        package: notificationssqlc
+        out: internal/features/notifications/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/passkeys/queries.sql
+    gen:
+      go:
+        package: passkeyssqlc
+        out: internal/features/passkeys/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/features/profile/queries.sql
+    gen:
+      go:
+        package: profilesqlc
+        out: internal/features/profile/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
   - engine: postgresql
     schema: db/schema.sql
     queries: internal/features/users/queries.sql
@@ -17,3 +99,58 @@ sql:
         out: internal/features/users/sqlc
         sql_package: database/sql
         emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/platform/actor/queries.sql
+    gen:
+      go:
+        package: actorsqlc
+        out: internal/platform/actor/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/platform/audit/queries.sql
+    gen:
+      go:
+        package: platformauditsqlc
+        out: internal/platform/audit/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/platform/authz/queries.sql
+    gen:
+      go:
+        package: authzsqlc
+        out: internal/platform/authz/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/platform/sessionregistry/queries.sql
+    gen:
+      go:
+        package: sessionsqlc
+        out: internal/platform/sessionregistry/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true
+
+  - engine: postgresql
+    schema: db/schema.sql
+    queries: internal/platform/twofactor/queries.sql
+    gen:
+      go:
+        package: twofactorsqlc
+        out: internal/platform/twofactor/sqlc
+        sql_package: database/sql
+        emit_prepared_queries: true
+        omit_unused_structs: true

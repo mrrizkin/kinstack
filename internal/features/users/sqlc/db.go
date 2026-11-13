@@ -24,8 +24,14 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.countActiveAccessManagersStmt, err = db.PrepareContext(ctx, countActiveAccessManagers); err != nil {
+		return nil, fmt.Errorf("error preparing query CountActiveAccessManagers: %w", err)
+	}
 	if q.countUsersStmt, err = db.PrepareContext(ctx, countUsers); err != nil {
 		return nil, fmt.Errorf("error preparing query CountUsers: %w", err)
+	}
+	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
 	}
 	if q.findUserByPublicIDStmt, err = db.PrepareContext(ctx, findUserByPublicID); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserByPublicID: %w", err)
@@ -33,14 +39,36 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listUsersStmt, err = db.PrepareContext(ctx, listUsers); err != nil {
 		return nil, fmt.Errorf("error preparing query ListUsers: %w", err)
 	}
+	if q.lockAccessManagersStmt, err = db.PrepareContext(ctx, lockAccessManagers); err != nil {
+		return nil, fmt.Errorf("error preparing query LockAccessManagers: %w", err)
+	}
+	if q.setUserActiveStmt, err = db.PrepareContext(ctx, setUserActive); err != nil {
+		return nil, fmt.Errorf("error preparing query SetUserActive: %w", err)
+	}
+	if q.updateUserStmt, err = db.PrepareContext(ctx, updateUser); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateUser: %w", err)
+	}
+	if q.updateUserPasswordStmt, err = db.PrepareContext(ctx, updateUserPassword); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateUserPassword: %w", err)
+	}
 	return &q, nil
 }
 
 func (q *Queries) Close() error {
 	var err error
+	if q.countActiveAccessManagersStmt != nil {
+		if cerr := q.countActiveAccessManagersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countActiveAccessManagersStmt: %w", cerr)
+		}
+	}
 	if q.countUsersStmt != nil {
 		if cerr := q.countUsersStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing countUsersStmt: %w", cerr)
+		}
+	}
+	if q.createUserStmt != nil {
+		if cerr := q.createUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
 		}
 	}
 	if q.findUserByPublicIDStmt != nil {
@@ -51,6 +79,26 @@ func (q *Queries) Close() error {
 	if q.listUsersStmt != nil {
 		if cerr := q.listUsersStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listUsersStmt: %w", cerr)
+		}
+	}
+	if q.lockAccessManagersStmt != nil {
+		if cerr := q.lockAccessManagersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing lockAccessManagersStmt: %w", cerr)
+		}
+	}
+	if q.setUserActiveStmt != nil {
+		if cerr := q.setUserActiveStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setUserActiveStmt: %w", cerr)
+		}
+	}
+	if q.updateUserStmt != nil {
+		if cerr := q.updateUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateUserStmt: %w", cerr)
+		}
+	}
+	if q.updateUserPasswordStmt != nil {
+		if cerr := q.updateUserPasswordStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateUserPasswordStmt: %w", cerr)
 		}
 	}
 	return err
@@ -90,19 +138,31 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                     DBTX
-	tx                     *sql.Tx
-	countUsersStmt         *sql.Stmt
-	findUserByPublicIDStmt *sql.Stmt
-	listUsersStmt          *sql.Stmt
+	db                            DBTX
+	tx                            *sql.Tx
+	countActiveAccessManagersStmt *sql.Stmt
+	countUsersStmt                *sql.Stmt
+	createUserStmt                *sql.Stmt
+	findUserByPublicIDStmt        *sql.Stmt
+	listUsersStmt                 *sql.Stmt
+	lockAccessManagersStmt        *sql.Stmt
+	setUserActiveStmt             *sql.Stmt
+	updateUserStmt                *sql.Stmt
+	updateUserPasswordStmt        *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                     tx,
-		tx:                     tx,
-		countUsersStmt:         q.countUsersStmt,
-		findUserByPublicIDStmt: q.findUserByPublicIDStmt,
-		listUsersStmt:          q.listUsersStmt,
+		db:                            tx,
+		tx:                            tx,
+		countActiveAccessManagersStmt: q.countActiveAccessManagersStmt,
+		countUsersStmt:                q.countUsersStmt,
+		createUserStmt:                q.createUserStmt,
+		findUserByPublicIDStmt:        q.findUserByPublicIDStmt,
+		listUsersStmt:                 q.listUsersStmt,
+		lockAccessManagersStmt:        q.lockAccessManagersStmt,
+		setUserActiveStmt:             q.setUserActiveStmt,
+		updateUserStmt:                q.updateUserStmt,
+		updateUserPasswordStmt:        q.updateUserPasswordStmt,
 	}
 }

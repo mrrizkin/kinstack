@@ -3,6 +3,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
 	"github.com/pressly/goose/v3"
 )
 
@@ -23,7 +23,7 @@ const (
 )
 
 type DB struct {
-	*sqlx.DB
+	*sql.DB
 }
 
 // Options tunes the shared pool. Zero values keep the defaults.
@@ -54,7 +54,7 @@ func OpenWithOptions(dsn string, opts Options) (*DB, error) {
 		)
 	}
 
-	db := sqlx.NewDb(stdlib.OpenDB(*connConfig), "pgx")
+	db := stdlib.OpenDB(*connConfig)
 	pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(pingCtx); err != nil {
@@ -85,22 +85,22 @@ func (db *DB) Close() error {
 }
 
 func (db *DB) Migrate(ctx context.Context) error {
-	return db.withGoose(func() error { return goose.UpContext(ctx, db.DB.DB, ".") })
+	return db.withGoose(func() error { return goose.UpContext(ctx, db.DB, ".") })
 }
 
 func (db *DB) Down(ctx context.Context) error {
-	return db.withGoose(func() error { return goose.DownContext(ctx, db.DB.DB, ".") })
+	return db.withGoose(func() error { return goose.DownContext(ctx, db.DB, ".") })
 }
 
 func (db *DB) Status(ctx context.Context) error {
-	return db.withGoose(func() error { return goose.StatusContext(ctx, db.DB.DB, ".") })
+	return db.withGoose(func() error { return goose.StatusContext(ctx, db.DB, ".") })
 }
 
 func (db *DB) Version(ctx context.Context) (int64, error) {
 	var version int64
 	err := db.withGoose(func() error {
 		var err error
-		version, err = goose.GetDBVersionContext(ctx, db.DB.DB)
+		version, err = goose.GetDBVersionContext(ctx, db.DB)
 		return err
 	})
 	return version, err

@@ -6,105 +6,36 @@ import (
 	"errors"
 	"fmt"
 
+	mediasqlc "kinstack/internal/features/media/sqlc"
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/pagination"
-	platformdatabase "kinstack/internal/platform/database"
-
-	"github.com/jmoiron/sqlx"
-)
-
-const assetProjection = `
-public_id,
-owner_public_id,
-filename,
-content_type,
-size_bytes,
-object_key,
-created_at`
-
-const (
-	listAssetsQuery = `
-SELECT ` + assetProjection + `
-FROM media_assets
-WHERE owner_public_id = $1
-  AND deleted_at IS NULL
-ORDER BY created_at DESC, id DESC
-LIMIT $2 OFFSET $3`
-
-	countAssetsQuery = `
-SELECT COUNT(*)
-FROM media_assets
-WHERE owner_public_id = $1
-  AND deleted_at IS NULL`
-
-	createAssetQuery = `
-INSERT INTO media_assets (public_id, owner_public_id, filename, content_type, size_bytes, object_key)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING ` + assetProjection
-
-	findAssetQuery = `
-SELECT ` + assetProjection + `
-FROM media_assets
-WHERE owner_public_id = $1
-  AND public_id = $2
-  AND deleted_at IS NULL
-LIMIT 1`
-
-	deleteAssetQuery = `
-UPDATE media_assets
-SET deleted_at = now()
-WHERE owner_public_id = $1
-  AND public_id = $2
-  AND deleted_at IS NULL
-RETURNING ` + assetProjection
 )
 
 type SQLRepository struct {
-	owner      *platformdatabase.StatementOwner
-	listStmt   *sqlx.Stmt
-	countStmt  *sqlx.Stmt
-	createStmt *sqlx.Stmt
-	findStmt   *sqlx.Stmt
-	deleteStmt *sqlx.Stmt
+	queries *mediasqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "media database is required")
 
-	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &SQLRepository{owner: owner}
-	statements := []struct {
-		target **sqlx.Stmt
-		name   string
-		query  string
-	}{
-		{&repository.listStmt, "media_list", listAssetsQuery},
-		{&repository.countStmt, "media_count", countAssetsQuery},
-		{&repository.createStmt, "media_create", createAssetQuery},
-		{&repository.findStmt, "media_find", findAssetQuery},
-		{&repository.deleteStmt, "media_delete", deleteAssetQuery},
+	queries, err := mediasqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare media queries: %w", err)
 	}
-	for _, statement := range statements {
-		stmt, err := owner.Prepare(statement.name, statement.query)
-		if err != nil {
-			return nil, err
-		}
-		*statement.target = stmt
-	}
-	return repository, nil
+	return &SQLRepository{queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return r.queries.Close()
 }
 
 func (r *SQLRepository) List(
@@ -112,62 +43,116 @@ func (r *SQLRepository) List(
 	ownerPublicID string,
 	query pagination.Query,
 ) ([]Asset, error) {
-	assets := make([]Asset, 0)
-	if err := r.listStmt.SelectContext(
-		ctx,
-		&assets,
-		ownerPublicID,
-		query.Limit(),
-		query.Offset(),
-	); err != nil {
+	rows, err := r.queries.ListAssets(ctx, mediasqlc.ListAssetsParams{
+		OwnerPublicID: ownerPublicID,
+		RowLimit:      int32(query.Limit()),
+		RowOffset:     int32(query.Offset()),
+	})
+	if err != nil {
 		return nil, fmt.Errorf("list media: %w", err)
+	}
+	assets := make([]Asset, 0, len(rows))
+	for _, row := range rows {
+		assets = append(assets, assetFromListRow(row))
 	}
 	return assets, nil
 }
 
 func (r *SQLRepository) Create(ctx context.Context, input CreateAssetInput) (Asset, error) {
-	var asset Asset
-	if err := r.createStmt.GetContext(
-		ctx,
-		&asset,
-		input.PublicID,
-		input.OwnerPublicID,
-		input.Filename,
-		input.ContentType,
-		input.SizeBytes,
-		input.ObjectKey,
-	); err != nil {
+	row, err := r.queries.CreateAsset(ctx, mediasqlc.CreateAssetParams{
+		PublicID:      input.PublicID,
+		OwnerPublicID: input.OwnerPublicID,
+		Filename:      input.Filename,
+		ContentType:   input.ContentType,
+		SizeBytes:     input.SizeBytes,
+		ObjectKey:     input.ObjectKey,
+	})
+	if err != nil {
 		return Asset{}, fmt.Errorf("create media: %w", err)
 	}
-	return asset, nil
+	return assetFromCreateRow(row), nil
 }
 
 func (r *SQLRepository) Count(ctx context.Context, ownerPublicID string) (int, error) {
-	var count int
-	if err := r.countStmt.GetContext(ctx, &count, ownerPublicID); err != nil {
+	count, err := r.queries.CountAssets(ctx, ownerPublicID)
+	if err != nil {
 		return 0, fmt.Errorf("count media: %w", err)
 	}
-	return count, nil
+	return int(count), nil
 }
 
 func (r *SQLRepository) Find(ctx context.Context, ownerPublicID, publicID string) (Asset, error) {
-	var asset Asset
-	if err := r.findStmt.GetContext(ctx, &asset, ownerPublicID, publicID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Asset{}, ErrNotFound
-		}
+	row, err := r.queries.FindAsset(ctx, mediasqlc.FindAssetParams{
+		OwnerPublicID: ownerPublicID,
+		PublicID:      publicID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Asset{}, ErrNotFound
+	}
+	if err != nil {
 		return Asset{}, fmt.Errorf("find media: %w", err)
 	}
-	return asset, nil
+	return assetFromFindRow(row), nil
 }
 
 func (r *SQLRepository) Delete(ctx context.Context, ownerPublicID, publicID string) (Asset, error) {
-	var asset Asset
-	if err := r.deleteStmt.GetContext(ctx, &asset, ownerPublicID, publicID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Asset{}, ErrNotFound
-		}
+	row, err := r.queries.SoftDeleteAsset(ctx, mediasqlc.SoftDeleteAssetParams{
+		OwnerPublicID: ownerPublicID,
+		PublicID:      publicID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Asset{}, ErrNotFound
+	}
+	if err != nil {
 		return Asset{}, fmt.Errorf("delete media: %w", err)
 	}
-	return asset, nil
+	return assetFromDeleteRow(row), nil
+}
+
+func assetFromListRow(row mediasqlc.ListAssetsRow) Asset {
+	return Asset{
+		PublicID:      row.PublicID,
+		OwnerPublicID: row.OwnerPublicID,
+		Filename:      row.Filename,
+		ContentType:   row.ContentType,
+		SizeBytes:     row.SizeBytes,
+		ObjectKey:     row.ObjectKey,
+		CreatedAt:     row.CreatedAt,
+	}
+}
+
+func assetFromCreateRow(row mediasqlc.CreateAssetRow) Asset {
+	return Asset{
+		PublicID:      row.PublicID,
+		OwnerPublicID: row.OwnerPublicID,
+		Filename:      row.Filename,
+		ContentType:   row.ContentType,
+		SizeBytes:     row.SizeBytes,
+		ObjectKey:     row.ObjectKey,
+		CreatedAt:     row.CreatedAt,
+	}
+}
+
+func assetFromFindRow(row mediasqlc.FindAssetRow) Asset {
+	return Asset{
+		PublicID:      row.PublicID,
+		OwnerPublicID: row.OwnerPublicID,
+		Filename:      row.Filename,
+		ContentType:   row.ContentType,
+		SizeBytes:     row.SizeBytes,
+		ObjectKey:     row.ObjectKey,
+		CreatedAt:     row.CreatedAt,
+	}
+}
+
+func assetFromDeleteRow(row mediasqlc.SoftDeleteAssetRow) Asset {
+	return Asset{
+		PublicID:      row.PublicID,
+		OwnerPublicID: row.OwnerPublicID,
+		Filename:      row.Filename,
+		ContentType:   row.ContentType,
+		SizeBytes:     row.SizeBytes,
+		ObjectKey:     row.ObjectKey,
+		CreatedAt:     row.CreatedAt,
+	}
 }

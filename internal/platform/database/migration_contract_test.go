@@ -2,11 +2,11 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
@@ -15,13 +15,16 @@ func TestMigrationLatestRollbackRoundTrip(t *testing.T) {
 	if dsn == "" {
 		t.Skip("KINSTACK_MIGRATION_ROLLBACK_DATABASE_URL is not set")
 	}
-	db, err := sqlx.Connect("postgres", dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Skipf("PostgreSQL is unavailable: %v", err)
 	}
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 	database := &DB{DB: db}
 	if err := database.Migrate(ctx); err != nil {
 		t.Fatal(err)

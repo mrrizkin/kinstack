@@ -9,280 +9,111 @@ import (
 
 	"kinstack/internal/pkg/assert"
 	"kinstack/internal/pkg/pagination"
-	platformdatabase "kinstack/internal/platform/database"
+	authzsqlc "kinstack/internal/platform/authz/sqlc"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
-const roleColumns = `code, name, description, rank, is_system, created_at, updated_at`
-
-const (
-	listRolesQuery = `
-SELECT ` + roleColumns + `
-FROM roles
-ORDER BY rank DESC, code ASC
-LIMIT $1 OFFSET $2`
-
-	countRolesQuery = `
-SELECT COUNT(*) FROM roles`
-
-	findRoleQuery = `
-SELECT ` + roleColumns + `
-FROM roles
-WHERE code = $1
-LIMIT 1`
-
-	createRoleQuery = `
-INSERT INTO roles (code, name, description, rank)
-VALUES ($1, $2, $3, $4)
-RETURNING ` + roleColumns
-
-	updateRoleQuery = `
-UPDATE roles
-SET name = $2, description = $3, rank = $4, updated_at = now()
-WHERE code = $1
-  AND is_system = false
-RETURNING ` + roleColumns
-
-	deleteRoleQuery = `DELETE FROM roles WHERE code = $1 AND is_system = false`
-
-	rolePermissionsQuery = `
-SELECT permission_code
-FROM role_permissions
-WHERE role_code = $1
-ORDER BY permission_code ASC`
-
-	rolePermissionsManyQuery = `
-SELECT role_code, permission_code
-FROM role_permissions
-WHERE role_code = ANY($1)
-ORDER BY role_code ASC, permission_code ASC`
-
-	replaceRolePermissionsQuery = `
-WITH target AS (
-    SELECT code FROM roles WHERE code = $1 AND is_system = false
-),
-deleted AS (
-    DELETE FROM role_permissions
-    WHERE role_code IN (SELECT code FROM target)
-)
-INSERT INTO role_permissions (role_code, permission_code)
-SELECT target.code, unnest($2::text[])
-FROM target`
-
-	userOverridesQuery = `
-SELECT permission_code, effect, reason, expires_at
-FROM user_permissions
-WHERE user_public_id = $1
-ORDER BY permission_code ASC`
-
-	userOverridesManyQuery = `
-SELECT user_public_id, permission_code, effect, reason, expires_at
-FROM user_permissions
-WHERE user_public_id = ANY($1)
-ORDER BY user_public_id ASC, permission_code ASC`
-
-	upsertUserOverrideQuery = `
-INSERT INTO user_permissions (user_public_id, permission_code, effect, reason, expires_at)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (user_public_id, permission_code)
-DO UPDATE SET effect = EXCLUDED.effect,
-              reason = EXCLUDED.reason,
-              expires_at = EXCLUDED.expires_at,
-              updated_at = now()
-RETURNING permission_code, effect, reason, expires_at`
-
-	deleteUserOverrideQuery = `
-DELETE FROM user_permissions
-WHERE user_public_id = $1 AND permission_code = $2`
-
-	assignUserRoleQuery = `
-WITH deleted AS (
-    DELETE FROM user_roles WHERE user_public_id = $1
-)
-INSERT INTO user_roles (user_public_id, role_code)
-SELECT $1, $2
-WHERE EXISTS (
-    SELECT 1 FROM users WHERE public_id = $1 AND deleted_at IS NULL
-)
-RETURNING user_public_id`
-
-	userRoleQuery = `
-SELECT role_code
-FROM user_roles
-WHERE user_public_id = $1
-LIMIT 1`
-
-	countRoleAssignmentsQuery = `
-SELECT count(DISTINCT ur.user_public_id)
-FROM user_roles ur
-JOIN users u ON u.public_id = ur.user_public_id
-WHERE ur.role_code = $1
-  AND u.deleted_at IS NULL`
-)
-
 type SQLRepository struct {
-	owner *platformdatabase.StatementOwner
-
-	listRolesStmt        *sqlx.Stmt
-	countRolesStmt       *sqlx.Stmt
-	findRoleStmt         *sqlx.Stmt
-	createRoleStmt       *sqlx.Stmt
-	updateRoleStmt       *sqlx.Stmt
-	deleteRoleStmt       *sqlx.Stmt
-	rolePermissionsStmt  *sqlx.Stmt
-	rolePermsManyStmt    *sqlx.Stmt
-	replacePermsStmt     *sqlx.Stmt
-	overridesStmt        *sqlx.Stmt
-	overridesManyStmt    *sqlx.Stmt
-	upsertOverrideStmt   *sqlx.Stmt
-	deleteOverrideStmt   *sqlx.Stmt
-	assignRoleStmt       *sqlx.Stmt
-	userRoleStmt         *sqlx.Stmt
-	countAssignmentsStmt *sqlx.Stmt
+	queries *authzsqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "authz database is required")
 
-	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &SQLRepository{owner: owner}
-	statements := []struct {
-		target **sqlx.Stmt
-		name   string
-		query  string
-	}{
-		{&repository.listRolesStmt, "authz_list_roles", listRolesQuery},
-		{&repository.countRolesStmt, "authz_count_roles", countRolesQuery},
-		{&repository.findRoleStmt, "authz_find_role", findRoleQuery},
-		{&repository.createRoleStmt, "authz_create_role", createRoleQuery},
-		{&repository.updateRoleStmt, "authz_update_role", updateRoleQuery},
-		{&repository.deleteRoleStmt, "authz_delete_role", deleteRoleQuery},
-		{&repository.rolePermissionsStmt, "authz_role_permissions", rolePermissionsQuery},
-		{&repository.rolePermsManyStmt, "authz_role_permissions_many", rolePermissionsManyQuery},
-		{
-			&repository.replacePermsStmt,
-			"authz_replace_role_permissions",
-			replaceRolePermissionsQuery,
-		},
-		{&repository.overridesStmt, "authz_user_overrides", userOverridesQuery},
-		{&repository.overridesManyStmt, "authz_user_overrides_many", userOverridesManyQuery},
-		{&repository.upsertOverrideStmt, "authz_upsert_user_override", upsertUserOverrideQuery},
-		{&repository.deleteOverrideStmt, "authz_delete_user_override", deleteUserOverrideQuery},
-		{&repository.assignRoleStmt, "authz_assign_user_role", assignUserRoleQuery},
-		{&repository.userRoleStmt, "authz_user_role", userRoleQuery},
-		{
-			&repository.countAssignmentsStmt,
-			"authz_count_role_assignments",
-			countRoleAssignmentsQuery,
-		},
+	queries, err := authzsqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare authz queries: %w", err)
 	}
-	for _, statement := range statements {
-		stmt, err := owner.Prepare(statement.name, statement.query)
-		if err != nil {
-			return nil, err
-		}
-		*statement.target = stmt
-	}
-	return repository, nil
+	return &SQLRepository{queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return r.queries.Close()
 }
 
 func (r *SQLRepository) ListRoles(ctx context.Context, query pagination.Query) ([]Role, error) {
-	roles := make([]Role, 0)
-	if err := r.listRolesStmt.SelectContext(
-		ctx,
-		&roles,
-		query.Limit(),
-		query.Offset(),
-	); err != nil {
+	rows, err := r.queries.ListRoles(ctx, authzsqlc.ListRolesParams{
+		RowLimit:  int32(query.Limit()),
+		RowOffset: int32(query.Offset()),
+	})
+	if err != nil {
 		return nil, fmt.Errorf("list roles: %w", err)
+	}
+	roles := make([]Role, 0, len(rows))
+	for _, row := range rows {
+		roles = append(roles, roleFromRow(row))
 	}
 	return roles, nil
 }
 
 func (r *SQLRepository) CountRoles(ctx context.Context) (int, error) {
-	var count int
-	if err := r.countRolesStmt.GetContext(ctx, &count); err != nil {
+	count, err := r.queries.CountRoles(ctx)
+	if err != nil {
 		return 0, fmt.Errorf("count roles: %w", err)
 	}
-	return count, nil
+	return int(count), nil
 }
 
 func (r *SQLRepository) FindRole(ctx context.Context, code string) (Role, error) {
-	var role Role
-	err := r.findRoleStmt.GetContext(ctx, &role, code)
+	row, err := r.queries.FindRole(ctx, code)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Role{}, ErrRoleNotFound
 	}
 	if err != nil {
 		return Role{}, fmt.Errorf("find role: %w", err)
 	}
-	return role, nil
+	return roleFromRow(row), nil
 }
 
 func (r *SQLRepository) CreateRole(ctx context.Context, input CreateRoleInput) (Role, error) {
-	var role Role
-	err := r.createRoleStmt.GetContext(
-		ctx,
-		&role,
-		input.Code,
-		input.Name,
-		input.Description,
-		input.Rank,
-	)
+	row, err := r.queries.CreateRole(ctx, authzsqlc.CreateRoleParams{
+		Code:        input.Code,
+		Name:        input.Name,
+		Description: input.Description,
+		Rank:        int32(input.Rank),
+	})
 	if isUniqueViolation(err) {
 		return Role{}, ErrRoleCodeTaken
 	}
 	if err != nil {
 		return Role{}, fmt.Errorf("create role: %w", err)
 	}
-	return role, nil
+	return roleFromRow(row), nil
 }
 
 func (r *SQLRepository) UpdateRole(ctx context.Context, input UpdateRoleInput) (Role, error) {
-	var role Role
-	err := r.updateRoleStmt.GetContext(
-		ctx,
-		&role,
-		input.Code,
-		input.Name,
-		input.Description,
-		input.Rank,
-	)
+	row, err := r.queries.UpdateRole(ctx, authzsqlc.UpdateRoleParams{
+		Code:        input.Code,
+		Name:        input.Name,
+		Description: input.Description,
+		Rank:        int32(input.Rank),
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return Role{}, ErrRoleNotFound
 	}
 	if err != nil {
 		return Role{}, fmt.Errorf("update role: %w", err)
 	}
-	return role, nil
+	return roleFromRow(row), nil
 }
 
 func (r *SQLRepository) DeleteRole(ctx context.Context, code string) error {
-	result, err := r.deleteRoleStmt.ExecContext(ctx, code)
+	affected, err := r.queries.DeleteRole(ctx, code)
 	if isForeignKeyViolation(err) {
 		return ErrRoleInUse
 	}
 	if err != nil {
 		return fmt.Errorf("delete role: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("delete role rows affected: %w", err)
 	}
 	if affected == 0 {
 		return ErrRoleNotFound
@@ -291,16 +122,11 @@ func (r *SQLRepository) DeleteRole(ctx context.Context, code string) error {
 }
 
 func (r *SQLRepository) RolePermissions(ctx context.Context, code string) ([]Permission, error) {
-	permissions := make([]Permission, 0)
-	if err := r.rolePermissionsStmt.SelectContext(ctx, &permissions, code); err != nil {
+	codes, err := r.queries.RolePermissions(ctx, code)
+	if err != nil {
 		return nil, fmt.Errorf("role permissions: %w", err)
 	}
-	return permissions, nil
-}
-
-type rolePermissionRow struct {
-	RoleCode   string     `db:"role_code"`
-	Permission Permission `db:"permission_code"`
+	return permissions(codes), nil
 }
 
 func (r *SQLRepository) RolePermissionsMany(
@@ -311,12 +137,12 @@ func (r *SQLRepository) RolePermissionsMany(
 	if len(codes) == 0 {
 		return result, nil
 	}
-	rows := make([]rolePermissionRow, 0)
-	if err := r.rolePermsManyStmt.SelectContext(ctx, &rows, pq.Array(codes)); err != nil {
+	rows, err := r.queries.RolePermissionsMany(ctx, codes)
+	if err != nil {
 		return nil, fmt.Errorf("role permissions batch: %w", err)
 	}
 	for _, row := range rows {
-		result[row.RoleCode] = append(result[row.RoleCode], row.Permission)
+		result[row.RoleCode] = append(result[row.RoleCode], Permission(row.PermissionCode))
 	}
 	return result, nil
 }
@@ -330,26 +156,30 @@ func (r *SQLRepository) ReplaceRolePermissions(
 	for _, code := range codes {
 		values = append(values, string(code))
 	}
-	if _, err := r.replacePermsStmt.ExecContext(ctx, code, pq.Array(values)); err != nil {
+	if err := r.queries.ReplaceRolePermissions(ctx, authzsqlc.ReplaceRolePermissionsParams{
+		Code:            code,
+		PermissionCodes: values,
+	}); err != nil {
 		return fmt.Errorf("replace role permissions: %w", err)
 	}
 	return nil
 }
 
 func (r *SQLRepository) UserOverrides(ctx context.Context, publicID string) ([]Override, error) {
-	overrides := make([]Override, 0)
-	if err := r.overridesStmt.SelectContext(ctx, &overrides, publicID); err != nil {
+	rows, err := r.queries.UserOverrides(ctx, publicID)
+	if err != nil {
 		return nil, fmt.Errorf("user overrides: %w", err)
 	}
+	overrides := make([]Override, 0, len(rows))
+	for _, row := range rows {
+		overrides = append(overrides, Override{
+			Permission: Permission(row.PermissionCode),
+			Effect:     Effect(row.Effect),
+			Reason:     row.Reason,
+			ExpiresAt:  nullableTime(row.ExpiresAt),
+		})
+	}
 	return overrides, nil
-}
-
-type userOverrideRow struct {
-	UserPublicID string     `db:"user_public_id"`
-	Permission   Permission `db:"permission_code"`
-	Effect       Effect     `db:"effect"`
-	Reason       string     `db:"reason"`
-	ExpiresAt    *time.Time `db:"expires_at"`
 }
 
 // UserOverridesMany returns overrides for every requested user in one query.
@@ -362,16 +192,16 @@ func (r *SQLRepository) UserOverridesMany(
 	if len(publicIDs) == 0 {
 		return result, nil
 	}
-	rows := make([]userOverrideRow, 0)
-	if err := r.overridesManyStmt.SelectContext(ctx, &rows, pq.Array(publicIDs)); err != nil {
+	rows, err := r.queries.UserOverridesMany(ctx, publicIDs)
+	if err != nil {
 		return nil, fmt.Errorf("user overrides batch: %w", err)
 	}
 	for _, row := range rows {
 		result[row.UserPublicID] = append(result[row.UserPublicID], Override{
-			Permission: row.Permission,
-			Effect:     row.Effect,
+			Permission: Permission(row.PermissionCode),
+			Effect:     Effect(row.Effect),
 			Reason:     row.Reason,
-			ExpiresAt:  row.ExpiresAt,
+			ExpiresAt:  nullableTime(row.ExpiresAt),
 		})
 	}
 	return result, nil
@@ -381,23 +211,25 @@ func (r *SQLRepository) SetUserOverride(
 	ctx context.Context,
 	input SetOverrideInput,
 ) (Override, error) {
-	var override Override
-	err := r.upsertOverrideStmt.GetContext(
-		ctx,
-		&override,
-		input.UserPublicID,
-		input.Permission,
-		input.Effect,
-		input.Reason,
-		input.ExpiresAt,
-	)
+	row, err := r.queries.UpsertUserOverride(ctx, authzsqlc.UpsertUserOverrideParams{
+		UserPublicID:   input.UserPublicID,
+		PermissionCode: string(input.Permission),
+		Effect:         string(input.Effect),
+		Reason:         input.Reason,
+		ExpiresAt:      nullableTimeArg(input.ExpiresAt),
+	})
 	if isForeignKeyViolation(err) {
 		return Override{}, ErrUserNotFound
 	}
 	if err != nil {
 		return Override{}, fmt.Errorf("set user override: %w", err)
 	}
-	return override, nil
+	return Override{
+		Permission: Permission(row.PermissionCode),
+		Effect:     Effect(row.Effect),
+		Reason:     row.Reason,
+		ExpiresAt:  nullableTime(row.ExpiresAt),
+	}, nil
 }
 
 func (r *SQLRepository) DeleteUserOverride(
@@ -405,31 +237,33 @@ func (r *SQLRepository) DeleteUserOverride(
 	publicID string,
 	permission Permission,
 ) error {
-	if _, err := r.deleteOverrideStmt.ExecContext(ctx, publicID, permission); err != nil {
+	if err := r.queries.DeleteUserOverride(ctx, authzsqlc.DeleteUserOverrideParams{
+		UserPublicID:   publicID,
+		PermissionCode: string(permission),
+	}); err != nil {
 		return fmt.Errorf("delete user override: %w", err)
 	}
 	return nil
 }
 
 func (r *SQLRepository) UserRole(ctx context.Context, publicID string) (string, error) {
-	var role string
-	if err := r.userRoleStmt.GetContext(ctx, &role, publicID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
-		}
+	role, err := r.queries.UserRole(ctx, publicID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
 		return "", fmt.Errorf("find user role: %w", err)
 	}
 	return role, nil
 }
 
 func (r *SQLRepository) AssignUserRole(ctx context.Context, publicID string, role string) error {
-	result, err := r.assignRoleStmt.ExecContext(ctx, publicID, role)
+	affected, err := r.queries.AssignUserRole(ctx, authzsqlc.AssignUserRoleParams{
+		UserPublicID: publicID,
+		RoleCode:     role,
+	})
 	if err != nil {
 		return fmt.Errorf("assign user role: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("assign user role rows affected: %w", err)
 	}
 	if affected == 0 {
 		return ErrUserNotFound
@@ -438,11 +272,45 @@ func (r *SQLRepository) AssignUserRole(ctx context.Context, publicID string, rol
 }
 
 func (r *SQLRepository) CountRoleAssignments(ctx context.Context, code string) (int, error) {
-	var count int
-	if err := r.countAssignmentsStmt.GetContext(ctx, &count, code); err != nil {
+	count, err := r.queries.CountRoleAssignments(ctx, code)
+	if err != nil {
 		return 0, fmt.Errorf("count role assignments: %w", err)
 	}
-	return count, nil
+	return int(count), nil
+}
+
+func roleFromRow(row authzsqlc.Role) Role {
+	return Role{
+		Code:        row.Code,
+		Name:        row.Name,
+		Description: row.Description,
+		Rank:        int(row.Rank),
+		IsSystem:    row.IsSystem,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+	}
+}
+
+func permissions(codes []string) []Permission {
+	values := make([]Permission, 0, len(codes))
+	for _, code := range codes {
+		values = append(values, Permission(code))
+	}
+	return values
+}
+
+func nullableTime(value sql.NullTime) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Time
+}
+
+func nullableTimeArg(value *time.Time) sql.NullTime {
+	if value == nil {
+		return sql.NullTime{}
+	}
+	return sql.NullTime{Time: *value, Valid: true}
 }
 
 func isUniqueViolation(err error) bool {

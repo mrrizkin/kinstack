@@ -5,146 +5,37 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"kinstack/internal/pkg/assert"
-	platformdatabase "kinstack/internal/platform/database"
-
-	"github.com/jmoiron/sqlx"
-)
-
-const sessionColumns = `
-s.public_id,
-u.public_id AS user_public_id,
-s.session_id,
-s.ip,
-s.user_agent,
-s.created_at,
-s.last_seen_at,
-s.revoked_at`
-
-const (
-	registerSessionQuery = `
-INSERT INTO user_sessions (public_id, user_id, session_id, ip, user_agent)
-SELECT $1, id, $2, $3, $4
-FROM users
-WHERE public_id = $5
-  AND deleted_at IS NULL
-ON CONFLICT (session_id) DO UPDATE
-SET last_seen_at = now(),
-    revoked_at = NULL,
-    ip = EXCLUDED.ip,
-    user_agent = EXCLUDED.user_agent
-RETURNING public_id, $5::text AS user_public_id, session_id, ip, user_agent,
-          created_at, last_seen_at, revoked_at`
-
-	touchSessionQuery = `
-UPDATE user_sessions
-SET last_seen_at = now()
-WHERE session_id = $1
-  AND revoked_at IS NULL
-  AND last_seen_at < now() - interval '60 seconds'`
-
-	listActiveSessionsQuery = `
-SELECT ` + sessionColumns + `
-FROM user_sessions s
-JOIN users u ON u.id = s.user_id
-WHERE u.public_id = $1
-  AND s.revoked_at IS NULL
-ORDER BY s.last_seen_at DESC, s.id DESC
-LIMIT 50`
-
-	findSessionByPublicIDQuery = `
-SELECT ` + sessionColumns + `
-FROM user_sessions s
-JOIN users u ON u.id = s.user_id
-WHERE s.public_id = $1
-  AND s.revoked_at IS NULL
-LIMIT 1`
-
-	revokeSessionQuery = `
-UPDATE user_sessions
-SET revoked_at = now()
-WHERE public_id = $1
-  AND revoked_at IS NULL`
-
-	revokeSessionBySessionIDQuery = `
-UPDATE user_sessions
-SET revoked_at = now()
-WHERE session_id = $1
-  AND revoked_at IS NULL`
-
-	revokeOtherSessionsQuery = `
-UPDATE user_sessions
-SET revoked_at = now()
-WHERE user_id = (
-    SELECT id FROM users WHERE public_id = $1 AND deleted_at IS NULL
-  )
-  AND session_id <> $2
-  AND revoked_at IS NULL
-RETURNING session_id`
-
-	revokeAllSessionsQuery = `
-UPDATE user_sessions
-SET revoked_at = now()
-WHERE user_id = (
-    SELECT id FROM users WHERE public_id = $1 AND deleted_at IS NULL
-  )
-  AND revoked_at IS NULL
-RETURNING session_id`
+	sessionsqlc "kinstack/internal/platform/sessionregistry/sqlc"
 )
 
 type SQLRepository struct {
-	owner      *platformdatabase.StatementOwner
-	register   *sqlx.Stmt
-	touch      *sqlx.Stmt
-	listActive *sqlx.Stmt
-	findByID   *sqlx.Stmt
-	revoke     *sqlx.Stmt
-	revokeByID *sqlx.Stmt
-	revokeRest *sqlx.Stmt
-	revokeAll  *sqlx.Stmt
+	queries *sessionsqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "session registry database is required")
 
-	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &SQLRepository{owner: owner}
-	statements := []struct {
-		target **sqlx.Stmt
-		name   string
-		query  string
-	}{
-		{&repository.register, "session_registry_register", registerSessionQuery},
-		{&repository.touch, "session_registry_touch", touchSessionQuery},
-		{&repository.listActive, "session_registry_list_active", listActiveSessionsQuery},
-		{&repository.findByID, "session_registry_find", findSessionByPublicIDQuery},
-		{&repository.revoke, "session_registry_revoke", revokeSessionQuery},
-		{&repository.revokeByID, "session_registry_revoke_by_id", revokeSessionBySessionIDQuery},
-		{&repository.revokeRest, "session_registry_revoke_rest", revokeOtherSessionsQuery},
-		{&repository.revokeAll, "session_registry_revoke_all", revokeAllSessionsQuery},
+	queries, err := sessionsqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare session registry queries: %w", err)
 	}
-	for _, statement := range statements {
-		stmt, err := owner.Prepare(statement.name, statement.query)
-		if err != nil {
-			return nil, err
-		}
-		*statement.target = stmt
-	}
-	return repository, nil
+	return &SQLRepository{queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return r.queries.Close()
 }
 
 func (r *SQLRepository) Register(
@@ -152,35 +43,55 @@ func (r *SQLRepository) Register(
 	sessionPublicID string,
 	input RegisterInput,
 ) (Result, error) {
-	var result Result
-	if err := r.register.GetContext(
-		ctx,
-		&result,
-		sessionPublicID,
-		input.SessionID,
-		input.IP,
-		input.UserAgent,
-		input.UserPublicID,
-	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Result{}, ErrNotFound
-		}
+	row, err := r.queries.RegisterSession(ctx, sessionsqlc.RegisterSessionParams{
+		PublicID:     sessionPublicID,
+		SessionID:    input.SessionID,
+		Ip:           input.IP,
+		UserAgent:    input.UserAgent,
+		UserPublicID: input.UserPublicID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Result{}, ErrNotFound
+	}
+	if err != nil {
 		return Result{}, fmt.Errorf("register session: %w", err)
 	}
-	return result, nil
+	return Result{
+		PublicID:     row.PublicID,
+		UserPublicID: row.UserPublicID,
+		SessionID:    row.SessionID,
+		IP:           row.Ip,
+		UserAgent:    row.UserAgent,
+		CreatedAt:    row.CreatedAt,
+		LastSeenAt:   row.LastSeenAt,
+		RevokedAt:    nullableTime(row.RevokedAt),
+	}, nil
 }
 
 func (r *SQLRepository) Touch(ctx context.Context, sessionID string) error {
-	if _, err := r.touch.ExecContext(ctx, sessionID); err != nil {
+	if err := r.queries.TouchSession(ctx, sessionID); err != nil {
 		return fmt.Errorf("touch session: %w", err)
 	}
 	return nil
 }
 
 func (r *SQLRepository) ListActive(ctx context.Context, userPublicID string) ([]Result, error) {
-	results := make([]Result, 0)
-	if err := r.listActive.SelectContext(ctx, &results, userPublicID); err != nil {
+	rows, err := r.queries.ListActiveSessions(ctx, userPublicID)
+	if err != nil {
 		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	results := make([]Result, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, Result{
+			PublicID:     row.PublicID,
+			UserPublicID: row.UserPublicID,
+			SessionID:    row.SessionID,
+			IP:           row.Ip,
+			UserAgent:    row.UserAgent,
+			CreatedAt:    row.CreatedAt,
+			LastSeenAt:   row.LastSeenAt,
+			RevokedAt:    nullableTime(row.RevokedAt),
+		})
 	}
 	return results, nil
 }
@@ -189,24 +100,29 @@ func (r *SQLRepository) FindByPublicID(
 	ctx context.Context,
 	sessionPublicID string,
 ) (Result, error) {
-	var result Result
-	if err := r.findByID.GetContext(ctx, &result, sessionPublicID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Result{}, ErrNotFound
-		}
+	row, err := r.queries.FindSessionByPublicID(ctx, sessionPublicID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Result{}, ErrNotFound
+	}
+	if err != nil {
 		return Result{}, fmt.Errorf("find session: %w", err)
 	}
-	return result, nil
+	return Result{
+		PublicID:     row.PublicID,
+		UserPublicID: row.UserPublicID,
+		SessionID:    row.SessionID,
+		IP:           row.Ip,
+		UserAgent:    row.UserAgent,
+		CreatedAt:    row.CreatedAt,
+		LastSeenAt:   row.LastSeenAt,
+		RevokedAt:    nullableTime(row.RevokedAt),
+	}, nil
 }
 
 func (r *SQLRepository) Revoke(ctx context.Context, sessionPublicID string) error {
-	result, err := r.revoke.ExecContext(ctx, sessionPublicID)
+	affected, err := r.queries.RevokeSession(ctx, sessionPublicID)
 	if err != nil {
 		return fmt.Errorf("revoke session: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("revoke session rows: %w", err)
 	}
 	if affected == 0 {
 		return ErrNotFound
@@ -215,7 +131,7 @@ func (r *SQLRepository) Revoke(ctx context.Context, sessionPublicID string) erro
 }
 
 func (r *SQLRepository) RevokeBySessionID(ctx context.Context, sessionID string) error {
-	if _, err := r.revokeByID.ExecContext(ctx, sessionID); err != nil {
+	if err := r.queries.RevokeSessionBySessionID(ctx, sessionID); err != nil {
 		return fmt.Errorf("revoke session by id: %w", err)
 	}
 	return nil
@@ -224,8 +140,8 @@ func (r *SQLRepository) RevokeBySessionID(ctx context.Context, sessionID string)
 // RevokeAll revokes every active session of one user and returns the transport
 // identifiers to destroy.
 func (r *SQLRepository) RevokeAll(ctx context.Context, userPublicID string) ([]string, error) {
-	sessionIDs := make([]string, 0)
-	if err := r.revokeAll.SelectContext(ctx, &sessionIDs, userPublicID); err != nil {
+	sessionIDs, err := r.queries.RevokeAllSessions(ctx, userPublicID)
+	if err != nil {
 		return nil, fmt.Errorf("revoke all sessions: %w", err)
 	}
 	return sessionIDs, nil
@@ -238,14 +154,19 @@ func (r *SQLRepository) RevokeAllExcept(
 	userPublicID string,
 	keepSessionID string,
 ) ([]string, error) {
-	sessionIDs := make([]string, 0)
-	if err := r.revokeRest.SelectContext(
-		ctx,
-		&sessionIDs,
-		userPublicID,
-		keepSessionID,
-	); err != nil {
+	sessionIDs, err := r.queries.RevokeOtherSessions(ctx, sessionsqlc.RevokeOtherSessionsParams{
+		UserPublicID:  userPublicID,
+		KeepSessionID: keepSessionID,
+	})
+	if err != nil {
 		return nil, fmt.Errorf("revoke other sessions: %w", err)
 	}
 	return sessionIDs, nil
+}
+
+func nullableTime(value sql.NullTime) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Time
 }

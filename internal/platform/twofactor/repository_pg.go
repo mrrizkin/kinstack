@@ -7,189 +7,51 @@ import (
 	"fmt"
 
 	"kinstack/internal/pkg/assert"
-	platformdatabase "kinstack/internal/platform/database"
-
-	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
-)
-
-const (
-	findStatusQuery = `
-SELECT two_factor_enabled,
-       two_factor_secret,
-       two_factor_secret_enc,
-       two_factor_key_version,
-       two_factor_last_step
-FROM users
-WHERE public_id = $1
-  AND deleted_at IS NULL
-LIMIT 1`
-
-	setSecretQuery = `
-UPDATE users
-SET two_factor_secret = $2,
-    two_factor_secret_enc = $3,
-    two_factor_key_version = $4,
-    two_factor_enabled = false,
-    two_factor_confirmed_at = NULL,
-    two_factor_last_step = 0,
-    updated_at = now()
-WHERE public_id = $1
-  AND deleted_at IS NULL`
-
-	sealSecretQuery = `
-UPDATE users
-SET two_factor_secret_enc = $2,
-    two_factor_key_version = $3,
-    two_factor_secret = '',
-    updated_at = now()
-WHERE public_id = $1
-  AND deleted_at IS NULL`
-
-	enableQuery = `
-UPDATE users
-SET two_factor_enabled = true,
-    two_factor_confirmed_at = now(),
-    two_factor_last_step = $2,
-    updated_at = now()
-WHERE public_id = $1
-  AND deleted_at IS NULL`
-
-	disableQuery = `
-UPDATE users
-SET two_factor_enabled = false,
-    two_factor_secret = '',
-    two_factor_secret_enc = ''::bytea,
-    two_factor_key_version = 0,
-    two_factor_last_step = 0,
-    two_factor_confirmed_at = NULL,
-    updated_at = now()
-WHERE public_id = $1
-  AND deleted_at IS NULL`
-
-	consumeStepQuery = `
-UPDATE users
-SET two_factor_last_step = $2,
-    updated_at = now()
-WHERE public_id = $1
-  AND two_factor_last_step < $2
-  AND deleted_at IS NULL`
-
-	deleteRecoveryCodesQuery = `
-DELETE FROM user_recovery_codes
-WHERE user_id = (
-    SELECT id FROM users WHERE public_id = $1 AND deleted_at IS NULL
-  )`
-
-	insertRecoveryCodesQuery = `
-INSERT INTO user_recovery_codes (user_id, code_hash)
-SELECT u.id, h
-FROM users u
-CROSS JOIN unnest($2::text[]) AS h
-WHERE u.public_id = $1
-  AND u.deleted_at IS NULL`
-
-	unusedRecoveryCodesQuery = `
-SELECT c.id, c.code_hash
-FROM user_recovery_codes c
-JOIN users u ON u.id = c.user_id
-WHERE u.public_id = $1
-  AND u.deleted_at IS NULL
-  AND c.used_at IS NULL
-ORDER BY c.id`
-
-	markRecoveryCodeUsedQuery = `
-UPDATE user_recovery_codes
-SET used_at = now()
-WHERE id = $1
-  AND used_at IS NULL`
-
-	replaceRecoveryCodeHashQuery = `
-UPDATE user_recovery_codes
-SET code_hash = $2
-WHERE id = $1`
-
-	legacySecretsQuery = `
-SELECT public_id, two_factor_secret
-FROM users
-WHERE two_factor_secret <> ''
-  AND two_factor_secret_enc = ''::bytea
-  AND deleted_at IS NULL
-ORDER BY id
-LIMIT $1`
+	twofactorsqlc "kinstack/internal/platform/twofactor/sqlc"
 )
 
 type SQLRepository struct {
-	owner        *platformdatabase.StatementOwner
-	findStatus   *sqlx.Stmt
-	setSecret    *sqlx.Stmt
-	sealSecret   *sqlx.Stmt
-	enable       *sqlx.Stmt
-	disable      *sqlx.Stmt
-	consumeStep  *sqlx.Stmt
-	deleteCodes  *sqlx.Stmt
-	insertCodes  *sqlx.Stmt
-	listCodes    *sqlx.Stmt
-	useCode      *sqlx.Stmt
-	replaceCode  *sqlx.Stmt
-	legacySecret *sqlx.Stmt
+	queries *twofactorsqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "two-factor database is required")
 
-	owner := platformdatabase.NewStatementOwner(dependency.DB)
-	repository := &SQLRepository{owner: owner}
-	statements := []struct {
-		target **sqlx.Stmt
-		name   string
-		query  string
-	}{
-		{&repository.findStatus, "two_factor_find_status", findStatusQuery},
-		{&repository.setSecret, "two_factor_set_secret", setSecretQuery},
-		{&repository.sealSecret, "two_factor_seal_secret", sealSecretQuery},
-		{&repository.enable, "two_factor_enable", enableQuery},
-		{&repository.disable, "two_factor_disable", disableQuery},
-		{&repository.consumeStep, "two_factor_consume_step", consumeStepQuery},
-		{&repository.deleteCodes, "two_factor_delete_codes", deleteRecoveryCodesQuery},
-		{&repository.insertCodes, "two_factor_insert_codes", insertRecoveryCodesQuery},
-		{&repository.listCodes, "two_factor_list_codes", unusedRecoveryCodesQuery},
-		{&repository.useCode, "two_factor_use_code", markRecoveryCodeUsedQuery},
-		{&repository.replaceCode, "two_factor_replace_code", replaceRecoveryCodeHashQuery},
-		{&repository.legacySecret, "two_factor_legacy_secrets", legacySecretsQuery},
+	queries, err := twofactorsqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare two-factor queries: %w", err)
 	}
-	for _, statement := range statements {
-		stmt, err := owner.Prepare(statement.name, statement.query)
-		if err != nil {
-			return nil, err
-		}
-		*statement.target = stmt
-	}
-	return repository, nil
+	return &SQLRepository{queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return r.queries.Close()
 }
 
 func (r *SQLRepository) FindStatus(ctx context.Context, userPublicID string) (StatusResult, error) {
-	var result StatusResult
-	if err := r.findStatus.GetContext(ctx, &result, userPublicID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return StatusResult{}, ErrNotFound
-		}
+	row, err := r.queries.FindTwoFactorStatus(ctx, userPublicID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return StatusResult{}, ErrNotFound
+	}
+	if err != nil {
 		return StatusResult{}, fmt.Errorf("find two-factor status: %w", err)
 	}
-	return result, nil
+	return StatusResult{
+		Enabled:    row.TwoFactorEnabled,
+		Secret:     row.TwoFactorSecret,
+		Sealed:     row.TwoFactorSecretEnc,
+		KeyVersion: int(row.TwoFactorKeyVersion),
+		LastStep:   row.TwoFactorLastStep,
+	}, nil
 }
 
 func (r *SQLRepository) SetSecret(ctx context.Context, userPublicID string, secret Secret) error {
@@ -197,15 +59,13 @@ func (r *SQLRepository) SetSecret(ctx context.Context, userPublicID string, secr
 	if sealed == nil {
 		sealed = []byte{}
 	}
-	return r.execAffectingOne(
-		ctx,
-		r.setSecret,
-		"set two-factor secret",
-		userPublicID,
-		secret.Plain,
-		sealed,
-		secret.KeyVersion,
-	)
+	affected, err := r.queries.SetTwoFactorSecret(ctx, twofactorsqlc.SetTwoFactorSecretParams{
+		PublicID:            userPublicID,
+		TwoFactorSecret:     secret.Plain,
+		TwoFactorSecretEnc:  sealed,
+		TwoFactorKeyVersion: int32(secret.KeyVersion),
+	})
+	return affectingOne(affected, err, "set two-factor secret")
 }
 
 func (r *SQLRepository) SealSecret(
@@ -217,28 +77,35 @@ func (r *SQLRepository) SealSecret(
 	if sealed == nil {
 		sealed = []byte{}
 	}
-	return r.execAffectingOne(
-		ctx,
-		r.sealSecret,
-		"seal two-factor secret",
-		userPublicID,
-		sealed,
-		version,
-	)
+	affected, err := r.queries.SealTwoFactorSecret(ctx, twofactorsqlc.SealTwoFactorSecretParams{
+		PublicID:            userPublicID,
+		TwoFactorSecretEnc:  sealed,
+		TwoFactorKeyVersion: int32(version),
+	})
+	return affectingOne(affected, err, "seal two-factor secret")
 }
 
 func (r *SQLRepository) Enable(ctx context.Context, userPublicID string, lastStep int64) error {
-	return r.execAffectingOne(ctx, r.enable, "enable two-factor", userPublicID, lastStep)
+	affected, err := r.queries.EnableTwoFactor(ctx, twofactorsqlc.EnableTwoFactorParams{
+		PublicID:          userPublicID,
+		TwoFactorLastStep: lastStep,
+	})
+	return affectingOne(affected, err, "enable two-factor")
 }
 
 func (r *SQLRepository) Disable(ctx context.Context, userPublicID string) error {
-	return r.execAffectingOne(ctx, r.disable, "disable two-factor", userPublicID)
+	affected, err := r.queries.DisableTwoFactor(ctx, userPublicID)
+	return affectingOne(affected, err, "disable two-factor")
 }
 
 // ConsumeStep records an accepted TOTP step; zero rows means the code was
 // already used for that step (or an earlier one).
 func (r *SQLRepository) ConsumeStep(ctx context.Context, userPublicID string, step int64) error {
-	return r.execAffectingOne(ctx, r.consumeStep, "consume two-factor step", userPublicID, step)
+	affected, err := r.queries.ConsumeTwoFactorStep(ctx, twofactorsqlc.ConsumeTwoFactorStepParams{
+		PublicID:          userPublicID,
+		TwoFactorLastStep: step,
+	})
+	return affectingOne(affected, err, "consume two-factor step")
 }
 
 func (r *SQLRepository) ReplaceRecoveryCodes(
@@ -246,13 +113,16 @@ func (r *SQLRepository) ReplaceRecoveryCodes(
 	userPublicID string,
 	hashes []string,
 ) error {
-	if _, err := r.deleteCodes.ExecContext(ctx, userPublicID); err != nil {
+	if err := r.queries.DeleteRecoveryCodes(ctx, userPublicID); err != nil {
 		return fmt.Errorf("delete recovery codes: %w", err)
 	}
 	if len(hashes) == 0 {
 		return nil
 	}
-	if _, err := r.insertCodes.ExecContext(ctx, userPublicID, pq.Array(hashes)); err != nil {
+	if err := r.queries.InsertRecoveryCodes(ctx, twofactorsqlc.InsertRecoveryCodesParams{
+		PublicID:   userPublicID,
+		CodeHashes: hashes,
+	}); err != nil {
 		return fmt.Errorf("insert recovery codes: %w", err)
 	}
 	return nil
@@ -262,45 +132,51 @@ func (r *SQLRepository) UnusedRecoveryCodes(
 	ctx context.Context,
 	userPublicID string,
 ) ([]RecoveryCode, error) {
-	codes := make([]RecoveryCode, 0, RecoveryCodeCount)
-	if err := r.listCodes.SelectContext(ctx, &codes, userPublicID); err != nil {
+	rows, err := r.queries.ListUnusedRecoveryCodes(ctx, userPublicID)
+	if err != nil {
 		return nil, fmt.Errorf("list recovery codes: %w", err)
+	}
+	codes := make([]RecoveryCode, 0, len(rows))
+	for _, row := range rows {
+		codes = append(codes, RecoveryCode{ID: row.ID, Hash: row.CodeHash})
 	}
 	return codes, nil
 }
 
 func (r *SQLRepository) MarkRecoveryCodeUsed(ctx context.Context, id int64) error {
-	return r.execAffectingOne(ctx, r.useCode, "mark recovery code used", id)
+	affected, err := r.queries.MarkRecoveryCodeUsed(ctx, id)
+	return affectingOne(affected, err, "mark recovery code used")
 }
 
 func (r *SQLRepository) ReplaceRecoveryCodeHash(ctx context.Context, id int64, hash string) error {
-	return r.execAffectingOne(ctx, r.replaceCode, "replace recovery code hash", id, hash)
+	affected, err := r.queries.ReplaceRecoveryCodeHash(
+		ctx,
+		twofactorsqlc.ReplaceRecoveryCodeHashParams{
+			ID:       id,
+			CodeHash: hash,
+		},
+	)
+	return affectingOne(affected, err, "replace recovery code hash")
 }
 
 func (r *SQLRepository) LegacySecrets(ctx context.Context, limit int) ([]LegacySecret, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	secrets := make([]LegacySecret, 0, limit)
-	if err := r.legacySecret.SelectContext(ctx, &secrets, limit); err != nil {
+	rows, err := r.queries.ListLegacyTwoFactorSecrets(ctx, int32(limit))
+	if err != nil {
 		return nil, fmt.Errorf("list legacy two-factor secrets: %w", err)
+	}
+	secrets := make([]LegacySecret, 0, len(rows))
+	for _, row := range rows {
+		secrets = append(secrets, LegacySecret{PublicID: row.PublicID, Secret: row.TwoFactorSecret})
 	}
 	return secrets, nil
 }
 
-func (r *SQLRepository) execAffectingOne(
-	ctx context.Context,
-	stmt *sqlx.Stmt,
-	action string,
-	args ...any,
-) error {
-	result, err := stmt.ExecContext(ctx, args...)
+func affectingOne(affected int64, err error, action string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", action, err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("%s rows: %w", action, err)
 	}
 	if affected == 0 {
 		return ErrNotFound

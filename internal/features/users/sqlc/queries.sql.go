@@ -11,6 +11,46 @@ import (
 	"time"
 )
 
+const countActiveAccessManagers = `-- name: CountActiveAccessManagers :one
+SELECT COUNT(*)
+FROM users u
+WHERE u.public_id <> $1
+  AND u.is_active
+  AND u.deleted_at IS NULL
+  AND (
+    EXISTS (
+        SELECT 1
+        FROM user_roles ur
+        JOIN role_permissions rp ON rp.role_code = ur.role_code
+        WHERE ur.user_public_id = u.public_id
+          AND rp.permission_code = 'access.manage'
+      )
+    OR EXISTS (
+        SELECT 1
+        FROM user_permissions up
+        WHERE up.user_public_id = u.public_id
+          AND up.permission_code = 'access.manage'
+          AND up.effect = 'allow'
+          AND (up.expires_at IS NULL OR up.expires_at > now())
+      )
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM user_permissions up
+    WHERE up.user_public_id = u.public_id
+      AND up.permission_code = 'access.manage'
+      AND up.effect = 'deny'
+      AND (up.expires_at IS NULL OR up.expires_at > now())
+  )
+`
+
+func (q *Queries) CountActiveAccessManagers(ctx context.Context, publicID string) (int64, error) {
+	row := q.queryRow(ctx, q.countActiveAccessManagersStmt, countActiveAccessManagers, publicID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT
     COUNT(*) AS total,
@@ -28,6 +68,84 @@ func (q *Queries) CountUsers(ctx context.Context) (CountUsersRow, error) {
 	row := q.queryRow(ctx, q.countUsersStmt, countUsers)
 	var i CountUsersRow
 	err := row.Scan(&i.Total, &i.Active)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+WITH inserted AS (
+    INSERT INTO users (public_id, username, email, display_name, password_hash, invited_at)
+    VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        CASE WHEN $6::boolean THEN now() ELSE NULL END
+    )
+    RETURNING id, public_id, username, display_name, password_hash, is_active, two_factor_secret, two_factor_enabled, two_factor_confirmed_at, last_login_at, created_at, updated_at, deleted_at, email, invited_at, two_factor_secret_enc, two_factor_key_version, two_factor_last_step
+)
+SELECT
+    u.public_id,
+    u.username,
+    u.email,
+    u.display_name,
+    COALESCE((
+        SELECT ur.role_code
+        FROM user_roles ur
+        JOIN roles r ON r.code = ur.role_code
+        WHERE ur.user_public_id = u.public_id
+        ORDER BY r.rank DESC, ur.role_code ASC
+        LIMIT 1
+    ), '')::text AS role,
+    u.is_active,
+    (u.invited_at IS NOT NULL)::boolean AS invited,
+    u.last_login_at,
+    u.created_at
+FROM inserted u
+`
+
+type CreateUserParams struct {
+	PublicID     string
+	Username     string
+	Email        string
+	DisplayName  string
+	PasswordHash string
+	Invited      bool
+}
+
+type CreateUserRow struct {
+	PublicID    string
+	Username    string
+	Email       string
+	DisplayName string
+	Role        string
+	IsActive    bool
+	Invited     bool
+	LastLoginAt sql.NullTime
+	CreatedAt   time.Time
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
+	row := q.queryRow(ctx, q.createUserStmt, createUser,
+		arg.PublicID,
+		arg.Username,
+		arg.Email,
+		arg.DisplayName,
+		arg.PasswordHash,
+		arg.Invited,
+	)
+	var i CreateUserRow
+	err := row.Scan(
+		&i.PublicID,
+		&i.Username,
+		&i.Email,
+		&i.DisplayName,
+		&i.Role,
+		&i.IsActive,
+		&i.Invited,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -106,12 +224,12 @@ SELECT
 FROM users u
 WHERE u.deleted_at IS NULL
 ORDER BY u.created_at ASC, u.id ASC
-LIMIT $1 OFFSET $2
+LIMIT $2 OFFSET $1
 `
 
 type ListUsersParams struct {
-	Limit  int32
-	Offset int32
+	RowOffset int32
+	RowLimit  int32
 }
 
 type ListUsersRow struct {
@@ -126,10 +244,10 @@ type ListUsersRow struct {
 	CreatedAt   time.Time
 }
 
-// Read queries for the users slice. Generated as type-checked functions; the
-// repository keeps the write path in sqlx.
+// Queries for the users slice. Generated as type-checked functions; the
+// repository keeps transactions, advisory locking, and error classification.
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.query(ctx, q.listUsersStmt, listUsers, arg.Limit, arg.Offset)
+	rows, err := q.query(ctx, q.listUsersStmt, listUsers, arg.RowOffset, arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -159,4 +277,165 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockAccessManagers = `-- name: LockAccessManagers :exec
+SELECT pg_advisory_xact_lock(hashtext('kinstack:access_managers'))
+`
+
+// Serializes every decision that could remove the last account able to manage
+// access. The key is a constant, so all replicas contend on the same advisory
+// lock.
+func (q *Queries) LockAccessManagers(ctx context.Context) error {
+	_, err := q.exec(ctx, q.lockAccessManagersStmt, lockAccessManagers)
+	return err
+}
+
+const setUserActive = `-- name: SetUserActive :one
+WITH updated AS (
+    UPDATE users
+    SET is_active = $1,
+        updated_at = now()
+    WHERE public_id = $2
+      AND deleted_at IS NULL
+    RETURNING id, public_id, username, display_name, password_hash, is_active, two_factor_secret, two_factor_enabled, two_factor_confirmed_at, last_login_at, created_at, updated_at, deleted_at, email, invited_at, two_factor_secret_enc, two_factor_key_version, two_factor_last_step
+)
+SELECT
+    u.public_id,
+    u.username,
+    u.email,
+    u.display_name,
+    COALESCE((
+        SELECT ur.role_code
+        FROM user_roles ur
+        JOIN roles r ON r.code = ur.role_code
+        WHERE ur.user_public_id = u.public_id
+        ORDER BY r.rank DESC, ur.role_code ASC
+        LIMIT 1
+    ), '')::text AS role,
+    u.is_active,
+    (u.invited_at IS NOT NULL)::boolean AS invited,
+    u.last_login_at,
+    u.created_at
+FROM updated u
+`
+
+type SetUserActiveParams struct {
+	IsActive bool
+	PublicID string
+}
+
+type SetUserActiveRow struct {
+	PublicID    string
+	Username    string
+	Email       string
+	DisplayName string
+	Role        string
+	IsActive    bool
+	Invited     bool
+	LastLoginAt sql.NullTime
+	CreatedAt   time.Time
+}
+
+func (q *Queries) SetUserActive(ctx context.Context, arg SetUserActiveParams) (SetUserActiveRow, error) {
+	row := q.queryRow(ctx, q.setUserActiveStmt, setUserActive, arg.IsActive, arg.PublicID)
+	var i SetUserActiveRow
+	err := row.Scan(
+		&i.PublicID,
+		&i.Username,
+		&i.Email,
+		&i.DisplayName,
+		&i.Role,
+		&i.IsActive,
+		&i.Invited,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+WITH updated AS (
+    UPDATE users
+    SET display_name = $1,
+        email = $2,
+        updated_at = now()
+    WHERE public_id = $3
+      AND deleted_at IS NULL
+    RETURNING id, public_id, username, display_name, password_hash, is_active, two_factor_secret, two_factor_enabled, two_factor_confirmed_at, last_login_at, created_at, updated_at, deleted_at, email, invited_at, two_factor_secret_enc, two_factor_key_version, two_factor_last_step
+)
+SELECT
+    u.public_id,
+    u.username,
+    u.email,
+    u.display_name,
+    COALESCE((
+        SELECT ur.role_code
+        FROM user_roles ur
+        JOIN roles r ON r.code = ur.role_code
+        WHERE ur.user_public_id = u.public_id
+        ORDER BY r.rank DESC, ur.role_code ASC
+        LIMIT 1
+    ), '')::text AS role,
+    u.is_active,
+    (u.invited_at IS NOT NULL)::boolean AS invited,
+    u.last_login_at,
+    u.created_at
+FROM updated u
+`
+
+type UpdateUserParams struct {
+	DisplayName string
+	Email       string
+	PublicID    string
+}
+
+type UpdateUserRow struct {
+	PublicID    string
+	Username    string
+	Email       string
+	DisplayName string
+	Role        string
+	IsActive    bool
+	Invited     bool
+	LastLoginAt sql.NullTime
+	CreatedAt   time.Time
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
+	row := q.queryRow(ctx, q.updateUserStmt, updateUser, arg.DisplayName, arg.Email, arg.PublicID)
+	var i UpdateUserRow
+	err := row.Scan(
+		&i.PublicID,
+		&i.Username,
+		&i.Email,
+		&i.DisplayName,
+		&i.Role,
+		&i.IsActive,
+		&i.Invited,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :execrows
+UPDATE users
+SET password_hash = $1,
+    updated_at = now()
+WHERE public_id = $2
+  AND deleted_at IS NULL
+`
+
+type UpdateUserPasswordParams struct {
+	PasswordHash string
+	PublicID     string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (int64, error) {
+	result, err := q.exec(ctx, q.updateUserPasswordStmt, updateUserPassword, arg.PasswordHash, arg.PublicID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -10,27 +11,31 @@ import (
 
 	"kinstack/internal/pkg/pagination"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 // usersTestRepository skips unless PostgreSQL is available: the suite's substrate
 // is repository_mem, so the generated read queries are checked where a real
 // schema exists instead of being mocked.
-func usersTestRepository(t *testing.T) (*SQLRepository, *sqlx.DB) {
+func usersTestRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	t.Helper()
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		t.Skip("DATABASE_URL is not set")
 	}
-	db, err := sqlx.Connect("postgres", dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Skipf("PostgreSQL is unavailable: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 	var table string
-	if err := db.GetContext(ctx, &table, `SELECT to_regclass('users')`); err != nil || table == "" {
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('users')`).
+		Scan(&table); err != nil ||
+		table == "" {
 		t.Skip("the users migration is not applied")
 	}
 	repository, err := NewSQLRepository(RepositoryDependency{DB: db})
@@ -48,6 +53,9 @@ func TestSQLReadQueriesMatchTheSchema(t *testing.T) {
 	repository, db := usersTestRepository(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("PostgreSQL is unavailable: %v", err)
+	}
 
 	seed := fmt.Sprintf("read-test-%d", time.Now().UnixNano())
 	username := seed + "-user"

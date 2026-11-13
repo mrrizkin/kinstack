@@ -8,88 +8,64 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	passkeyssqlc "kinstack/internal/features/passkeys/sqlc"
 	"kinstack/internal/pkg/assert"
-	platformdatabase "kinstack/internal/platform/database"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
 type SQLRepository struct {
-	owner               *platformdatabase.StatementOwner
-	findByPublicIDStmt  *sqlx.Stmt
-	listPasskeysStmt    *sqlx.Stmt
-	savePasskeyStmt     *sqlx.Stmt
-	updatePasskeyStmt   *sqlx.Stmt
-	deletePasskeyStmt   *sqlx.Stmt
-	findPasskeyUserStmt *sqlx.Stmt
-	hasActiveUserStmt   *sqlx.Stmt
+	queries *passkeyssqlc.Queries
 }
 
 var _ Repository = (*SQLRepository)(nil)
 
 type RepositoryDependency struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
 func NewSQLRepository(dependency RepositoryDependency) (*SQLRepository, error) {
 	assert.Assert(dependency.DB != nil, "passkey database is required")
 
-	repository := &SQLRepository{owner: platformdatabase.NewStatementOwner(dependency.DB)}
-	statements := []struct {
-		target **sqlx.Stmt
-		name   string
-		query  string
-	}{
-		{&repository.findByPublicIDStmt, "passkey_find_user", findPasskeyUserByPublicIDQuery},
-		{&repository.listPasskeysStmt, "passkey_list", listPasskeysQuery},
-		{&repository.savePasskeyStmt, "passkey_save", savePasskeyQuery},
-		{&repository.updatePasskeyStmt, "passkey_update", updatePasskeyQuery},
-		{&repository.deletePasskeyStmt, "passkey_delete", deletePasskeyQuery},
-		{&repository.findPasskeyUserStmt, "passkey_find_login", findPasskeyUserQuery},
-		{&repository.hasActiveUserStmt, "passkey_has_active_user", hasActivePasskeyUserQuery},
+	queries, err := passkeyssqlc.Prepare(context.Background(), dependency.DB)
+	if err != nil {
+		return nil, fmt.Errorf("prepare passkey queries: %w", err)
 	}
-	for _, statement := range statements {
-		stmt, err := repository.owner.Prepare(statement.name, statement.query)
-		if err != nil {
-			return nil, err
-		}
-		*statement.target = stmt
-	}
-	return repository, nil
+	return &SQLRepository{queries: queries}, nil
 }
 
 func (r *SQLRepository) Close() error {
 	if r == nil {
 		return nil
 	}
-	return r.owner.Close()
+	return r.queries.Close()
 }
 
 func (r *SQLRepository) FindByPublicID(
 	ctx context.Context,
 	id string,
 ) (FindPasskeyUserResult, error) {
-	var result FindPasskeyUserResult
-	if err := r.findByPublicIDStmt.GetContext(ctx, &result, id); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return FindPasskeyUserResult{}, ErrUserNotFound
-		}
+	row, err := r.queries.FindPasskeyUserByPublicID(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return FindPasskeyUserResult{}, ErrUserNotFound
+	}
+	if err != nil {
 		return FindPasskeyUserResult{}, fmt.Errorf("find passkey user: %w", err)
 	}
-	return result, nil
+	return findPasskeyUserResult(row), nil
 }
 
 func (r *SQLRepository) ListPasskeys(ctx context.Context, id string) ([]ListPasskeysResult, error) {
 	if _, err := r.FindByPublicID(ctx, id); err != nil {
 		return nil, err
 	}
-	results := make([]ListPasskeysResult, 0)
-	if err := r.listPasskeysStmt.SelectContext(ctx, &results, id); err != nil {
+	rows, err := r.queries.ListPasskeys(ctx, id)
+	if err != nil {
 		return nil, fmt.Errorf("list passkeys: %w", err)
 	}
-	return results, nil
+	return listPasskeysResults(rows), nil
 }
 
 func (r *SQLRepository) SavePasskey(ctx context.Context, id string, record PasskeyRecord) error {
@@ -102,17 +78,18 @@ func (r *SQLRepository) SavePasskey(ctx context.Context, id string, record Passk
 	if err != nil {
 		return fmt.Errorf("encode passkey credential: %w", err)
 	}
-	result, err := r.savePasskeyStmt.ExecContext(ctx, id, record.ID, record.Name, credential)
+	rows, err := r.queries.SavePasskey(ctx, passkeyssqlc.SavePasskeyParams{
+		PublicID:     id,
+		CredentialID: record.ID,
+		Name:         record.Name,
+		Credential:   credential,
+	})
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
 			return ErrPasskeyConflict
 		}
 		return fmt.Errorf("save passkey: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("save passkey result: %w", err)
 	}
 	if rows == 0 {
 		return ErrUserNotFound
@@ -125,19 +102,14 @@ func (r *SQLRepository) UpdatePasskey(ctx context.Context, id string, record Pas
 	if err != nil {
 		return fmt.Errorf("encode passkey credential: %w", err)
 	}
-	result, err := r.updatePasskeyStmt.ExecContext(
-		ctx,
-		id,
-		record.ID,
-		credential,
-		record.LastUsedAt,
-	)
+	rows, err := r.queries.UpdatePasskey(ctx, passkeyssqlc.UpdatePasskeyParams{
+		PublicID:     id,
+		CredentialID: record.ID,
+		Credential:   credential,
+		LastUsedAt:   nullableTimeArg(record.LastUsedAt),
+	})
 	if err != nil {
 		return fmt.Errorf("update passkey: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("update passkey result: %w", err)
 	}
 	if rows == 0 {
 		active, err := r.hasActiveUser(ctx, id)
@@ -153,13 +125,12 @@ func (r *SQLRepository) UpdatePasskey(ctx context.Context, id string, record Pas
 }
 
 func (r *SQLRepository) DeletePasskey(ctx context.Context, id string, credentialID []byte) error {
-	result, err := r.deletePasskeyStmt.ExecContext(ctx, id, credentialID)
+	rows, err := r.queries.DeletePasskey(ctx, passkeyssqlc.DeletePasskeyParams{
+		PublicID:     id,
+		CredentialID: credentialID,
+	})
 	if err != nil {
 		return fmt.Errorf("delete passkey: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("delete passkey result: %w", err)
 	}
 	if rows == 0 {
 		active, err := r.hasActiveUser(ctx, id)
@@ -175,8 +146,8 @@ func (r *SQLRepository) DeletePasskey(ctx context.Context, id string, credential
 }
 
 func (r *SQLRepository) hasActiveUser(ctx context.Context, id string) (bool, error) {
-	var active bool
-	if err := r.hasActiveUserStmt.GetContext(ctx, &active, id); err != nil {
+	active, err := r.queries.HasActivePasskeyUser(ctx, id)
+	if err != nil {
 		return false, fmt.Errorf("check passkey user: %w", err)
 	}
 	return active, nil
@@ -186,13 +157,14 @@ func (r *SQLRepository) FindPasskeyUser(
 	ctx context.Context,
 	credentialID, userHandle []byte,
 ) (FindPasskeyUserResult, []ListPasskeysResult, error) {
-	var user FindPasskeyUserResult
-	if err := r.findPasskeyUserStmt.GetContext(ctx, &user, credentialID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return FindPasskeyUserResult{}, nil, ErrPasskeyNotFound
-		}
+	row, err := r.queries.FindPasskeyLoginUser(ctx, credentialID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return FindPasskeyUserResult{}, nil, ErrPasskeyNotFound
+	}
+	if err != nil {
 		return FindPasskeyUserResult{}, nil, fmt.Errorf("find passkey login user: %w", err)
 	}
+	user := findPasskeyLoginUserResult(row)
 	if !bytes.Equal(passkeyUserHandle(user.PublicID), userHandle) {
 		return FindPasskeyUserResult{}, nil, ErrPasskeyNotFound
 	}
@@ -204,54 +176,59 @@ func (r *SQLRepository) FindPasskeyUser(
 }
 
 func (r *SQLRepository) listPasskeys(ctx context.Context, id string) ([]ListPasskeysResult, error) {
-	results := make([]ListPasskeysResult, 0)
-	if err := r.listPasskeysStmt.SelectContext(ctx, &results, id); err != nil {
+	rows, err := r.queries.ListPasskeys(ctx, id)
+	if err != nil {
 		return nil, fmt.Errorf("list passkeys for login: %w", err)
 	}
-	return results, nil
+	return listPasskeysResults(rows), nil
 }
 
-const findPasskeyUserByPublicIDQuery = `
-SELECT public_id,email,username,display_name,is_active,deleted_at
-FROM users
-WHERE public_id=$1 AND deleted_at IS NULL AND is_active
-LIMIT 1`
+func findPasskeyUserResult(row passkeyssqlc.FindPasskeyUserByPublicIDRow) FindPasskeyUserResult {
+	return FindPasskeyUserResult{
+		PublicID:    row.PublicID,
+		Email:       row.Email,
+		Username:    row.Username,
+		DisplayName: row.DisplayName,
+		IsActive:    row.IsActive,
+		DeletedAt:   nullableTime(row.DeletedAt),
+	}
+}
 
-const listPasskeysQuery = `
-SELECT p.credential_id,p.name,p.credential,p.created_at,p.last_used_at
-FROM auth_passkeys p
-JOIN users u ON u.id=p.user_id
-WHERE u.public_id=$1 AND u.deleted_at IS NULL AND u.is_active
-ORDER BY p.created_at ASC,p.id ASC`
+func findPasskeyLoginUserResult(row passkeyssqlc.FindPasskeyLoginUserRow) FindPasskeyUserResult {
+	return FindPasskeyUserResult{
+		PublicID:    row.PublicID,
+		Email:       row.Email,
+		Username:    row.Username,
+		DisplayName: row.DisplayName,
+		IsActive:    row.IsActive,
+		DeletedAt:   nullableTime(row.DeletedAt),
+	}
+}
 
-const savePasskeyQuery = `
-INSERT INTO auth_passkeys(user_id,credential_id,name,credential)
-SELECT u.id,$2,$3,$4::jsonb
-FROM users u
-WHERE u.public_id=$1 AND u.deleted_at IS NULL AND u.is_active`
+func listPasskeysResults(rows []passkeyssqlc.ListPasskeysRow) []ListPasskeysResult {
+	results := make([]ListPasskeysResult, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, ListPasskeysResult{
+			ID:         row.CredentialID,
+			Name:       row.Name,
+			Credential: row.Credential,
+			CreatedAt:  row.CreatedAt,
+			LastUsedAt: nullableTime(row.LastUsedAt),
+		})
+	}
+	return results
+}
 
-const updatePasskeyQuery = `
-UPDATE auth_passkeys p
-SET credential=$3::jsonb,last_used_at=COALESCE($4,p.last_used_at)
-FROM users u
-WHERE p.user_id=u.id AND u.public_id=$1 AND p.credential_id=$2
-	AND u.deleted_at IS NULL AND u.is_active`
+func nullableTime(value sql.NullTime) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Time
+}
 
-const deletePasskeyQuery = `
-DELETE FROM auth_passkeys p
-USING users u
-WHERE p.user_id=u.id AND u.public_id=$1 AND p.credential_id=$2
-	AND u.deleted_at IS NULL AND u.is_active`
-
-const findPasskeyUserQuery = `
-SELECT u.public_id,u.email,u.username,u.display_name,u.is_active,u.deleted_at
-FROM auth_passkeys p
-JOIN users u ON u.id=p.user_id
-WHERE p.credential_id=$1 AND u.deleted_at IS NULL AND u.is_active
-LIMIT 1`
-
-const hasActivePasskeyUserQuery = `
-SELECT EXISTS(
-	SELECT 1 FROM users
-	WHERE public_id=$1 AND deleted_at IS NULL AND is_active
-)`
+func nullableTimeArg(value *time.Time) sql.NullTime {
+	if value == nil {
+		return sql.NullTime{}
+	}
+	return sql.NullTime{Time: *value, Valid: true}
+}
