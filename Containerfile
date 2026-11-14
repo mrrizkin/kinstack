@@ -1,5 +1,5 @@
 # Build the frontend assets in a Bun environment.
-FROM oven/bun:1.4.3 AS frontend
+FROM oven/bun:1.4.4 AS frontend
 
 WORKDIR /src
 
@@ -10,7 +10,7 @@ COPY . .
 RUN bun x vite build
 
 # Build the Go application and generate server-owned view code.
-FROM golang:1.27.2-bookworm AS builder
+FROM golang:1.27.4-bookworm AS builder
 
 WORKDIR /src
 
