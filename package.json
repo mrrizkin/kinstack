@@ -21,7 +21,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@iconify-json/material-symbols": "^1.2.95",
+    "@iconify-json/material-symbols": "^1.2.99",
     "@inertiajs/vite": "^3.9.1",
     "@maizzle/framework": "^6.2.2",
     "@tailwindcss/vite": "^4.3.3",

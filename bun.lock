@@ -18,7 +18,7 @@
         "zod": "^4.6.7",
       },
       "devDependencies": {
-        "@iconify-json/material-symbols": "^1.2.95",
+        "@iconify-json/material-symbols": "^1.2.99",
         "@inertiajs/vite": "^3.9.1",
         "@maizzle/framework": "^6.2.2",
         "@tailwindcss/vite": "^4.3.3",
@@ -318,7 +318,7 @@
 
     "@fontsource-variable/geist-mono": ["@fontsource-variable/geist-mono@5.3.0", "", {}, "sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw=="],
 
-    "@iconify-json/material-symbols": ["@iconify-json/material-symbols@1.2.95", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-n34GNbwe8We3LPXK2N8JuQewEQkITJiRsmX/0UYJsOyKzviVl22mNfLUiGGtXLKDPqxZa17q1Hg57zdA3BYa0w=="],
+    "@iconify-json/material-symbols": ["@iconify-json/material-symbols@1.2.99", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-c7CBI249CmvZDeT7sml1iwKEjsbiB8NUG2Bg1KPd7jnvLQ/8iQv7TQWnqq9a2357SkPjnyVTxxTgkWO2rlUtCw=="],
 
     "@iconify/collections": ["@iconify/collections@1.0.753", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-T2HWDRascNuUhtYoRn5EoRDz9AMLpYECpA3ML3MXaqHVPsYLPuWuU1NDTDCFVb61PgXNqmUWGigKkBnpwbqi+w=="],
 
