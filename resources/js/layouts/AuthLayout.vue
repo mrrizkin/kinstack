@@ -51,8 +51,7 @@ const greeting = computed(() => {
               K
             </span>
             <p class="text-muted text-sm">
-              <span class="text-highlighted font-semibold">{{ greeting }}</span
-              >, {{ t("shell.auth.welcome") }}
+              <span class="text-highlighted font-semibold">{{ greeting }}</span>, {{ t("shell.auth.welcome") }}
             </p>
           </div>
 

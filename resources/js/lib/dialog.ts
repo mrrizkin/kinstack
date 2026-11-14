@@ -132,7 +132,9 @@ export function useDialog<S, V extends object>(options: DialogOptions<S, V>): Di
       enumerable: true,
       configurable: true,
       get: () => Reflect.get(currentValues(), key),
-      set: (value: unknown) => set(key, value),
+      set: (value: unknown) => {
+        set(key, value);
+      },
     });
   }
 
