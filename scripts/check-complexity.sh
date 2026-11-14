@@ -66,7 +66,9 @@ if [[ -n "$stale" ]]; then
 fi
 
 # Deep nesting cannot be fixed by extraction, so it gets its own guard.
-nesting="$(go tool nestif --min "$nesting_ceiling" "${files[@]}" 2>&1 || true)"
+# Discard stderr: the first run downloads the tool, and those progress lines
+# must not be mistaken for findings.
+nesting="$(go tool nestif --min "$nesting_ceiling" "${files[@]}" 2>/dev/null || true)"
 if [[ -n "$nesting" ]]; then
   printf '%s\n' "Nesting weight over $nesting_ceiling:" "$nesting" >&2
   fail=1
