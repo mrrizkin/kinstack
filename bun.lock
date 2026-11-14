@@ -18,7 +18,7 @@
         "zod": "^4.6.7",
       },
       "devDependencies": {
-        "@iconify-json/material-symbols": "^1.2.99",
+        "@iconify-json/material-symbols": "^1.2.100",
         "@inertiajs/vite": "^3.11.0",
         "@maizzle/framework": "^6.3.2",
         "@tailwindcss/vite": "^4.3.5",
@@ -42,7 +42,7 @@
   "overrides": {
     "decode-uri-component": "^0.5.1",
     "deepmerge": "4.1.2",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "glob": "^14.0.6",
     "minimatch": "^11.0.8",
   },
@@ -325,7 +325,7 @@
 
     "@fontsource-variable/geist-mono": ["@fontsource-variable/geist-mono@5.3.0", "", {}, "sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw=="],
 
-    "@iconify-json/material-symbols": ["@iconify-json/material-symbols@1.2.99", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-c7CBI249CmvZDeT7sml1iwKEjsbiB8NUG2Bg1KPd7jnvLQ/8iQv7TQWnqq9a2357SkPjnyVTxxTgkWO2rlUtCw=="],
+    "@iconify-json/material-symbols": ["@iconify-json/material-symbols@1.2.100", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-lo3JulvaCnCCYVZHfld4kQ2YNkN55xCtLGplVgETx0n6nRR8IknMphknSqIpFhT/4J3upZJmLBTQT6cyQn8ThQ=="],
 
     "@iconify/collections": ["@iconify/collections@1.0.753", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-T2HWDRascNuUhtYoRn5EoRDz9AMLpYECpA3ML3MXaqHVPsYLPuWuU1NDTDCFVb61PgXNqmUWGigKkBnpwbqi+w=="],
 

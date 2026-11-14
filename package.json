@@ -21,7 +21,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@iconify-json/material-symbols": "^1.2.99",
+    "@iconify-json/material-symbols": "^1.2.100",
     "@inertiajs/vite": "^3.11.0",
     "@maizzle/framework": "^6.3.2",
     "@tailwindcss/vite": "^4.3.5",
@@ -45,6 +45,6 @@
     "deepmerge": "4.1.2",
     "glob": "^14.0.6",
     "minimatch": "^11.0.8",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.2"
   }
 }
