@@ -105,7 +105,7 @@ services:
   # Renders HTML documents as PDFs. Browser printing stays outside the server;
   # only server-side documents go through Gotenberg.
   gotenberg:
-    image: gotenberg/gotenberg:8.40.0
+    image: gotenberg/gotenberg:9.5.0
     command:
       - "gotenberg"
       - "--api-timeout=30s"
@@ -151,7 +151,7 @@ services:
 
   # Sentry-compatible error tracking. UI on http://localhost:8000.
   glitchtip:
-    image: glitchtip/glitchtip:6.2
+    image: glitchtip/glitchtip:7.0
     profiles: ["observability"]
     environment:
       DATABASE_URL: postgres://glitchtip:glitchtip@glitchtip-postgres:5432/glitchtip
