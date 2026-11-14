@@ -27,7 +27,7 @@
         "@types/qrcode": "^1.5.6",
         "@vitejs/plugin-vue": "^6.0.10",
         "@vue/tsconfig": "^0.9.1",
-        "laravel-vite-plugin": "^3.2.0",
+        "laravel-vite-plugin": "^3.2.1",
         "oxfmt": "^0.73.0",
         "oxlint": "~1.88.0",
         "tailwindcss": "^4.3.3",
@@ -1280,7 +1280,7 @@
 
     "laravel-precognition": ["laravel-precognition@2.1.1", "", { "dependencies": { "es-toolkit": "^1.32.0" }, "peerDependencies": { "axios": "^1.4.0" }, "optionalPeers": ["axios"] }, "sha512-Wg05+puJ5qiNsE8rdO5JmSiqQ2xcEf7442AIZiDhZg1JyPOePv5SSCu0fO7z7LqmJcPMxNNuOIcZd6UatEmYug=="],
 
-    "laravel-vite-plugin": ["laravel-vite-plugin@3.2.0", "", { "dependencies": { "picocolors": "^1.0.0", "tinyglobby": "^0.2.12", "vite-plugin-full-reload": "^1.1.0" }, "peerDependencies": { "fontaine": "^0.8.0", "vite": "^8.0.0" }, "optionalPeers": ["fontaine"], "bin": { "clean-orphaned-assets": "bin/clean.js" } }, "sha512-xSxY9Gzeb/eancd8WeK09piAFP+a6i5QIBqNCKNv9L0Eq6wziwzSem7F1GvMSrtjMh5F/QVKFxn8t9naGOA66A=="],
+    "laravel-vite-plugin": ["laravel-vite-plugin@3.2.1", "", { "dependencies": { "picocolors": "^1.0.0", "tinyglobby": "^0.2.12", "vite-plugin-full-reload": "^1.1.0" }, "peerDependencies": { "fontaine": "^0.8.0 || ^1.0.0", "vite": "^8.0.0" }, "optionalPeers": ["fontaine"], "bin": { "clean-orphaned-assets": "bin/clean.js" } }, "sha512-VqWn6U4YC1zRYVDlR/hu7JHesXqwj+DsEBSlVAe7al1MlAE5aYslyuyYV7v47DCGLGKJZxfbaZnApsIHdYIBJA=="],
 
     "leven": ["leven@3.1.0", "", {}, "sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A=="],
 
