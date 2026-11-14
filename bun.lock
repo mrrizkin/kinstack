@@ -41,7 +41,7 @@
   },
   "overrides": {
     "decode-uri-component": "^0.5.1",
-    "deepmerge": "4.1.2",
+    "deepmerge": "4.3.1",
     "glob": "^14.0.2",
     "minimatch": "^11.0.1",
   },
@@ -956,7 +956,7 @@
 
     "decode-uri-component": ["decode-uri-component@0.5.1", "", {}, "sha512-vWHQkXgg2cE3BB4rR0c+PYw9BCQzLoNIRMI7AunIkZst74tw/vpPp7VLoYtsR/cy1f55g3XDWUslfeCZjiZJyA=="],
 
-    "deepmerge": ["deepmerge@4.1.2", "", {}, "sha512-9ZXh/8Fp+ggcscoRg324S1aNdGSCl2X1P8F1FPTHbtq3RAxy9ECbU2Wgy2J12r6x/O0BStDlkzcpKK/HptX+Kg=="],
+    "deepmerge": ["deepmerge@4.3.1", "", {}, "sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A=="],
 
     "default-browser": ["default-browser@5.5.1", "", { "dependencies": { "bundle-name": "^4.1.0", "default-browser-id": "^5.0.0" } }, "sha512-m1pAzaJgZ/gssEqlOhJkPJp8Xly7QyW6xcrkUa2KKcDeDSEMP7X8xipU3snUcfisTQx0w1AGae+9UtJSfVnXGw=="],
 
