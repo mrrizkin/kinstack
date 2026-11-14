@@ -22,7 +22,7 @@
         "@inertiajs/vite": "^3.9.1",
         "@maizzle/framework": "^6.2.2",
         "@tailwindcss/vite": "^4.3.3",
-        "@tsconfig/node24": "^24.0.5",
+        "@tsconfig/node24": "^24.0.6",
         "@types/node": "^26.6.5",
         "@types/qrcode": "^1.5.6",
         "@vitejs/plugin-vue": "^6.0.10",
@@ -714,7 +714,7 @@
 
     "@trickfilm400/rollup-plugin-off-main-thread": ["@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1", "", { "dependencies": { "ejs": "^3.1.10", "json5": "^2.2.3", "magic-string": "^0.30.21", "string.prototype.matchall": "^4.0.12" } }, "sha512-/67zpWDBLV+oYAEL682s1ktXL0HgqX76f6gaVGkGnVZlBbm1zd0v4Bz8MFF2GGhoX9rvfq3KSQHubFHwa6w6/Q=="],
 
-    "@tsconfig/node24": ["@tsconfig/node24@24.0.5", "", {}, "sha512-DWC54fGPuhZgg3Ighg4Y/A/bA3ZdB5hnzAuv/MkQ/X85sVsBsMQxu8t7khutdYeiNksBbFdDyeqv1HSW2Zl8aA=="],
+    "@tsconfig/node24": ["@tsconfig/node24@24.0.6", "", {}, "sha512-/SK4JuydRQLGSCq7+hbiQ8fdAVR4Suv5EcBvkIAG3zo3GbXQvGoSclz4olL12Ar4OpH8gwGYJ67P4wwQqBRxKw=="],
 
     "@types/estree": ["@types/estree@1.0.10", "", {}, "sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g=="],
 

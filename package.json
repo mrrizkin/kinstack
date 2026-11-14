@@ -25,7 +25,7 @@
     "@inertiajs/vite": "^3.9.1",
     "@maizzle/framework": "^6.2.2",
     "@tailwindcss/vite": "^4.3.3",
-    "@tsconfig/node24": "^24.0.5",
+    "@tsconfig/node24": "^24.0.6",
     "@types/node": "^26.6.5",
     "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^6.0.10",
