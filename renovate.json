@@ -32,6 +32,12 @@
       "matchUpdateTypes": ["major"],
       "enabled": false,
       "description": "vue-tsc does not support TypeScript 7 yet (typescript/lib/tsc is no longer exported)"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["deepmerge"],
+      "enabled": false,
+      "description": "GHSA-gcqx-w48m-w2h4 affects 4.2.0-4.3.1; keep the 4.1.2 override until upstream publishes a fix"
     }
   ]
 }
