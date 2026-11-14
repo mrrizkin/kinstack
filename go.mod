@@ -24,13 +24,13 @@ require (
 	github.com/a-h/templ v0.3.1118
 	github.com/aws/aws-sdk-go-v2 v1.48.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
-	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/charmbracelet/lipgloss/v2 v2.1.0
 	github.com/crewjam/saml v0.6.3
 	github.com/getsentry/sentry-go v0.50.0
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/gofiber/fiber/v3 v3.7.0
 	github.com/gofiber/storage/memory/v2 v2.1.2
-	github.com/gofiber/storage/s3 v1.4.5
+	github.com/gofiber/storage/s3/v2 v2.7.3
 	github.com/gofiber/storage/valkey v0.4.3
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/joho/godotenv v1.5.1
