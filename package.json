@@ -41,6 +41,9 @@
     "vue-tsc": "^3.3.13"
   },
   "overrides": {
-    "decode-uri-component": "^0.5.1"
+    "decode-uri-component": "^0.5.1",
+    "deepmerge": "4.1.2",
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   }
 }
