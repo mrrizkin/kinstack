@@ -51,7 +51,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -128,7 +128,7 @@ WITH updated AS (
         updated_at = now()
     WHERE public_id = $2
       AND deleted_at IS NULL
-    RETURNING id, public_id, username, display_name, password_hash, is_active, two_factor_secret, two_factor_enabled, two_factor_confirmed_at, last_login_at, created_at, updated_at, deleted_at, email, invited_at, two_factor_secret_enc, two_factor_key_version, two_factor_last_step
+    RETURNING id, public_id, username, display_name, password_hash, is_active, two_factor_secret, two_factor_secret_enc, two_factor_key_version, two_factor_last_step, two_factor_enabled, two_factor_confirmed_at, email, invited_at, last_login_at, created_at, updated_at, deleted_at
 )
 SELECT
     u.public_id,
@@ -138,7 +138,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,

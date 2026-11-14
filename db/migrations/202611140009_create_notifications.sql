@@ -2,7 +2,7 @@
 CREATE TABLE notifications (
     id BIGSERIAL PRIMARY KEY,
     public_id TEXT NOT NULL UNIQUE,
-    recipient_public_id TEXT NOT NULL REFERENCES users (public_id) ON DELETE CASCADE,
+    recipient_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
     title TEXT NOT NULL,
     body TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE notifications (
 );
 
 CREATE INDEX notifications_recipient_active_idx
-    ON notifications (recipient_public_id, created_at DESC);
+    ON notifications (recipient_id, created_at DESC);
 
 -- +goose Down
-DROP TABLE IF EXISTS notifications;
+DROP TABLE notifications;

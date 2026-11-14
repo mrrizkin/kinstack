@@ -3,20 +3,3 @@
 //   sqlc v1.30.0
 
 package notificationssqlc
-
-import (
-	"database/sql"
-	"time"
-)
-
-type Notification struct {
-	ID                int64
-	PublicID          string
-	RecipientPublicID string
-	Kind              string
-	Title             string
-	Body              string
-	Status            string
-	CreatedAt         time.Time
-	ReadAt            sql.NullTime
-}

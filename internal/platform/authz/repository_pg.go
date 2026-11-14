@@ -218,7 +218,7 @@ func (r *SQLRepository) SetUserOverride(
 		Reason:         input.Reason,
 		ExpiresAt:      nullableTimeArg(input.ExpiresAt),
 	})
-	if isForeignKeyViolation(err) {
+	if errors.Is(err, sql.ErrNoRows) || isForeignKeyViolation(err) {
 		return Override{}, ErrUserNotFound
 	}
 	if err != nil {

@@ -15,9 +15,10 @@ import (
 
 const countTokensByUser = `-- name: CountTokensByUser :one
 SELECT count(*)
-FROM api_tokens
-WHERE user_public_id = $1
-  AND revoked_at IS NULL
+FROM api_tokens t
+JOIN users u ON u.id = t.user_id
+WHERE u.public_id = $1
+  AND t.revoked_at IS NULL
 `
 
 func (q *Queries) CountTokensByUser(ctx context.Context, userPublicID string) (int64, error) {
@@ -28,37 +29,44 @@ func (q *Queries) CountTokensByUser(ctx context.Context, userPublicID string) (i
 }
 
 const createToken = `-- name: CreateToken :one
-INSERT INTO api_tokens (public_id, user_public_id, name, token_hash, prefix, scopes, expires_at)
-VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6,
-    $7
+WITH inserted AS (
+    INSERT INTO api_tokens (public_id, user_id, name, token_hash, prefix, scopes, expires_at)
+    SELECT
+        $1,
+        u.id,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6
+    FROM users u
+    WHERE u.public_id = $7
+      AND u.deleted_at IS NULL
+    RETURNING id, public_id, user_id, name, token_hash, prefix, scopes, expires_at, last_used_at, revoked_at, created_at
 )
-RETURNING
-    public_id,
-    user_public_id,
-    name,
-    token_hash,
-    prefix,
-    scopes,
-    expires_at,
-    last_used_at,
-    revoked_at,
-    created_at
+SELECT
+    t.public_id,
+    u.public_id AS user_public_id,
+    t.name,
+    t.token_hash,
+    t.prefix,
+    t.scopes,
+    t.expires_at,
+    t.last_used_at,
+    t.revoked_at,
+    t.created_at
+FROM inserted t
+JOIN users u ON u.id = t.user_id
 `
 
 type CreateTokenParams struct {
 	PublicID     string
-	UserPublicID string
 	Name         string
 	TokenHash    string
 	Prefix       string
 	Scopes       []string
 	ExpiresAt    sql.NullTime
+	UserPublicID string
 }
 
 type CreateTokenRow struct {
@@ -77,12 +85,12 @@ type CreateTokenRow struct {
 func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (CreateTokenRow, error) {
 	row := q.queryRow(ctx, q.createTokenStmt, createToken,
 		arg.PublicID,
-		arg.UserPublicID,
 		arg.Name,
 		arg.TokenHash,
 		arg.Prefix,
 		pq.Array(arg.Scopes),
 		arg.ExpiresAt,
+		arg.UserPublicID,
 	)
 	var i CreateTokenRow
 	err := row.Scan(
@@ -102,18 +110,19 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Creat
 
 const findTokenByPublicID = `-- name: FindTokenByPublicID :one
 SELECT
-    public_id,
-    user_public_id,
-    name,
-    token_hash,
-    prefix,
-    scopes,
-    expires_at,
-    last_used_at,
-    revoked_at,
-    created_at
-FROM api_tokens
-WHERE public_id = $1
+    t.public_id,
+    u.public_id AS user_public_id,
+    t.name,
+    t.token_hash,
+    t.prefix,
+    t.scopes,
+    t.expires_at,
+    t.last_used_at,
+    t.revoked_at,
+    t.created_at
+FROM api_tokens t
+JOIN users u ON u.id = t.user_id
+WHERE t.public_id = $1
 LIMIT 1
 `
 
@@ -150,20 +159,21 @@ func (q *Queries) FindTokenByPublicID(ctx context.Context, publicID string) (Fin
 
 const listTokensByUser = `-- name: ListTokensByUser :many
 SELECT
-    public_id,
-    user_public_id,
-    name,
-    token_hash,
-    prefix,
-    scopes,
-    expires_at,
-    last_used_at,
-    revoked_at,
-    created_at
-FROM api_tokens
-WHERE user_public_id = $1
-  AND revoked_at IS NULL
-ORDER BY created_at DESC, id DESC
+    t.public_id,
+    u.public_id AS user_public_id,
+    t.name,
+    t.token_hash,
+    t.prefix,
+    t.scopes,
+    t.expires_at,
+    t.last_used_at,
+    t.revoked_at,
+    t.created_at
+FROM api_tokens t
+JOIN users u ON u.id = t.user_id
+WHERE u.public_id = $1
+  AND t.revoked_at IS NULL
+ORDER BY t.created_at DESC, t.id DESC
 LIMIT $3 OFFSET $2
 `
 
@@ -223,8 +233,11 @@ func (q *Queries) ListTokensByUser(ctx context.Context, arg ListTokensByUserPara
 const revokeToken = `-- name: RevokeToken :execrows
 UPDATE api_tokens
 SET revoked_at = now()
-WHERE public_id = $1
-  AND user_public_id = $2
+WHERE api_tokens.public_id = $1
+  AND api_tokens.user_id = (
+      SELECT u.id FROM users u
+      WHERE u.public_id = $2
+  )
   AND revoked_at IS NULL
 `
 
@@ -244,8 +257,11 @@ func (q *Queries) RevokeToken(ctx context.Context, arg RevokeTokenParams) (int64
 const revokeTokensByUser = `-- name: RevokeTokensByUser :execrows
 UPDATE api_tokens
 SET revoked_at = now()
-WHERE user_public_id = $1
-  AND revoked_at IS NULL
+WHERE api_tokens.user_id = (
+    SELECT u.id FROM users u
+    WHERE u.public_id = $1
+)
+  AND api_tokens.revoked_at IS NULL
 `
 
 func (q *Queries) RevokeTokensByUser(ctx context.Context, userPublicID string) (int64, error) {

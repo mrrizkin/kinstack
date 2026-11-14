@@ -11,25 +11,30 @@ import (
 )
 
 const consumePasswordResetToken = `-- name: ConsumePasswordResetToken :one
-UPDATE password_reset_tokens
-SET used_at = now()
-WHERE token_hash = $1
-  AND used_at IS NULL
-  AND expires_at > now()
-RETURNING user_public_id
+WITH consumed AS (
+    UPDATE password_reset_tokens t
+    SET used_at = now()
+    WHERE t.token_hash = $1
+      AND t.used_at IS NULL
+      AND t.expires_at > now()
+    RETURNING t.user_id
+)
+SELECT u.public_id
+FROM consumed c
+JOIN users u ON u.id = c.user_id
 `
 
 func (q *Queries) ConsumePasswordResetToken(ctx context.Context, tokenHash string) (string, error) {
 	row := q.queryRow(ctx, q.consumePasswordResetTokenStmt, consumePasswordResetToken, tokenHash)
-	var user_public_id string
-	err := row.Scan(&user_public_id)
-	return user_public_id, err
+	var public_id string
+	err := row.Scan(&public_id)
+	return public_id, err
 }
 
 const createPasswordResetToken = `-- name: CreatePasswordResetToken :exec
-INSERT INTO password_reset_tokens (user_public_id, token_hash, expires_at)
+INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
 VALUES (
-    $1,
+    (SELECT u.id FROM users u WHERE u.public_id = $1),
     $2,
     $3
 )
@@ -57,7 +62,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -104,7 +109,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -158,7 +163,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -206,7 +211,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,

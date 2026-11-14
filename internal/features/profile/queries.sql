@@ -7,7 +7,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -55,7 +55,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,

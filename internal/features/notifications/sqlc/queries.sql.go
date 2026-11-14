@@ -7,14 +7,16 @@ package notificationssqlc
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 const countUnreadNotifications = `-- name: CountUnreadNotifications :one
 SELECT count(*)
-FROM notifications
-WHERE recipient_public_id = $1
-  AND status = 'unread'
+FROM notifications n
+JOIN users u ON u.id = n.recipient_id
+WHERE u.public_id = $1
+  AND n.status = 'unread'
 `
 
 func (q *Queries) CountUnreadNotifications(ctx context.Context, recipientPublicID string) (int64, error) {
@@ -25,43 +27,62 @@ func (q *Queries) CountUnreadNotifications(ctx context.Context, recipientPublicI
 }
 
 const createNotification = `-- name: CreateNotification :one
-INSERT INTO notifications (public_id, recipient_public_id, kind, title, body)
-VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5
+WITH inserted AS (
+    INSERT INTO notifications (public_id, recipient_id, kind, title, body)
+    SELECT
+        $1,
+        u.id,
+        $2,
+        $3,
+        $4
+    FROM users u
+    WHERE u.public_id = $5
+      AND u.deleted_at IS NULL
+    RETURNING id, public_id, recipient_id, kind, title, body, status, created_at, read_at
 )
-RETURNING
-    id,
-    public_id,
-    recipient_public_id,
-    kind,
-    title,
-    body,
-    status,
-    created_at,
-    read_at
+SELECT
+    n.id,
+    n.public_id,
+    u.public_id AS recipient_public_id,
+    n.kind,
+    n.title,
+    n.body,
+    n.status,
+    n.created_at,
+    n.read_at
+FROM inserted n
+JOIN users u ON u.id = n.recipient_id
 `
 
 type CreateNotificationParams struct {
+	PublicID          string
+	Kind              string
+	Title             string
+	Body              string
+	RecipientPublicID string
+}
+
+type CreateNotificationRow struct {
+	ID                int64
 	PublicID          string
 	RecipientPublicID string
 	Kind              string
 	Title             string
 	Body              string
+	Status            string
+	CreatedAt         time.Time
+	ReadAt            sql.NullTime
 }
 
-func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
+func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (CreateNotificationRow, error) {
 	row := q.queryRow(ctx, q.createNotificationStmt, createNotification,
 		arg.PublicID,
-		arg.RecipientPublicID,
 		arg.Kind,
 		arg.Title,
 		arg.Body,
+		arg.RecipientPublicID,
 	)
-	var i Notification
+	var i CreateNotificationRow
 	err := row.Scan(
 		&i.ID,
 		&i.PublicID,
@@ -78,18 +99,19 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 
 const listNotifications = `-- name: ListNotifications :many
 SELECT
-    id,
-    public_id,
-    recipient_public_id,
-    kind,
-    title,
-    body,
-    status,
-    created_at,
-    read_at
-FROM notifications
-WHERE recipient_public_id = $1
-ORDER BY created_at DESC, id DESC
+    n.id,
+    n.public_id,
+    u.public_id AS recipient_public_id,
+    n.kind,
+    n.title,
+    n.body,
+    n.status,
+    n.created_at,
+    n.read_at
+FROM notifications n
+JOIN users u ON u.id = n.recipient_id
+WHERE u.public_id = $1
+ORDER BY n.created_at DESC, n.id DESC
 LIMIT $2
 `
 
@@ -98,15 +120,27 @@ type ListNotificationsParams struct {
 	RowLimit          int32
 }
 
-func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]Notification, error) {
+type ListNotificationsRow struct {
+	ID                int64
+	PublicID          string
+	RecipientPublicID string
+	Kind              string
+	Title             string
+	Body              string
+	Status            string
+	CreatedAt         time.Time
+	ReadAt            sql.NullTime
+}
+
+func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error) {
 	rows, err := q.query(ctx, q.listNotificationsStmt, listNotifications, arg.RecipientPublicID, arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Notification
+	var items []ListNotificationsRow
 	for rows.Next() {
-		var i Notification
+		var i ListNotificationsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.PublicID,
@@ -133,19 +167,20 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 
 const listNotificationsBefore = `-- name: ListNotificationsBefore :many
 SELECT
-    id,
-    public_id,
-    recipient_public_id,
-    kind,
-    title,
-    body,
-    status,
-    created_at,
-    read_at
-FROM notifications
-WHERE recipient_public_id = $1
-  AND (created_at, id) < ($2::timestamptz, $3::bigint)
-ORDER BY created_at DESC, id DESC
+    n.id,
+    n.public_id,
+    u.public_id AS recipient_public_id,
+    n.kind,
+    n.title,
+    n.body,
+    n.status,
+    n.created_at,
+    n.read_at
+FROM notifications n
+JOIN users u ON u.id = n.recipient_id
+WHERE u.public_id = $1
+  AND (n.created_at, n.id) < ($2::timestamptz, $3::bigint)
+ORDER BY n.created_at DESC, n.id DESC
 LIMIT $4::int
 `
 
@@ -156,7 +191,19 @@ type ListNotificationsBeforeParams struct {
 	RowLimit          int32
 }
 
-func (q *Queries) ListNotificationsBefore(ctx context.Context, arg ListNotificationsBeforeParams) ([]Notification, error) {
+type ListNotificationsBeforeRow struct {
+	ID                int64
+	PublicID          string
+	RecipientPublicID string
+	Kind              string
+	Title             string
+	Body              string
+	Status            string
+	CreatedAt         time.Time
+	ReadAt            sql.NullTime
+}
+
+func (q *Queries) ListNotificationsBefore(ctx context.Context, arg ListNotificationsBeforeParams) ([]ListNotificationsBeforeRow, error) {
 	rows, err := q.query(ctx, q.listNotificationsBeforeStmt, listNotificationsBefore,
 		arg.RecipientPublicID,
 		arg.Before,
@@ -167,9 +214,9 @@ func (q *Queries) ListNotificationsBefore(ctx context.Context, arg ListNotificat
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Notification
+	var items []ListNotificationsBeforeRow
 	for rows.Next() {
-		var i Notification
+		var i ListNotificationsBeforeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.PublicID,
@@ -198,7 +245,10 @@ const markAllNotificationsRead = `-- name: MarkAllNotificationsRead :execrows
 UPDATE notifications
 SET status = 'read',
     read_at = COALESCE(read_at, now())
-WHERE recipient_public_id = $1
+WHERE recipient_id = (
+    SELECT u.id FROM users u
+    WHERE u.public_id = $1
+)
   AND status = 'unread'
 `
 
@@ -211,21 +261,29 @@ func (q *Queries) MarkAllNotificationsRead(ctx context.Context, recipientPublicI
 }
 
 const markNotificationRead = `-- name: MarkNotificationRead :one
-UPDATE notifications
-SET status = 'read',
-    read_at = COALESCE(read_at, now())
-WHERE recipient_public_id = $1
-  AND public_id = $2
-RETURNING
-    id,
-    public_id,
-    recipient_public_id,
-    kind,
-    title,
-    body,
-    status,
-    created_at,
-    read_at
+WITH updated AS (
+    UPDATE notifications n
+    SET status = 'read',
+        read_at = COALESCE(read_at, now())
+    WHERE n.recipient_id = (
+            SELECT u.id FROM users u
+            WHERE u.public_id = $1
+        )
+      AND n.public_id = $2
+    RETURNING id, public_id, recipient_id, kind, title, body, status, created_at, read_at
+)
+SELECT
+    n.id,
+    n.public_id,
+    u.public_id AS recipient_public_id,
+    n.kind,
+    n.title,
+    n.body,
+    n.status,
+    n.created_at,
+    n.read_at
+FROM updated n
+JOIN users u ON u.id = n.recipient_id
 `
 
 type MarkNotificationReadParams struct {
@@ -233,9 +291,21 @@ type MarkNotificationReadParams struct {
 	PublicID          string
 }
 
-func (q *Queries) MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) (Notification, error) {
+type MarkNotificationReadRow struct {
+	ID                int64
+	PublicID          string
+	RecipientPublicID string
+	Kind              string
+	Title             string
+	Body              string
+	Status            string
+	CreatedAt         time.Time
+	ReadAt            sql.NullTime
+}
+
+func (q *Queries) MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) (MarkNotificationReadRow, error) {
 	row := q.queryRow(ctx, q.markNotificationReadStmt, markNotificationRead, arg.RecipientPublicID, arg.PublicID)
-	var i Notification
+	var i MarkNotificationReadRow
 	err := row.Scan(
 		&i.ID,
 		&i.PublicID,

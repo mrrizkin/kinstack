@@ -256,7 +256,7 @@ func TestPageHintAndQueryIgnoreLowAndMalformedValues(t *testing.T) {
 // database rejects would fail on save, and a size the code rejects would be
 // unreachable from the UI.
 func TestAllowedSizesMatchPreferenceConstraint(t *testing.T) {
-	body, err := os.ReadFile("../../../db/migrations/202601010019_add_page_size_preference.sql")
+	body, err := os.ReadFile("../../../db/migrations/202611140004_create_user_preferences.sql")
 	if err != nil {
 		t.Fatalf("read preference migration: %v", err)
 	}

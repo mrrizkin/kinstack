@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
@@ -303,22 +304,28 @@ func TestRoleMutationValidation(t *testing.T) {
 }
 
 func TestMigrationSeedUsesKnownPermissions(t *testing.T) {
-	contents, err := os.ReadFile(
-		"../../../db/migrations/202601010005_insert_authorization_seed.sql",
-	)
+	paths, err := filepath.Glob("../../../db/migrations/*.sql")
 	if err != nil {
-		t.Fatalf("read migration: %v", err)
+		t.Fatalf("list migrations: %v", err)
 	}
 	insert := regexp.MustCompile(`(?s)INSERT INTO role_permissions.*?;`)
 	row := regexp.MustCompile(`\('[^']+',\s*'([^']+)'\)`)
-	matches := row.FindAllStringSubmatch(string(insert.Find(contents)), -1)
-	if len(matches) == 0 {
-		t.Fatalf("no seeded role permissions found in migration")
-	}
-	for _, match := range matches {
-		if !IsKnown(Permission(match[1])) {
-			t.Errorf("migration seeds unknown permission %q", match[1])
+	seeded := 0
+	for _, path := range paths {
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read migration %s: %v", path, err)
 		}
+		matches := row.FindAllStringSubmatch(string(insert.Find(contents)), -1)
+		for _, match := range matches {
+			seeded++
+			if !IsKnown(Permission(match[1])) {
+				t.Errorf("migration %s seeds unknown permission %q", path, match[1])
+			}
+		}
+	}
+	if seeded == 0 {
+		t.Fatalf("no seeded role permissions found in migrations")
 	}
 }
 

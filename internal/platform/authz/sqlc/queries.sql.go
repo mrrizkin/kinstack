@@ -14,25 +14,27 @@ import (
 
 const assignUserRole = `-- name: AssignUserRole :execrows
 WITH deleted AS (
-    DELETE FROM user_roles WHERE user_public_id = $1
+    DELETE FROM user_roles
+    WHERE user_id = (
+        SELECT u.id FROM users u
+        WHERE u.public_id = $2
+    )
 )
-INSERT INTO user_roles (user_public_id, role_code)
-SELECT $1, $2
-WHERE EXISTS (
-    SELECT 1 FROM users
-    WHERE public_id = $1
-      AND deleted_at IS NULL
-)
-RETURNING user_public_id
+INSERT INTO user_roles (user_id, role_code)
+SELECT u.id, $1
+FROM users u
+WHERE u.public_id = $2
+  AND u.deleted_at IS NULL
+RETURNING user_id
 `
 
 type AssignUserRoleParams struct {
-	UserPublicID string
 	RoleCode     string
+	UserPublicID string
 }
 
 func (q *Queries) AssignUserRole(ctx context.Context, arg AssignUserRoleParams) (int64, error) {
-	result, err := q.exec(ctx, q.assignUserRoleStmt, assignUserRole, arg.UserPublicID, arg.RoleCode)
+	result, err := q.exec(ctx, q.assignUserRoleStmt, assignUserRole, arg.RoleCode, arg.UserPublicID)
 	if err != nil {
 		return 0, err
 	}
@@ -40,9 +42,9 @@ func (q *Queries) AssignUserRole(ctx context.Context, arg AssignUserRoleParams) 
 }
 
 const countRoleAssignments = `-- name: CountRoleAssignments :one
-SELECT count(DISTINCT ur.user_public_id)
+SELECT count(DISTINCT ur.user_id)
 FROM user_roles ur
-JOIN users u ON u.public_id = ur.user_public_id
+JOIN users u ON u.id = ur.user_id
 WHERE ur.role_code = $1
   AND u.deleted_at IS NULL
 `
@@ -118,9 +120,12 @@ func (q *Queries) DeleteRole(ctx context.Context, code string) (int64, error) {
 }
 
 const deleteUserOverride = `-- name: DeleteUserOverride :exec
-DELETE FROM user_permissions
-WHERE user_public_id = $1
-  AND permission_code = $2
+DELETE FROM user_permissions up
+WHERE up.user_id = (
+        SELECT u.id FROM users u
+        WHERE u.public_id = $1
+    )
+  AND up.permission_code = $2
 `
 
 type DeleteUserOverrideParams struct {
@@ -327,15 +332,16 @@ func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, e
 }
 
 const upsertUserOverride = `-- name: UpsertUserOverride :one
-INSERT INTO user_permissions (user_public_id, permission_code, effect, reason, expires_at)
-VALUES (
+INSERT INTO user_permissions (user_id, permission_code, effect, reason, expires_at)
+SELECT
+    u.id,
     $1,
     $2,
     $3,
-    $4,
-    $5
-)
-ON CONFLICT (user_public_id, permission_code)
+    $4
+FROM users u
+WHERE u.public_id = $5
+ON CONFLICT (user_id, permission_code)
 DO UPDATE SET effect = EXCLUDED.effect,
               reason = EXCLUDED.reason,
               expires_at = EXCLUDED.expires_at,
@@ -344,11 +350,11 @@ RETURNING permission_code, effect, reason, expires_at
 `
 
 type UpsertUserOverrideParams struct {
-	UserPublicID   string
 	PermissionCode string
 	Effect         string
 	Reason         string
 	ExpiresAt      sql.NullTime
+	UserPublicID   string
 }
 
 type UpsertUserOverrideRow struct {
@@ -360,11 +366,11 @@ type UpsertUserOverrideRow struct {
 
 func (q *Queries) UpsertUserOverride(ctx context.Context, arg UpsertUserOverrideParams) (UpsertUserOverrideRow, error) {
 	row := q.queryRow(ctx, q.upsertUserOverrideStmt, upsertUserOverride,
-		arg.UserPublicID,
 		arg.PermissionCode,
 		arg.Effect,
 		arg.Reason,
 		arg.ExpiresAt,
+		arg.UserPublicID,
 	)
 	var i UpsertUserOverrideRow
 	err := row.Scan(
@@ -377,10 +383,11 @@ func (q *Queries) UpsertUserOverride(ctx context.Context, arg UpsertUserOverride
 }
 
 const userOverrides = `-- name: UserOverrides :many
-SELECT permission_code, effect, reason, expires_at
-FROM user_permissions
-WHERE user_public_id = $1
-ORDER BY permission_code ASC
+SELECT up.permission_code, up.effect, up.reason, up.expires_at
+FROM user_permissions up
+JOIN users u ON u.id = up.user_id
+WHERE u.public_id = $1
+ORDER BY up.permission_code ASC
 `
 
 type UserOverridesRow struct {
@@ -419,10 +426,11 @@ func (q *Queries) UserOverrides(ctx context.Context, userPublicID string) ([]Use
 }
 
 const userOverridesMany = `-- name: UserOverridesMany :many
-SELECT user_public_id, permission_code, effect, reason, expires_at
-FROM user_permissions
-WHERE user_public_id = ANY($1::text[])
-ORDER BY user_public_id ASC, permission_code ASC
+SELECT u.public_id AS user_public_id, up.permission_code, up.effect, up.reason, up.expires_at
+FROM user_permissions up
+JOIN users u ON u.id = up.user_id
+WHERE u.public_id = ANY($1::text[])
+ORDER BY u.public_id ASC, up.permission_code ASC
 `
 
 type UserOverridesManyRow struct {
@@ -463,9 +471,10 @@ func (q *Queries) UserOverridesMany(ctx context.Context, userPublicIds []string)
 }
 
 const userRole = `-- name: UserRole :one
-SELECT role_code
-FROM user_roles
-WHERE user_public_id = $1
+SELECT ur.role_code
+FROM user_roles ur
+JOIN users u ON u.id = ur.user_id
+WHERE u.public_id = $1
 LIMIT 1
 `
 

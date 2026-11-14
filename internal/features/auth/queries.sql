@@ -9,7 +9,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -30,7 +30,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -51,7 +51,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -73,7 +73,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -102,20 +102,25 @@ WHERE public_id = sqlc.arg('public_id')
   AND deleted_at IS NULL;
 
 -- name: CreatePasswordResetToken :exec
-INSERT INTO password_reset_tokens (user_public_id, token_hash, expires_at)
+INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
 VALUES (
-    sqlc.arg('user_public_id'),
+    (SELECT u.id FROM users u WHERE u.public_id = sqlc.arg('user_public_id')),
     sqlc.arg('token_hash'),
     sqlc.arg('expires_at')
 );
 
 -- name: ConsumePasswordResetToken :one
-UPDATE password_reset_tokens
-SET used_at = now()
-WHERE token_hash = sqlc.arg('token_hash')
-  AND used_at IS NULL
-  AND expires_at > now()
-RETURNING user_public_id;
+WITH consumed AS (
+    UPDATE password_reset_tokens t
+    SET used_at = now()
+    WHERE t.token_hash = sqlc.arg('token_hash')
+      AND t.used_at IS NULL
+      AND t.expires_at > now()
+    RETURNING t.user_id
+)
+SELECT u.public_id
+FROM consumed c
+JOIN users u ON u.id = c.user_id;
 
 -- name: UpdatePasswordHash :execrows
 UPDATE users

@@ -14,4 +14,4 @@ CREATE TABLE auth_passkeys (
 CREATE INDEX auth_passkeys_user_idx ON auth_passkeys (user_id);
 
 -- +goose Down
-DROP TABLE IF EXISTS auth_passkeys;
+DROP TABLE auth_passkeys;

@@ -33,7 +33,7 @@ func TestValidateAcceptsSealedMigrations(t *testing.T) {
 // deployed database from the repository, so the checksum gate must fail.
 func TestValidateChecksumsRejectsEditedMigration(t *testing.T) {
 	contents := sealedContents(t)
-	name := "202601010001_create_users.sql"
+	name := "202611140001_create_users.sql"
 	edited := append([]byte("-- edited\n"), contents[name]...)
 	contents[name] = edited
 

@@ -65,9 +65,17 @@ func TestSQLUserOverridesMany(t *testing.T) {
 
 	userA := fmt.Sprintf("batch-a-%d", time.Now().UnixNano())
 	userB := userA + "-b"
+	for _, publicID := range []string{userA, userB} {
+		if _, err := db.Exec(
+			`INSERT INTO users (public_id, username, password_hash) VALUES ($1, $1, 'x')`,
+			publicID,
+		); err != nil {
+			t.Fatalf("seed user %s: %v", publicID, err)
+		}
+	}
 	t.Cleanup(func() {
 		_, _ = db.Exec(
-			`DELETE FROM user_permissions WHERE user_public_id IN ($1, $2)`,
+			`DELETE FROM users WHERE public_id IN ($1, $2)`,
 			userA,
 			userB,
 		)

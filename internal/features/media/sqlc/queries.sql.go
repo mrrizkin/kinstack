@@ -12,9 +12,10 @@ import (
 
 const countAssets = `-- name: CountAssets :one
 SELECT COUNT(*)
-FROM media_assets
-WHERE owner_public_id = $1
-  AND deleted_at IS NULL
+FROM media_assets a
+JOIN users u ON u.id = a.owner_id
+WHERE u.public_id = $1
+  AND a.deleted_at IS NULL
 `
 
 func (q *Queries) CountAssets(ctx context.Context, ownerPublicID string) (int64, error) {
@@ -25,32 +26,39 @@ func (q *Queries) CountAssets(ctx context.Context, ownerPublicID string) (int64,
 }
 
 const createAsset = `-- name: CreateAsset :one
-INSERT INTO media_assets (public_id, owner_public_id, filename, content_type, size_bytes, object_key)
-VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6
+WITH inserted AS (
+    INSERT INTO media_assets (public_id, owner_id, filename, content_type, size_bytes, object_key)
+    SELECT
+        $1,
+        u.id,
+        $2,
+        $3,
+        $4,
+        $5
+    FROM users u
+    WHERE u.public_id = $6
+      AND u.deleted_at IS NULL
+    RETURNING id, public_id, owner_id, filename, content_type, size_bytes, object_key, created_at, deleted_at
 )
-RETURNING
-    public_id,
-    owner_public_id,
-    filename,
-    content_type,
-    size_bytes,
-    object_key,
-    created_at
+SELECT
+    a.public_id,
+    u.public_id AS owner_public_id,
+    a.filename,
+    a.content_type,
+    a.size_bytes,
+    a.object_key,
+    a.created_at
+FROM inserted a
+JOIN users u ON u.id = a.owner_id
 `
 
 type CreateAssetParams struct {
 	PublicID      string
-	OwnerPublicID string
 	Filename      string
 	ContentType   string
 	SizeBytes     int64
 	ObjectKey     string
+	OwnerPublicID string
 }
 
 type CreateAssetRow struct {
@@ -66,11 +74,11 @@ type CreateAssetRow struct {
 func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (CreateAssetRow, error) {
 	row := q.queryRow(ctx, q.createAssetStmt, createAsset,
 		arg.PublicID,
-		arg.OwnerPublicID,
 		arg.Filename,
 		arg.ContentType,
 		arg.SizeBytes,
 		arg.ObjectKey,
+		arg.OwnerPublicID,
 	)
 	var i CreateAssetRow
 	err := row.Scan(
@@ -87,17 +95,18 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Creat
 
 const findAsset = `-- name: FindAsset :one
 SELECT
-    public_id,
-    owner_public_id,
-    filename,
-    content_type,
-    size_bytes,
-    object_key,
-    created_at
-FROM media_assets
-WHERE owner_public_id = $1
-  AND public_id = $2
-  AND deleted_at IS NULL
+    a.public_id,
+    u.public_id AS owner_public_id,
+    a.filename,
+    a.content_type,
+    a.size_bytes,
+    a.object_key,
+    a.created_at
+FROM media_assets a
+JOIN users u ON u.id = a.owner_id
+WHERE u.public_id = $1
+  AND a.public_id = $2
+  AND a.deleted_at IS NULL
 LIMIT 1
 `
 
@@ -133,17 +142,18 @@ func (q *Queries) FindAsset(ctx context.Context, arg FindAssetParams) (FindAsset
 
 const listAssets = `-- name: ListAssets :many
 SELECT
-    public_id,
-    owner_public_id,
-    filename,
-    content_type,
-    size_bytes,
-    object_key,
-    created_at
-FROM media_assets
-WHERE owner_public_id = $1
-  AND deleted_at IS NULL
-ORDER BY created_at DESC, id DESC
+    a.public_id,
+    u.public_id AS owner_public_id,
+    a.filename,
+    a.content_type,
+    a.size_bytes,
+    a.object_key,
+    a.created_at
+FROM media_assets a
+JOIN users u ON u.id = a.owner_id
+WHERE u.public_id = $1
+  AND a.deleted_at IS NULL
+ORDER BY a.created_at DESC, a.id DESC
 LIMIT $3 OFFSET $2
 `
 
@@ -195,19 +205,27 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]ListA
 }
 
 const softDeleteAsset = `-- name: SoftDeleteAsset :one
-UPDATE media_assets
-SET deleted_at = now()
-WHERE owner_public_id = $1
-  AND public_id = $2
-  AND deleted_at IS NULL
-RETURNING
-    public_id,
-    owner_public_id,
-    filename,
-    content_type,
-    size_bytes,
-    object_key,
-    created_at
+WITH updated AS (
+    UPDATE media_assets a
+    SET deleted_at = now()
+    WHERE a.owner_id = (
+            SELECT u.id FROM users u
+            WHERE u.public_id = $1
+        )
+      AND a.public_id = $2
+      AND a.deleted_at IS NULL
+    RETURNING id, public_id, owner_id, filename, content_type, size_bytes, object_key, created_at, deleted_at
+)
+SELECT
+    a.public_id,
+    u.public_id AS owner_public_id,
+    a.filename,
+    a.content_type,
+    a.size_bytes,
+    a.object_key,
+    a.created_at
+FROM updated a
+JOIN users u ON u.id = a.owner_id
 `
 
 type SoftDeleteAssetParams struct {

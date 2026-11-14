@@ -11,7 +11,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -41,7 +41,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -76,7 +76,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -105,7 +105,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -140,7 +140,7 @@ SELECT
         SELECT ur.role_code
         FROM user_roles ur
         JOIN roles r ON r.code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
         ORDER BY r.rank DESC, ur.role_code ASC
         LIMIT 1
     ), '')::text AS role,
@@ -167,13 +167,13 @@ WHERE u.public_id <> sqlc.arg('public_id')
         SELECT 1
         FROM user_roles ur
         JOIN role_permissions rp ON rp.role_code = ur.role_code
-        WHERE ur.user_public_id = u.public_id
+        WHERE ur.user_id = u.id
           AND rp.permission_code = 'access.manage'
       )
     OR EXISTS (
         SELECT 1
         FROM user_permissions up
-        WHERE up.user_public_id = u.public_id
+        WHERE up.user_id = u.id
           AND up.permission_code = 'access.manage'
           AND up.effect = 'allow'
           AND (up.expires_at IS NULL OR up.expires_at > now())
@@ -182,7 +182,7 @@ WHERE u.public_id <> sqlc.arg('public_id')
   AND NOT EXISTS (
     SELECT 1
     FROM user_permissions up
-    WHERE up.user_public_id = u.public_id
+    WHERE up.user_id = u.id
       AND up.permission_code = 'access.manage'
       AND up.effect = 'deny'
       AND (up.expires_at IS NULL OR up.expires_at > now())

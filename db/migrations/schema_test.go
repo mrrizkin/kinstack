@@ -29,9 +29,9 @@ func TestSchemaKeepsOnlyUpSections(t *testing.T) {
 	if !strings.Contains(body, "CREATE TABLE users") {
 		t.Fatalf("schema is missing the users table")
 	}
-	// 202601010020 recreates magic_link_tokens in its Down section only.
+	// Passwordless sign-in was removed, so no migration recreates its table.
 	if strings.Contains(body, "CREATE TABLE magic_link_tokens") {
-		t.Fatalf("schema includes a Down section")
+		t.Fatalf("schema includes a retired table")
 	}
 }
 

@@ -2,7 +2,7 @@
 -- External identities are bound to (provider, subject), not to an email
 -- address. Email ownership can change at the provider; the subject is stable.
 CREATE TABLE user_identities (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     provider TEXT NOT NULL,
     subject TEXT NOT NULL,
@@ -15,4 +15,4 @@ CREATE TABLE user_identities (
 CREATE INDEX user_identities_user_idx ON user_identities (user_id);
 
 -- +goose Down
-DROP TABLE IF EXISTS user_identities;
+DROP TABLE user_identities;

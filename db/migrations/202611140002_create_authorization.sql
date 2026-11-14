@@ -14,7 +14,6 @@
 -- Permission codes are owned by the Go catalog (internal/platform/authz/catalog.go);
 -- role_permissions/user_permissions codes are validated against that catalog at the
 -- service boundary.
-
 CREATE TABLE roles (
     code        TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
@@ -26,36 +25,47 @@ CREATE TABLE roles (
 );
 
 CREATE TABLE role_permissions (
-    role_code       TEXT NOT NULL REFERENCES roles(code) ON DELETE CASCADE,
+    role_code       TEXT NOT NULL REFERENCES roles (code) ON DELETE CASCADE,
     permission_code TEXT NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (role_code, permission_code)
 );
 
 CREATE TABLE user_roles (
-    user_public_id TEXT NOT NULL REFERENCES users (public_id) ON DELETE CASCADE,
-    role_code      TEXT NOT NULL REFERENCES roles(code) ON DELETE CASCADE,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (user_public_id, role_code)
+    user_id    BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    role_code  TEXT NOT NULL REFERENCES roles (code) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, role_code)
 );
 
 CREATE INDEX user_roles_role_idx ON user_roles (role_code);
 
 CREATE TABLE user_permissions (
-    user_public_id  TEXT NOT NULL,
+    user_id         BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     permission_code TEXT NOT NULL,
     effect          TEXT NOT NULL CHECK (effect IN ('allow', 'deny')),
     reason          TEXT NOT NULL DEFAULT '',
     expires_at      TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (user_public_id, permission_code)
+    PRIMARY KEY (user_id, permission_code)
 );
 
-CREATE INDEX user_permissions_user_idx ON user_permissions (user_public_id);
+-- Seed one system role operators can assign to their first real admin account.
+-- System roles are immutable: the access UI cannot rename them, re-rank them,
+-- delete them, or replace their permissions. Feature slices grant their new
+-- permissions to this role in their own migration; changing the built-in set
+-- therefore requires a migration, not a runtime edit.
+INSERT INTO roles (code, name, description, rank, is_system) VALUES
+    ('administrator', 'Administrator', 'Full system administration access', 100, true);
+
+INSERT INTO role_permissions (role_code, permission_code) VALUES
+    ('administrator', 'users.view'),
+    ('administrator', 'users.manage'),
+    ('administrator', 'access.manage');
 
 -- +goose Down
-DROP TABLE IF EXISTS user_permissions;
-DROP TABLE IF EXISTS user_roles;
-DROP TABLE IF EXISTS role_permissions;
-DROP TABLE IF EXISTS roles;
+DROP TABLE user_permissions;
+DROP TABLE user_roles;
+DROP TABLE role_permissions;
+DROP TABLE roles;

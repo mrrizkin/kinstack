@@ -45,30 +45,35 @@ func (r *SQLRepository) List(
 	recipientPublicID string,
 	query ListQuery,
 ) ([]Notification, error) {
-	var rows []notificationssqlc.Notification
-	var err error
 	if query.Before == nil {
-		rows, err = r.queries.ListNotifications(ctx, notificationssqlc.ListNotificationsParams{
+		rows, err := r.queries.ListNotifications(ctx, notificationssqlc.ListNotificationsParams{
 			RecipientPublicID: recipientPublicID,
 			RowLimit:          int32(query.Limit),
 		})
-	} else {
-		rows, err = r.queries.ListNotificationsBefore(
-			ctx,
-			notificationssqlc.ListNotificationsBeforeParams{
-				RecipientPublicID: recipientPublicID,
-				Before:            query.Before.CreatedAt,
-				BeforeID:          query.Before.ID,
-				RowLimit:          int32(query.Limit),
-			},
-		)
+		if err != nil {
+			return nil, fmt.Errorf("list notifications: %w", err)
+		}
+		items := make([]Notification, 0, len(rows))
+		for _, row := range rows {
+			items = append(items, notificationFromListRow(row))
+		}
+		return items, nil
 	}
+	rows, err := r.queries.ListNotificationsBefore(
+		ctx,
+		notificationssqlc.ListNotificationsBeforeParams{
+			RecipientPublicID: recipientPublicID,
+			Before:            query.Before.CreatedAt,
+			BeforeID:          query.Before.ID,
+			RowLimit:          int32(query.Limit),
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list notifications: %w", err)
 	}
 	items := make([]Notification, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, notificationFromRow(row))
+		items = append(items, notificationFromListBeforeRow(row))
 	}
 	return items, nil
 }
@@ -92,7 +97,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Notifica
 	if err != nil {
 		return Notification{}, fmt.Errorf("create notification: %w", err)
 	}
-	return notificationFromRow(row), nil
+	return notificationFromCreateRow(row), nil
 }
 
 func (r *SQLRepository) MarkRead(
@@ -109,7 +114,7 @@ func (r *SQLRepository) MarkRead(
 	if err != nil {
 		return Notification{}, fmt.Errorf("mark notification read: %w", err)
 	}
-	return notificationFromRow(row), nil
+	return notificationFromMarkReadRow(row), nil
 }
 
 func (r *SQLRepository) MarkAllRead(ctx context.Context, recipientPublicID string) (int, error) {
@@ -120,17 +125,85 @@ func (r *SQLRepository) MarkAllRead(ctx context.Context, recipientPublicID strin
 	return int(affected), nil
 }
 
-func notificationFromRow(row notificationssqlc.Notification) Notification {
+func notificationFromListRow(row notificationssqlc.ListNotificationsRow) Notification {
+	return newNotification(
+		row.ID,
+		row.PublicID,
+		row.RecipientPublicID,
+		row.Kind,
+		row.Title,
+		row.Body,
+		row.Status,
+		row.CreatedAt,
+		nullableTime(row.ReadAt),
+	)
+}
+
+func notificationFromListBeforeRow(
+	row notificationssqlc.ListNotificationsBeforeRow,
+) Notification {
+	return newNotification(
+		row.ID,
+		row.PublicID,
+		row.RecipientPublicID,
+		row.Kind,
+		row.Title,
+		row.Body,
+		row.Status,
+		row.CreatedAt,
+		nullableTime(row.ReadAt),
+	)
+}
+
+func notificationFromCreateRow(row notificationssqlc.CreateNotificationRow) Notification {
+	return newNotification(
+		row.ID,
+		row.PublicID,
+		row.RecipientPublicID,
+		row.Kind,
+		row.Title,
+		row.Body,
+		row.Status,
+		row.CreatedAt,
+		nullableTime(row.ReadAt),
+	)
+}
+
+func notificationFromMarkReadRow(row notificationssqlc.MarkNotificationReadRow) Notification {
+	return newNotification(
+		row.ID,
+		row.PublicID,
+		row.RecipientPublicID,
+		row.Kind,
+		row.Title,
+		row.Body,
+		row.Status,
+		row.CreatedAt,
+		nullableTime(row.ReadAt),
+	)
+}
+
+func newNotification(
+	id int64,
+	publicID string,
+	recipientPublicID string,
+	kind string,
+	title string,
+	body string,
+	status string,
+	createdAt time.Time,
+	readAt *time.Time,
+) Notification {
 	return Notification{
-		ID:                row.ID,
-		PublicID:          row.PublicID,
-		RecipientPublicID: row.RecipientPublicID,
-		Kind:              row.Kind,
-		Title:             row.Title,
-		Body:              row.Body,
-		Status:            Status(row.Status),
-		CreatedAt:         row.CreatedAt,
-		ReadAt:            nullableTime(row.ReadAt),
+		ID:                id,
+		PublicID:          publicID,
+		RecipientPublicID: recipientPublicID,
+		Kind:              kind,
+		Title:             title,
+		Body:              body,
+		Status:            Status(status),
+		CreatedAt:         createdAt,
+		ReadAt:            readAt,
 	}
 }
 
