@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@iconify-json/material-symbols": "^1.2.95",
-    "@inertiajs/vite": "^3.9.1",
+    "@inertiajs/vite": "^3.11.0",
     "@maizzle/framework": "^6.2.2",
     "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/node24": "^24.0.5",
