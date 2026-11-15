@@ -17,7 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3 "github.com/aws/aws-sdk-go-v2/service/s3"
-	fibers3 "github.com/gofiber/storage/s3"
+	fibers3 "github.com/gofiber/storage/s3/v2"
 )
 
 type Client struct {
