@@ -105,7 +105,7 @@ services:
   # Renders HTML documents as PDFs. Browser printing stays outside the server;
   # only server-side documents go through Gotenberg.
   gotenberg:
-    image: gotenberg/gotenberg:8.40.0
+    image: gotenberg/gotenberg:9.5.1
     command:
       - "gotenberg"
       - "--api-timeout=30s"
@@ -150,8 +150,10 @@ services:
   # the application integrations stay opt-in through env vars.
 
   # Sentry-compatible error tracking. UI on http://localhost:8000.
+  # GlitchTip 7 needs PostgreSQL 15+ and, for volumes last run before 6.2.6,
+  # one start on 6.2.6 so its migrations complete before switching to 7.0.
   glitchtip:
-    image: glitchtip/glitchtip:6.2
+    image: glitchtip/glitchtip:7.0
     profiles: ["observability"]
     environment:
       DATABASE_URL: postgres://glitchtip:glitchtip@glitchtip-postgres:5432/glitchtip
@@ -162,7 +164,6 @@ services:
       DEFAULT_FROM_EMAIL: no-reply@kinstack.local
       ENABLE_ADMIN: "False"
       ENABLE_OPENAPI: "False"
-      SERVER_ROLE: all_in_one
     ports:
       - "8000:8000"
     volumes:
